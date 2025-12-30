@@ -17,8 +17,12 @@ TEST_VM_CONTROL = build/test_vm_control
 TEST_PARSER_BASIC = build/test_parser_basic
 TEST_PARSER_COMMENTS = build/test_parser_comments
 TEST_PARSER_ERRORS = build/test_parser_errors
+TEST_COMPILER_BASIC = build/test_compiler_basic
+TEST_COMPILER_CONTROL = build/test_compiler_control
+TEST_COMPILER_VARIABLES = build/test_compiler_variables
+TEST_COMPILER_FUNCTIONS = build/test_compiler_functions
 
-all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS)
+all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS)
 
 $(TARGET): src/main.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(TARGET) src/main.cpp
@@ -71,8 +75,20 @@ $(TEST_PARSER_COMMENTS): tests/test_parser_comments.cpp src/lisp_parser.hpp
 $(TEST_PARSER_ERRORS): tests/test_parser_errors.cpp src/lisp_parser.hpp
 	$(CXX) $(CXXFLAGS) -o $(TEST_PARSER_ERRORS) tests/test_parser_errors.cpp
 
+$(TEST_COMPILER_BASIC): tests/test_compiler_basic.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_COMPILER_BASIC) tests/test_compiler_basic.cpp
+
+$(TEST_COMPILER_CONTROL): tests/test_compiler_control.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_COMPILER_CONTROL) tests/test_compiler_control.cpp
+
+$(TEST_COMPILER_VARIABLES): tests/test_compiler_variables.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_COMPILER_VARIABLES) tests/test_compiler_variables.cpp
+
+$(TEST_COMPILER_FUNCTIONS): tests/test_compiler_functions.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_COMPILER_FUNCTIONS) tests/test_compiler_functions.cpp
+
 clean:
-	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS)
+	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS)
 
 run: $(TARGET)
 	./$(TARGET)
@@ -133,4 +149,20 @@ parser-all: parser-basic parser-comments parser-errors
 	@echo ""
 	@echo "✓ All parser tests passed!"
 
-.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all
+compiler-basic: $(TEST_COMPILER_BASIC)
+	./$(TEST_COMPILER_BASIC)
+
+compiler-control: $(TEST_COMPILER_CONTROL)
+	./$(TEST_COMPILER_CONTROL)
+
+compiler-variables: $(TEST_COMPILER_VARIABLES)
+	./$(TEST_COMPILER_VARIABLES)
+
+compiler-functions: $(TEST_COMPILER_FUNCTIONS)
+	./$(TEST_COMPILER_FUNCTIONS)
+
+compiler-all: compiler-basic compiler-control compiler-variables compiler-functions
+	@echo ""
+	@echo "✓ All compiler tests passed!"
+
+.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all

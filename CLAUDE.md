@@ -319,7 +319,7 @@ Code segment is write-protected during execution (checked in STORE opcode). This
 
 The TODO file mentions planned features:
 - Missing CALL/RET testing in test vm control
-- More comprehensive testing of parser/compiler components
+- More comprehensive testing of compiler components
 - C++ implementations of parser/compiler (currently header-only)
 - Hot-swappable microcode system
 - heap, hp, sp are static should be configurable
