@@ -1,0 +1,9 @@
+- support des commentaires
+- tester les différentes parties vm, parser, compilateur
+- smalltalk integer
+- smalltalk string
+- smalltalk symbol
+- smalltalk array
+- parseur et compilateur en c++ ????
+- micrcode utilisé par la VM
+- hot swapping du microcode

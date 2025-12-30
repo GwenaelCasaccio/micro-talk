@@ -1,0 +1,11 @@
+(do
+  (print-string "Hello")
+  (print-string "World!")
+  (print-string "Point()")
+  (print-string "Smalltalk Object Model")
+  (print-string "Class: Array")
+  (print-string "Method: new")
+  (print-string "Variable x = ")
+  (print-int 42)
+  (print-string "Done!")
+  0)
