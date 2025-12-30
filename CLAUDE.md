@@ -33,6 +33,14 @@ make vm-control     # Control flow: JMP, JZ, conditionals
 make vm-all         # Run all VM tests together
 ```
 
+**Parser Tests** (tests/ directory):
+```bash
+make parser-basic   # Basic parsing: numbers, symbols, strings, lists
+make parser-comments # Comment handling in all contexts
+make parser-errors  # Error detection and handling
+make parser-all     # Run all parser tests
+```
+
 **Lisp Compiler & Language Tests** (src/ directory):
 ```bash
 make test           # Run tagging tests (./build/test_tagging)
