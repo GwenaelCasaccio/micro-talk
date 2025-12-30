@@ -22,8 +22,9 @@ TEST_COMPILER_CONTROL = build/test_compiler_control
 TEST_COMPILER_VARIABLES = build/test_compiler_variables
 TEST_COMPILER_FUNCTIONS = build/test_compiler_functions
 TEST_TRANSPILER = build/test_transpiler
+TRANSPILER_DEMO = build/transpiler_demo
 
-all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER)
+all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TRANSPILER_DEMO)
 
 $(TARGET): src/main.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(TARGET) src/main.cpp
@@ -91,9 +92,13 @@ $(TEST_COMPILER_FUNCTIONS): tests/test_compiler_functions.cpp src/stack_vm.hpp s
 $(TEST_TRANSPILER): tests/test_transpiler.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
 	$(CXX) $(CXXFLAGS) -o $(TEST_TRANSPILER) tests/test_transpiler.cpp
 
+$(TRANSPILER_DEMO): examples/transpiler_demo.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
+	$(CXX) $(CXXFLAGS) -o $(TRANSPILER_DEMO) examples/transpiler_demo.cpp
+
 clean:
-	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER)
+	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TRANSPILER_DEMO)
 	rm -f build/test_*.cpp build/test_add build/test_sub build/test_mul build/test_div build/test_mod build/test_multi_* build/test_eq_* build/test_lt_* build/test_gt_* build/test_nested* build/test_define_* build/test_multiple_* build/test_set_* build/test_if_* build/test_while_* build/test_for_* build/test_simple_* build/test_two_* build/test_function_* build/test_ffi_* build/test_bitwise_*
+	rm -f build/example_*.cpp build/example_loop
 
 run: $(TARGET)
 	./$(TARGET)
@@ -173,6 +178,9 @@ compiler-all: compiler-basic compiler-control compiler-variables compiler-functi
 transpiler: $(TEST_TRANSPILER)
 	./$(TEST_TRANSPILER)
 
+transpiler-demo: $(TRANSPILER_DEMO)
+	./$(TRANSPILER_DEMO)
+
 integration-all: test simple vars lambda loops micro advanced smalltalk comments
 	@echo ""
 	@echo "✓ All integration tests passed!"
@@ -193,4 +201,4 @@ test-all: vm-all parser-all compiler-all transpiler integration-all
 	@echo "    ✓ Smalltalk, Comments"
 	@echo "======================================"
 
-.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all transpiler integration-all test-all
+.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all transpiler transpiler-demo integration-all test-all
