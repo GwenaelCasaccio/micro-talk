@@ -1,5 +1,3 @@
-- support des commentaires
-- tester les différentes parties vm, parser, compilateur
 - smalltalk integer
 - smalltalk string
 - smalltalk symbol

@@ -165,4 +165,23 @@ compiler-all: compiler-basic compiler-control compiler-variables compiler-functi
 	@echo ""
 	@echo "✓ All compiler tests passed!"
 
-.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all
+integration-all: test simple vars lambda loops micro advanced smalltalk comments
+	@echo ""
+	@echo "✓ All integration tests passed!"
+
+test-all: vm-all parser-all compiler-all integration-all
+	@echo ""
+	@echo "======================================"
+	@echo "✓ ALL TESTS PASSED!"
+	@echo "======================================"
+	@echo "  Unit Tests:"
+	@echo "    ✓ VM tests (43 tests)"
+	@echo "    ✓ Parser tests (58 tests)"
+	@echo "    ✓ Compiler tests (44 tests)"
+	@echo "  Integration Tests:"
+	@echo "    ✓ Tagging, Variables, Lambda"
+	@echo "    ✓ Loops, Microcode, Advanced"
+	@echo "    ✓ Smalltalk, Comments"
+	@echo "======================================"
+
+.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all integration-all test-all

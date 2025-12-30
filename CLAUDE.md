@@ -24,6 +24,11 @@ make run            # Run the main REPL (./build/lisp_vm)
 
 ### Testing
 
+**Run All Tests:**
+```bash
+make test-all       # Run all tests (unit + integration)
+```
+
 **VM Core Tests** (tests/ directory):
 ```bash
 make vm-stack       # Stack operations (PUSH, POP, DUP, SWAP, underflow)
@@ -50,8 +55,9 @@ make compiler-functions # Functions, parameters, calls, conditionals (recursion 
 make compiler-all       # Run all compiler tests
 ```
 
-**Lisp Compiler & Language Tests** (src/ directory):
+**Integration Tests** (src/ directory):
 ```bash
+make integration-all # Run all integration tests
 make test           # Run tagging tests (./build/test_tagging)
 make simple         # Run simple tagging tests (./build/simple_tagging_test)
 make vars           # Run variable tests (./build/test_variables)
@@ -64,6 +70,11 @@ make comments       # Run comment parsing tests (./build/test_comments)
 ```
 
 Each test target builds and runs the corresponding test binary.
+
+**Test Summary:**
+- Total: 145+ tests across all suites
+- Unit tests: 145 tests (VM: 43, Parser: 58, Compiler: 44)
+- Integration tests: 9 test suites covering end-to-end functionality
 
 ## Architecture
 
