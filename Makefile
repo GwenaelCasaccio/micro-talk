@@ -14,8 +14,11 @@ TEST_VM_STACK = build/test_vm_stack
 TEST_VM_ALU = build/test_vm_alu
 TEST_VM_MEMORY = build/test_vm_memory
 TEST_VM_CONTROL = build/test_vm_control
+TEST_PARSER_BASIC = build/test_parser_basic
+TEST_PARSER_COMMENTS = build/test_parser_comments
+TEST_PARSER_ERRORS = build/test_parser_errors
 
-all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL)
+all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS)
 
 $(TARGET): src/main.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(TARGET) src/main.cpp
@@ -59,8 +62,17 @@ $(TEST_VM_MEMORY): tests/test_vm_memory.cpp src/stack_vm.hpp
 $(TEST_VM_CONTROL): tests/test_vm_control.cpp src/stack_vm.hpp
 	$(CXX) $(CXXFLAGS) -o $(TEST_VM_CONTROL) tests/test_vm_control.cpp
 
+$(TEST_PARSER_BASIC): tests/test_parser_basic.cpp src/lisp_parser.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_PARSER_BASIC) tests/test_parser_basic.cpp
+
+$(TEST_PARSER_COMMENTS): tests/test_parser_comments.cpp src/lisp_parser.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_PARSER_COMMENTS) tests/test_parser_comments.cpp
+
+$(TEST_PARSER_ERRORS): tests/test_parser_errors.cpp src/lisp_parser.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_PARSER_ERRORS) tests/test_parser_errors.cpp
+
 clean:
-	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL)
+	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS)
 
 run: $(TARGET)
 	./$(TARGET)
@@ -108,4 +120,17 @@ vm-all: vm-stack vm-alu vm-memory vm-control
 	@echo ""
 	@echo "✓ All VM tests passed!"
 
-.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all
+parser-basic: $(TEST_PARSER_BASIC)
+	./$(TEST_PARSER_BASIC)
+
+parser-comments: $(TEST_PARSER_COMMENTS)
+	./$(TEST_PARSER_COMMENTS)
+
+parser-errors: $(TEST_PARSER_ERRORS)
+	./$(TEST_PARSER_ERRORS)
+
+parser-all: parser-basic parser-comments parser-errors
+	@echo ""
+	@echo "✓ All parser tests passed!"
+
+.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all
