@@ -24,8 +24,16 @@ make run            # Run the main REPL (./build/lisp_vm)
 
 ### Testing
 
-Run individual test suites:
+**VM Core Tests** (tests/ directory):
+```bash
+make vm-stack       # Stack operations (PUSH, POP, DUP, SWAP, underflow)
+make vm-alu         # ALU: arithmetic, comparison, bitwise operations
+make vm-memory      # Memory: LOAD, STORE, bounds checking, protection
+make vm-control     # Control flow: JMP, JZ, conditionals
+make vm-all         # Run all VM tests together
+```
 
+**Lisp Compiler & Language Tests** (src/ directory):
 ```bash
 make test           # Run tagging tests (./build/test_tagging)
 make simple         # Run simple tagging tests (./build/simple_tagging_test)
@@ -302,6 +310,7 @@ Code segment is write-protected during execution (checked in STORE opcode). This
 ## Notes for Future Work
 
 The TODO file mentions planned features:
+- Missing CALL/RET testing in test vm control
 - More comprehensive testing of parser/compiler components
 - C++ implementations of parser/compiler (currently header-only)
 - Hot-swappable microcode system
