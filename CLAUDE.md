@@ -41,6 +41,15 @@ make parser-errors  # Error detection and handling
 make parser-all     # Run all parser tests
 ```
 
+**Compiler Tests** (tests/ directory):
+```bash
+make compiler-basic     # Numbers, arithmetic, comparison, bitwise, nested expressions
+make compiler-control   # If-then-else, while/for loops, nested control flow
+make compiler-variables # Define, set, let bindings, shadowing, variable arithmetic
+make compiler-functions # Functions, parameters, calls, conditionals (recursion in src/)
+make compiler-all       # Run all compiler tests
+```
+
 **Lisp Compiler & Language Tests** (src/ directory):
 ```bash
 make test           # Run tagging tests (./build/test_tagging)
@@ -319,7 +328,7 @@ Code segment is write-protected during execution (checked in STORE opcode). This
 
 The TODO file mentions planned features:
 - Missing CALL/RET testing in test vm control
-- More comprehensive testing of compiler components
+- Recursive function
 - C++ implementations of parser/compiler (currently header-only)
 - Hot-swappable microcode system
 - heap, hp, sp are static should be configurable
