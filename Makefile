@@ -21,8 +21,9 @@ TEST_COMPILER_BASIC = build/test_compiler_basic
 TEST_COMPILER_CONTROL = build/test_compiler_control
 TEST_COMPILER_VARIABLES = build/test_compiler_variables
 TEST_COMPILER_FUNCTIONS = build/test_compiler_functions
+TEST_TRANSPILER = build/test_transpiler
 
-all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS)
+all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER)
 
 $(TARGET): src/main.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(TARGET) src/main.cpp
@@ -87,8 +88,12 @@ $(TEST_COMPILER_VARIABLES): tests/test_compiler_variables.cpp src/stack_vm.hpp s
 $(TEST_COMPILER_FUNCTIONS): tests/test_compiler_functions.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(TEST_COMPILER_FUNCTIONS) tests/test_compiler_functions.cpp
 
+$(TEST_TRANSPILER): tests/test_transpiler.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_TRANSPILER) tests/test_transpiler.cpp
+
 clean:
-	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS)
+	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER)
+	rm -f build/test_*.cpp build/test_add build/test_sub build/test_mul build/test_div build/test_mod build/test_multi_* build/test_eq_* build/test_lt_* build/test_gt_* build/test_nested* build/test_define_* build/test_multiple_* build/test_set_* build/test_if_* build/test_while_* build/test_for_* build/test_simple_* build/test_two_* build/test_function_* build/test_ffi_* build/test_bitwise_*
 
 run: $(TARGET)
 	./$(TARGET)
@@ -165,11 +170,14 @@ compiler-all: compiler-basic compiler-control compiler-variables compiler-functi
 	@echo ""
 	@echo "✓ All compiler tests passed!"
 
+transpiler: $(TEST_TRANSPILER)
+	./$(TEST_TRANSPILER)
+
 integration-all: test simple vars lambda loops micro advanced smalltalk comments
 	@echo ""
 	@echo "✓ All integration tests passed!"
 
-test-all: vm-all parser-all compiler-all integration-all
+test-all: vm-all parser-all compiler-all transpiler integration-all
 	@echo ""
 	@echo "======================================"
 	@echo "✓ ALL TESTS PASSED!"
@@ -178,10 +186,11 @@ test-all: vm-all parser-all compiler-all integration-all
 	@echo "    ✓ VM tests (43 tests)"
 	@echo "    ✓ Parser tests (58 tests)"
 	@echo "    ✓ Compiler tests (44 tests)"
+	@echo "    ✓ Transpiler tests (24 tests)"
 	@echo "  Integration Tests:"
 	@echo "    ✓ Tagging, Variables, Lambda"
 	@echo "    ✓ Loops, Microcode, Advanced"
 	@echo "    ✓ Smalltalk, Comments"
 	@echo "======================================"
 
-.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all integration-all test-all
+.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all transpiler integration-all test-all

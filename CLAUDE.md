@@ -55,6 +55,11 @@ make compiler-functions # Functions, parameters, calls, conditionals (recursion 
 make compiler-all       # Run all compiler tests
 ```
 
+**Transpiler Tests** (tests/ directory):
+```bash
+make transpiler         # Lisp-to-C++ transpiler tests (24 tests)
+```
+
 **Integration Tests** (src/ directory):
 ```bash
 make integration-all # Run all integration tests
@@ -72,17 +77,18 @@ make comments       # Run comment parsing tests (./build/test_comments)
 Each test target builds and runs the corresponding test binary.
 
 **Test Summary:**
-- Total: 145+ tests across all suites
-- Unit tests: 145 tests (VM: 43, Parser: 58, Compiler: 44)
+- Total: 169+ tests across all suites
+- Unit tests: 169 tests (VM: 43, Parser: 58, Compiler: 44, Transpiler: 24)
 - Integration tests: 9 test suites covering end-to-end functionality
 
 ## Architecture
 
-### Three-Tier System
+### Multi-Tier System
 
 1. **Stack VM (stack_vm.hpp)** - Low-level bytecode execution engine with mmap'd memory
 2. **Lisp Compiler (lisp_compiler.hpp)** - Compiles Lisp to VM bytecode
-3. **Microcode System (microcode.hpp)** - Extends VM with Lisp-defined instructions
+3. **Lisp-to-C++ Transpiler (lisp_to_cpp.hpp)** - Transpiles Lisp to standalone C++ code
+4. **Microcode System (microcode.hpp)** - Extends VM with Lisp-defined instructions
 
 ### Memory Model
 
@@ -309,6 +315,58 @@ bytecode[jump_pos] = current_address();  // Patch jump target
 - After main: `compile_all_functions()` emits function bodies, records addresses in `labels`
 - Final: `patch_function_calls()` fills in CALL targets from `labels`
 
+## Lisp-to-C++ Transpiler
+
+The transpiler (`src/lisp_to_cpp.hpp`) converts Lisp code to standalone C++ programs that can be compiled and run independently of the VM.
+
+### Features Supported
+
+**Arithmetic & Comparison:**
+- All arithmetic operations: `+`, `-`, `*`, `/`, `%` (multi-argument support for +, -, *)
+- Comparison: `=`, `<`, `>`, `<=`, `>=`
+- Bitwise: `bit-and`, `bit-or`, `bit-xor`, `bit-shl`, `bit-shr`, `bit-ashr`
+
+**Variables:**
+- `(define var value)` - Variable definition
+- `(set var value)` - Variable assignment
+- Lexical scoping
+
+**Functions:**
+- `(define (name params...) body)` - Function definition
+- Function calls with arbitrary arguments
+- Function names prefixed with `fn_` to avoid C++ keyword conflicts
+
+**Control Flow:**
+- `(if cond then else)` - Conditional expressions
+- `(while cond body...)` - While loops
+- `(for (var start end) body...)` - For loops (range-based)
+- `(do expr1 expr2 ...)` - Sequential evaluation
+
+**FFI (Foreign Function Interface):**
+- `(c++ "native_code")` - Embed raw C++ code inline
+- Example: `(c++ "std::abs(x)")` - Call C++ standard library functions
+
+### Usage Example
+
+```lisp
+(do
+  (define (factorial n)
+    (if (= n 0)
+        1
+        (* n (factorial (- n 1)))))
+  (factorial 5))
+```
+
+Transpiles to standalone C++ that outputs `120`.
+
+### Implementation Notes
+
+- Uses `int64_t` for all values (standalone, no tagged pointers)
+- Functions are prefixed with `fn_` to avoid C++ keyword conflicts (e.g., `double` → `fn_double`)
+- Variables are sanitized (hyphens → underscores, `?` → `_p`, `!` → `_bang`)
+- Generated code includes `<cstdint>` and `<iostream>`
+- Main function prints final result
+
 ## Important Implementation Details
 
 ### Memory Allocation
@@ -340,7 +398,7 @@ Code segment is write-protected during execution (checked in STORE opcode). This
 The TODO file mentions planned features:
 - Missing CALL/RET testing in test vm control
 - Recursive function
-- C++ implementations of parser/compiler (currently header-only)
+- in lisp implementations of parser/compiler (currently header-only) with a c++ backend
 - Hot-swappable microcode system
 - heap, hp, sp are static should be configurable
 

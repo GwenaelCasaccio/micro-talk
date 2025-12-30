@@ -1,0 +1,239 @@
+#include "../src/lisp_parser.hpp"
+#include "../src/lisp_to_cpp.hpp"
+#include <iostream>
+#include <fstream>
+#include <cassert>
+#include <cstdlib>
+
+void save_cpp_file(const std::string& filename, const std::string& code) {
+    std::ofstream out(filename);
+    if (!out) {
+        throw std::runtime_error("Failed to open file: " + filename);
+    }
+    out << code;
+    out.close();
+}
+
+std::string run_command(const std::string& cmd) {
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) {
+        throw std::runtime_error("Failed to run command: " + cmd);
+    }
+
+    char buffer[128];
+    std::string result;
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+    }
+
+    int status = pclose(pipe);
+    if (status != 0) {
+        throw std::runtime_error("Command failed with status " + std::to_string(status) + ": " + cmd);
+    }
+
+    return result;
+}
+
+void test_transpile_and_run(const std::string& name, const std::string& lisp_code, const std::string& expected_output) {
+    std::cout << "Testing " << name << "..." << std::endl;
+
+    // Parse
+    LispParser parser(lisp_code);
+    auto ast = parser.parse();
+
+    // Transpile
+    LispToCppCompiler compiler;
+    std::string cpp_code = compiler.compile(ast);
+
+    // Save to file
+    std::string cpp_file = "build/test_" + name + ".cpp";
+    std::string exe_file = "build/test_" + name;
+    save_cpp_file(cpp_file, cpp_code);
+
+    // Compile
+    std::string compile_cmd = "g++ -std=c++17 -o " + exe_file + " " + cpp_file + " 2>&1";
+    try {
+        run_command(compile_cmd);
+    } catch (const std::exception& e) {
+        std::cerr << "Compilation failed for " << name << std::endl;
+        std::cerr << "C++ code:\n" << cpp_code << std::endl;
+        throw;
+    }
+
+    // Run
+    std::string run_cmd = "./" + exe_file;
+    std::string output = run_command(run_cmd);
+
+    // Remove trailing newline
+    if (!output.empty() && output.back() == '\n') {
+        output.pop_back();
+    }
+
+    // Verify
+    if (output != expected_output) {
+        std::cerr << "Expected: " << expected_output << std::endl;
+        std::cerr << "Got: " << output << std::endl;
+        std::cerr << "C++ code:\n" << cpp_code << std::endl;
+        throw std::runtime_error("Output mismatch for " + name);
+    }
+
+    std::cout << "  ✓ " << name << ": " << output << std::endl;
+}
+
+void test_simple_arithmetic() {
+    test_transpile_and_run("add", "(+ 10 20)", "30");
+    test_transpile_and_run("sub", "(- 50 20)", "30");
+    test_transpile_and_run("mul", "(* 6 7)", "42");
+    test_transpile_and_run("div", "(/ 100 5)", "20");
+    test_transpile_and_run("mod", "(% 17 5)", "2");
+}
+
+void test_multi_arg_arithmetic() {
+    test_transpile_and_run("multi_add", "(+ 1 2 3 4)", "10");
+    test_transpile_and_run("multi_mul", "(* 2 3 4)", "24");
+}
+
+void test_comparison() {
+    test_transpile_and_run("eq_true", "(= 42 42)", "1");
+    test_transpile_and_run("eq_false", "(= 42 100)", "0");
+    test_transpile_and_run("lt_true", "(< 10 20)", "1");
+    test_transpile_and_run("lt_false", "(< 20 10)", "0");
+    test_transpile_and_run("gt_true", "(> 20 10)", "1");
+    test_transpile_and_run("gt_false", "(> 10 20)", "0");
+}
+
+void test_nested_expressions() {
+    test_transpile_and_run("nested1", "(+ (* 2 3) 4)", "10");
+    test_transpile_and_run("nested2", "(* (+ 2 3) (- 10 4))", "30");
+}
+
+void test_variables() {
+    test_transpile_and_run("define_var",
+        "(do (define x 42) x)",
+        "42");
+
+    test_transpile_and_run("multiple_vars",
+        "(do (define x 10) (define y 20) (+ x y))",
+        "30");
+
+    test_transpile_and_run("set_var",
+        "(do (define x 10) (set x 42) x)",
+        "42");
+}
+
+void test_if_statement() {
+    test_transpile_and_run("if_then",
+        "(if (< 5 10) 100 200)",
+        "100");
+
+    test_transpile_and_run("if_else",
+        "(if (> 5 10) 100 200)",
+        "200");
+
+    test_transpile_and_run("nested_if",
+        "(if (< 5 10) (if (= 3 3) 42 0) 99)",
+        "42");
+}
+
+void test_while_loop() {
+    test_transpile_and_run("while_simple",
+        R"((do
+            (define counter 0)
+            (define sum 0)
+            (while (< counter 5)
+                (do
+                    (set sum (+ sum counter))
+                    (set counter (+ counter 1))))
+            sum))",
+        "10");
+}
+
+void test_for_loop() {
+    test_transpile_and_run("for_simple",
+        R"((do
+            (define total 0)
+            (for (i 0 5)
+                (set total (+ total i)))
+            total))",
+        "10");
+}
+
+void test_functions() {
+    test_transpile_and_run("simple_function",
+        R"((do
+            (define (square x) (* x x))
+            (square 7)))",
+        "49");
+
+    test_transpile_and_run("two_param_function",
+        R"((do
+            (define (add a b) (+ a b))
+            (add 10 20)))",
+        "30");
+
+    test_transpile_and_run("function_calling_function",
+        R"((do
+            (define (double x) (* x 2))
+            (define (quadruple x) (double (double x)))
+            (quadruple 3)))",
+        "12");
+}
+
+void test_ffi() {
+    test_transpile_and_run("ffi_abs",
+        "(do (define x -42) (c++ \"std::abs(x)\"))",
+        "42");
+}
+
+void test_bitwise() {
+    test_transpile_and_run("bitwise_and", "(bit-and 12 10)", "8");
+    test_transpile_and_run("bitwise_or", "(bit-or 12 10)", "14");
+    test_transpile_and_run("bitwise_xor", "(bit-xor 12 10)", "6");
+    test_transpile_and_run("bitwise_shl", "(bit-shl 5 2)", "20");
+    test_transpile_and_run("bitwise_shr", "(bit-shr 20 2)", "5");
+}
+
+int main() {
+    std::cout << "=== Lisp to C++ Transpiler Tests ===" << std::endl;
+
+    try {
+        std::cout << "\n--- Simple Arithmetic ---" << std::endl;
+        test_simple_arithmetic();
+
+        std::cout << "\n--- Multi-Argument Arithmetic ---" << std::endl;
+        test_multi_arg_arithmetic();
+
+        std::cout << "\n--- Comparison ---" << std::endl;
+        test_comparison();
+
+        std::cout << "\n--- Nested Expressions ---" << std::endl;
+        test_nested_expressions();
+
+        std::cout << "\n--- Variables ---" << std::endl;
+        test_variables();
+
+        std::cout << "\n--- If Statement ---" << std::endl;
+        test_if_statement();
+
+        std::cout << "\n--- While Loop ---" << std::endl;
+        test_while_loop();
+
+        std::cout << "\n--- For Loop ---" << std::endl;
+        test_for_loop();
+
+        std::cout << "\n--- Functions ---" << std::endl;
+        test_functions();
+
+        std::cout << "\n--- FFI (Native C++) ---" << std::endl;
+        test_ffi();
+
+        std::cout << "\n--- Bitwise Operations ---" << std::endl;
+        test_bitwise();
+
+        std::cout << "\n✓ All transpiler tests passed!" << std::endl;
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "\n✗ Test failed: " << e.what() << std::endl;
+        return 1;
+    }
+}
