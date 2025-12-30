@@ -1,0 +1,31 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+*.dylib
+
+# Profiling output
+gmon.out
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Compiled binaries (backup in case build/ pattern misses something)
+lisp_vm
+test_*
+!test_*.cpp
+!test_*.lisp
+
+# Core dumps
+core
+core.*

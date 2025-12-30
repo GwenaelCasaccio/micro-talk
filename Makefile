@@ -9,8 +9,9 @@ TEST_LOOPS = build/test_loops
 TEST_MICRO = build/test_microcode
 TEST_ADVANCED = build/test_advanced
 TEST_SMALLTALK = build/test_smalltalk
+TEST_COMMENTS = build/test_comments
 
-all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK)
+all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS)
 
 $(TARGET): src/main.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(TARGET) src/main.cpp
@@ -39,8 +40,11 @@ $(TEST_ADVANCED): src/test_advanced.cpp src/stack_vm.hpp src/lisp_parser.hpp src
 $(TEST_SMALLTALK): src/test_smalltalk.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp src/microcode.hpp
 	$(CXX) $(CXXFLAGS) -o $(TEST_SMALLTALK) src/test_smalltalk.cpp
 
+$(TEST_COMMENTS): src/test_comments.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_COMMENTS) src/test_comments.cpp
+
 clean:
-	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK)
+	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS)
 
 run: $(TARGET)
 	./$(TARGET)
@@ -69,4 +73,7 @@ advanced: $(TEST_ADVANCED)
 smalltalk: $(TEST_SMALLTALK)
 	./$(TEST_SMALLTALK)
 
-.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk
+comments: $(TEST_COMMENTS)
+	./$(TEST_COMMENTS)
+
+.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments

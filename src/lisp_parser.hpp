@@ -80,8 +80,24 @@ private:
     }
     
     void skip_whitespace() {
-        while (pos < input.size() && std::isspace(input[pos])) {
-            pos++;
+        while (pos < input.size()) {
+            // Skip whitespace
+            if (std::isspace(input[pos])) {
+                pos++;
+            }
+            // Skip comments (from ; to end of line)
+            else if (input[pos] == ';') {
+                while (pos < input.size() && input[pos] != '\n') {
+                    pos++;
+                }
+                // Skip the newline itself
+                if (pos < input.size() && input[pos] == '\n') {
+                    pos++;
+                }
+            }
+            else {
+                break;
+            }
         }
     }
     
