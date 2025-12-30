@@ -10,8 +10,12 @@ TEST_MICRO = build/test_microcode
 TEST_ADVANCED = build/test_advanced
 TEST_SMALLTALK = build/test_smalltalk
 TEST_COMMENTS = build/test_comments
+TEST_VM_STACK = build/test_vm_stack
+TEST_VM_ALU = build/test_vm_alu
+TEST_VM_MEMORY = build/test_vm_memory
+TEST_VM_CONTROL = build/test_vm_control
 
-all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS)
+all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL)
 
 $(TARGET): src/main.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(TARGET) src/main.cpp
@@ -43,8 +47,20 @@ $(TEST_SMALLTALK): src/test_smalltalk.cpp src/stack_vm.hpp src/lisp_parser.hpp s
 $(TEST_COMMENTS): src/test_comments.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(TEST_COMMENTS) src/test_comments.cpp
 
+$(TEST_VM_STACK): tests/test_vm_stack.cpp src/stack_vm.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_VM_STACK) tests/test_vm_stack.cpp
+
+$(TEST_VM_ALU): tests/test_vm_alu.cpp src/stack_vm.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_VM_ALU) tests/test_vm_alu.cpp
+
+$(TEST_VM_MEMORY): tests/test_vm_memory.cpp src/stack_vm.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_VM_MEMORY) tests/test_vm_memory.cpp
+
+$(TEST_VM_CONTROL): tests/test_vm_control.cpp src/stack_vm.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_VM_CONTROL) tests/test_vm_control.cpp
+
 clean:
-	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS)
+	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL)
 
 run: $(TARGET)
 	./$(TARGET)
@@ -76,4 +92,20 @@ smalltalk: $(TEST_SMALLTALK)
 comments: $(TEST_COMMENTS)
 	./$(TEST_COMMENTS)
 
-.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments
+vm-stack: $(TEST_VM_STACK)
+	./$(TEST_VM_STACK)
+
+vm-alu: $(TEST_VM_ALU)
+	./$(TEST_VM_ALU)
+
+vm-memory: $(TEST_VM_MEMORY)
+	./$(TEST_VM_MEMORY)
+
+vm-control: $(TEST_VM_CONTROL)
+	./$(TEST_VM_CONTROL)
+
+vm-all: vm-stack vm-alu vm-memory vm-control
+	@echo ""
+	@echo "✓ All VM tests passed!"
+
+.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all

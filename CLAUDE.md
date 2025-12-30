@@ -302,9 +302,9 @@ Code segment is write-protected during execution (checked in STORE opcode). This
 ## Notes for Future Work
 
 The TODO file mentions planned features:
-- heap, hp, sp are static should be configurable
-- More comprehensive testing of VM/parser/compiler components
+- More comprehensive testing of parser/compiler components
 - C++ implementations of parser/compiler (currently header-only)
 - Hot-swappable microcode system
+- heap, hp, sp are static should be configurable
 
 When implementing Smalltalk features, refer to docs/SMALLTALK.md for the complete object model specification with classes, instances, and message sending patterns.
