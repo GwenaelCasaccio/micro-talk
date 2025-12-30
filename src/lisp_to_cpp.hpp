@@ -9,10 +9,13 @@ class LispToCppCompiler {
 private:
     std::ostringstream code;
     std::ostringstream functions;
+    std::ostringstream string_decls;  // String declarations at top of main
     std::map<std::string, std::string> variables;  // Lisp name -> C++ name
+    std::map<std::string, std::string> variable_types;  // Track variable types (int64_t, string, vector)
     std::set<std::string> function_names;
     int var_counter = 0;
     int label_counter = 0;
+    int string_counter = 0;
     int indent_level = 0;
 
     std::string get_indent() const {
@@ -28,6 +31,22 @@ private:
 
     std::string fresh_label() {
         return "label_" + std::to_string(label_counter++);
+    }
+
+    std::string fresh_string_var() {
+        return "str_" + std::to_string(string_counter++);
+    }
+
+    std::string escape_string(const std::string& str) {
+        std::string result;
+        for (char c : str) {
+            if (c == '"') result += "\\\"";
+            else if (c == '\\') result += "\\\\";
+            else if (c == '\n') result += "\\n";
+            else if (c == '\t') result += "\\t";
+            else result += c;
+        }
+        return result;
     }
 
     std::string sanitize_name(const std::string& name) {
@@ -52,9 +71,13 @@ private:
             case NodeType::NUMBER:
                 return std::to_string(node->as_number()) + "LL";
 
-            case NodeType::STRING:
-                // For now, strings are not supported in standalone mode
-                throw std::runtime_error("String literals not yet supported in C++ transpiler");
+            case NodeType::STRING: {
+                // Create a string variable
+                std::string str_var = fresh_string_var();
+                string_decls << "    std::string " << str_var << " = \""
+                            << escape_string(node->as_string()) << "\";\n";
+                return str_var;
+            }
 
             case NodeType::SYMBOL: {
                 std::string sym = node->as_symbol();
@@ -113,6 +136,19 @@ private:
                     compile_set(list);
                     return variables[list[1]->as_symbol()];
                 }
+                if (op == "let") return compile_let(list);
+
+                // String operations
+                if (op == "string-length") return compile_string_length(list);
+                if (op == "char-at") return compile_char_at(list);
+                if (op == "substring") return compile_substring(list);
+                if (op == "string-concat") return compile_string_concat(list);
+
+                // List/Array operations
+                if (op == "list") return compile_list(list);
+                if (op == "list-ref") return compile_list_ref(list);
+                if (op == "list-length") return compile_list_length(list);
+                if (op == "list-set!") return compile_list_set(list);
 
                 // FFI - Native C++ call
                 if (op == "c++") {
@@ -292,7 +328,17 @@ private:
 
         // Check if variable already exists
         if (variables.find(var_name) == variables.end()) {
-            code << get_indent() << "int64_t " << cpp_var << " = " << value << ";\n";
+            // Determine type from value
+            if (value.find("str_") == 0 || value.find("std::string") != std::string::npos) {
+                code << get_indent() << "std::string " << cpp_var << " = " << value << ";\n";
+                variable_types[var_name] = "string";
+            } else if (value.find("vec_") == 0 || value.find("std::vector") != std::string::npos) {
+                code << get_indent() << "auto " << cpp_var << " = " << value << ";\n";
+                variable_types[var_name] = "vector";
+            } else {
+                code << get_indent() << "int64_t " << cpp_var << " = " << value << ";\n";
+                variable_types[var_name] = "int64_t";
+            }
             variables[var_name] = cpp_var;
         } else {
             code << get_indent() << variables[var_name] << " = " << value << ";\n";
@@ -396,6 +442,179 @@ private:
         return call.str();
     }
 
+    // Let bindings: (let ((var1 val1) (var2 val2)) body...)
+    std::string compile_let(const std::vector<ASTNodePtr>& list) {
+        if (list.size() < 3) {
+            throw std::runtime_error("let requires at least 2 arguments: (let ((bindings...)) body...)");
+        }
+
+        if (list[1]->type != NodeType::LIST) {
+            throw std::runtime_error("let bindings must be a list");
+        }
+
+        const auto& bindings = list[1]->as_list();
+
+        // Save current variable scope
+        auto old_variables = variables;
+        auto old_var_types = variable_types;
+
+        // Declare result variable BEFORE the block (we'll determine type later)
+        std::string result_var = fresh_var();
+        // We'll declare it as int64_t by default, but might need to change this
+        code << get_indent() << "int64_t " << result_var << " = 0LL;\n";
+
+        // Create a block for the let scope
+        code << get_indent() << "{\n";
+        increase_indent();
+
+        // Process bindings
+        for (const auto& binding : bindings) {
+            if (binding->type != NodeType::LIST || binding->as_list().size() != 2) {
+                throw std::runtime_error("Each let binding must be (var value)");
+            }
+
+            const auto& bind_list = binding->as_list();
+            if (bind_list[0]->type != NodeType::SYMBOL) {
+                throw std::runtime_error("Let binding variable must be a symbol");
+            }
+
+            std::string var_name = bind_list[0]->as_symbol();
+            std::string cpp_var = sanitize_name(var_name);
+            std::string value = compile_expr(bind_list[1]);
+
+            // Determine type from value - simple heuristic
+            if (value.find("str_") == 0 || value.find("std::string") != std::string::npos) {
+                code << get_indent() << "std::string " << cpp_var << " = " << value << ";\n";
+                variable_types[var_name] = "string";
+            } else if (value.find("vec_") == 0 || value.find("std::vector") != std::string::npos) {
+                code << get_indent() << "auto " << cpp_var << " = " << value << ";\n";
+                variable_types[var_name] = "vector";
+            } else {
+                code << get_indent() << "int64_t " << cpp_var << " = " << value << ";\n";
+                variable_types[var_name] = "int64_t";
+            }
+
+            variables[var_name] = cpp_var;
+        }
+
+        // Compile body expressions
+        std::string result;
+        for (size_t i = 2; i < list.size(); i++) {
+            if (i < list.size() - 1) {
+                std::string expr = compile_expr(list[i]);
+                code << get_indent() << expr << ";\n";
+            } else {
+                result = compile_expr(list[i]);
+            }
+        }
+
+        // Store result - just assign, already declared above
+        code << get_indent() << result_var << " = " << result << ";\n";
+
+        decrease_indent();
+        code << get_indent() << "}\n";
+
+        // Restore variable scope
+        variables = old_variables;
+        variable_types = old_var_types;
+
+        return result_var;
+    }
+
+    // String operations
+    std::string compile_string_length(const std::vector<ASTNodePtr>& list) {
+        if (list.size() != 2) {
+            throw std::runtime_error("string-length requires 1 argument");
+        }
+        std::string str = compile_expr(list[1]);
+        return "(int64_t)" + str + ".length()";
+    }
+
+    std::string compile_char_at(const std::vector<ASTNodePtr>& list) {
+        if (list.size() != 3) {
+            throw std::runtime_error("char-at requires 2 arguments: (char-at string index)");
+        }
+        std::string str = compile_expr(list[1]);
+        std::string index = compile_expr(list[2]);
+        return "(int64_t)" + str + "[" + index + "]";
+    }
+
+    std::string compile_substring(const std::vector<ASTNodePtr>& list) {
+        if (list.size() != 4) {
+            throw std::runtime_error("substring requires 3 arguments: (substring string start end)");
+        }
+        std::string str = compile_expr(list[1]);
+        std::string start = compile_expr(list[2]);
+        std::string end = compile_expr(list[3]);
+
+        std::string result_var = fresh_string_var();
+        string_decls << "    std::string " << result_var << ";\n";
+        code << get_indent() << result_var << " = " << str
+             << ".substr(" << start << ", " << end << " - " << start << ");\n";
+        return result_var;
+    }
+
+    std::string compile_string_concat(const std::vector<ASTNodePtr>& list) {
+        if (list.size() < 2) {
+            throw std::runtime_error("string-concat requires at least 1 argument");
+        }
+
+        std::string result_var = fresh_string_var();
+        string_decls << "    std::string " << result_var << ";\n";
+
+        code << get_indent() << result_var << " = ";
+        for (size_t i = 1; i < list.size(); i++) {
+            if (i > 1) code << " + ";
+            code << compile_expr(list[i]);
+        }
+        code << ";\n";
+
+        return result_var;
+    }
+
+    // List/Array operations (using std::vector<int64_t>)
+    std::string compile_list(const std::vector<ASTNodePtr>& list) {
+        std::string vec_var = "vec_" + std::to_string(var_counter++);
+
+        code << get_indent() << "std::vector<int64_t> " << vec_var << " = {";
+        for (size_t i = 1; i < list.size(); i++) {
+            if (i > 1) code << ", ";
+            code << compile_expr(list[i]);
+        }
+        code << "};\n";
+
+        return vec_var;
+    }
+
+    std::string compile_list_ref(const std::vector<ASTNodePtr>& list) {
+        if (list.size() != 3) {
+            throw std::runtime_error("list-ref requires 2 arguments: (list-ref list index)");
+        }
+        std::string vec = compile_expr(list[1]);
+        std::string index = compile_expr(list[2]);
+        return vec + "[" + index + "]";
+    }
+
+    std::string compile_list_length(const std::vector<ASTNodePtr>& list) {
+        if (list.size() != 2) {
+            throw std::runtime_error("list-length requires 1 argument");
+        }
+        std::string vec = compile_expr(list[1]);
+        return "(int64_t)" + vec + ".size()";
+    }
+
+    std::string compile_list_set(const std::vector<ASTNodePtr>& list) {
+        if (list.size() != 4) {
+            throw std::runtime_error("list-set! requires 3 arguments: (list-set! list index value)");
+        }
+        std::string vec = compile_expr(list[1]);
+        std::string index = compile_expr(list[2]);
+        std::string value = compile_expr(list[3]);
+
+        code << get_indent() << vec << "[" << index << "] = " << value << ";\n";
+        return value;
+    }
+
 public:
     std::string compile(const ASTNodePtr& ast) {
         // Reset state
@@ -403,16 +622,22 @@ public:
         code.clear();
         functions.str("");
         functions.clear();
+        string_decls.str("");
+        string_decls.clear();
         variables.clear();
+        variable_types.clear();
         function_names.clear();
         var_counter = 0;
         label_counter = 0;
+        string_counter = 0;
         indent_level = 1;
 
         // Start building the C++ program
         std::ostringstream program;
         program << "#include <cstdint>\n";
-        program << "#include <iostream>\n\n";
+        program << "#include <iostream>\n";
+        program << "#include <string>\n";
+        program << "#include <vector>\n\n";
 
         // Compile the main expression
         std::string result = compile_expr(ast);
@@ -428,9 +653,34 @@ public:
         }
 
         full_code << "int main() {\n";
+
+        // Add string declarations first
+        if (!string_decls.str().empty()) {
+            full_code << string_decls.str();
+            full_code << "\n";
+        }
+
         full_code << code.str();
-        full_code << "    int64_t result = " << result << ";\n";
-        full_code << "    std::cout << result << std::endl;\n";
+
+        // Handle different result types
+        // Check if it's a pure vector variable (no indexing or operations)
+        bool is_pure_vec = (result.find("vec_") == 0 && result.find('[') == std::string::npos
+                           && result.find('(') == std::string::npos);
+        bool is_pure_str = (result.find("str_") == 0 && result.find('[') == std::string::npos
+                           && result.find('(') == std::string::npos);
+
+        if (is_pure_str) {
+            // String result
+            full_code << "    std::cout << " << result << " << std::endl;\n";
+        } else if (is_pure_vec) {
+            // Vector result - print size
+            full_code << "    std::cout << " << result << ".size() << std::endl;\n";
+        } else {
+            // Integer result (or expression)
+            full_code << "    int64_t result = " << result << ";\n";
+            full_code << "    std::cout << result << std::endl;\n";
+        }
+
         full_code << "    return 0;\n";
         full_code << "}\n";
 

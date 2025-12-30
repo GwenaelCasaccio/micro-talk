@@ -396,6 +396,7 @@ Code segment is write-protected during execution (checked in STORE opcode). This
 ## Notes for Future Work
 
 The TODO file mentions planned features:
+- Transpiler missing structure definition
 - Missing CALL/RET testing in test vm control
 - Recursive function
 - in lisp implementations of parser/compiler (currently header-only) with a c++ backend

@@ -22,9 +22,10 @@ TEST_COMPILER_CONTROL = build/test_compiler_control
 TEST_COMPILER_VARIABLES = build/test_compiler_variables
 TEST_COMPILER_FUNCTIONS = build/test_compiler_functions
 TEST_TRANSPILER = build/test_transpiler
+TEST_TRANSPILER_EXT = build/test_transpiler_extended
 TRANSPILER_DEMO = build/transpiler_demo
 
-all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TRANSPILER_DEMO)
+all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TEST_TRANSPILER_EXT) $(TRANSPILER_DEMO)
 
 $(TARGET): src/main.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(TARGET) src/main.cpp
@@ -92,13 +93,16 @@ $(TEST_COMPILER_FUNCTIONS): tests/test_compiler_functions.cpp src/stack_vm.hpp s
 $(TEST_TRANSPILER): tests/test_transpiler.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
 	$(CXX) $(CXXFLAGS) -o $(TEST_TRANSPILER) tests/test_transpiler.cpp
 
+$(TEST_TRANSPILER_EXT): tests/test_transpiler_extended.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_TRANSPILER_EXT) tests/test_transpiler_extended.cpp
+
 $(TRANSPILER_DEMO): examples/transpiler_demo.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
 	$(CXX) $(CXXFLAGS) -o $(TRANSPILER_DEMO) examples/transpiler_demo.cpp
 
 clean:
-	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TRANSPILER_DEMO)
+	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TEST_TRANSPILER_EXT) $(TRANSPILER_DEMO)
 	rm -f build/test_*.cpp build/test_add build/test_sub build/test_mul build/test_div build/test_mod build/test_multi_* build/test_eq_* build/test_lt_* build/test_gt_* build/test_nested* build/test_define_* build/test_multiple_* build/test_set_* build/test_if_* build/test_while_* build/test_for_* build/test_simple_* build/test_two_* build/test_function_* build/test_ffi_* build/test_bitwise_*
-	rm -f build/example_*.cpp build/example_loop
+	rm -f build/test_ext_* build/example_*.cpp build/example_loop
 
 run: $(TARGET)
 	./$(TARGET)
@@ -175,8 +179,10 @@ compiler-all: compiler-basic compiler-control compiler-variables compiler-functi
 	@echo ""
 	@echo "✓ All compiler tests passed!"
 
-transpiler: $(TEST_TRANSPILER)
+transpiler: $(TEST_TRANSPILER) $(TEST_TRANSPILER_EXT)
 	./$(TEST_TRANSPILER)
+	@echo ""
+	./$(TEST_TRANSPILER_EXT)
 
 transpiler-demo: $(TRANSPILER_DEMO)
 	./$(TRANSPILER_DEMO)
@@ -194,7 +200,7 @@ test-all: vm-all parser-all compiler-all transpiler integration-all
 	@echo "    ✓ VM tests (43 tests)"
 	@echo "    ✓ Parser tests (58 tests)"
 	@echo "    ✓ Compiler tests (44 tests)"
-	@echo "    ✓ Transpiler tests (24 tests)"
+	@echo "    ✓ Transpiler tests (35 tests)"
 	@echo "  Integration Tests:"
 	@echo "    ✓ Tagging, Variables, Lambda"
 	@echo "    ✓ Loops, Microcode, Advanced"
