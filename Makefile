@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O0 -pg
+CXXFLAGS = -std=c++17 -Wall -Wextra -O0 -g
 TARGET = build/lisp_vm
 TEST_TAG = build/test_tagging
 SIMPLE_TAG = build/simple_tagging_test
@@ -106,6 +106,7 @@ $(TOKENIZER_TRANSPILER): src/transpile_tokenizer.cpp src/lisp_parser.hpp src/lis
 
 $(ST_TOKENIZER): src/tokenizer_main.cpp src/lisp_parser.hpp
 	$(CXX) $(CXXFLAGS) -o $(ST_TOKENIZER) src/tokenizer_main.cpp
+
 
 clean:
 	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TEST_TRANSPILER_EXT) $(TRANSPILER_DEMO)

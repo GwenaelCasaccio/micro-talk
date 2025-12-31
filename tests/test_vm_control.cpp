@@ -137,19 +137,22 @@ void test_call_ret() {
     std::vector<uint64_t> program = {
         // Main program
         static_cast<uint64_t>(Opcode::PUSH), 10,
-        static_cast<uint64_t>(Opcode::CALL), 8,    // Call function at address 8
+        static_cast<uint64_t>(Opcode::CALL), 5,
         static_cast<uint64_t>(Opcode::HALT),
 
-        // Function at address 8: doubles the value
+	// Fn 1
         static_cast<uint64_t>(Opcode::PUSH), 2,
+        static_cast<uint64_t>(Opcode::PUSH), 10,
         static_cast<uint64_t>(Opcode::MUL),
         static_cast<uint64_t>(Opcode::RET),
     };
 
     vm.load_program(program);
+    const uint64_t starting_sp = vm.get_sp();
     vm.execute();
 
     assert(vm.get_top() == 20);
+    assert(vm.get_sp() == starting_sp - 2);
     std::cout << "  ✓ CALL/RET: function doubles 10 -> 20" << std::endl;
 }
 
@@ -158,28 +161,33 @@ void test_nested_calls() {
 
     StackVM vm;
     std::vector<uint64_t> program = {
-        // Main: push 5, call add_10
+        // Main
         static_cast<uint64_t>(Opcode::PUSH), 5,
-        static_cast<uint64_t>(Opcode::CALL), 8,
+        static_cast<uint64_t>(Opcode::CALL), 5,
         static_cast<uint64_t>(Opcode::HALT),
 
-        // add_10 at address 8: adds 10 and calls double
+	// Fn 1
         static_cast<uint64_t>(Opcode::PUSH), 10,
+        static_cast<uint64_t>(Opcode::PUSH), 5,
         static_cast<uint64_t>(Opcode::ADD),
-        static_cast<uint64_t>(Opcode::CALL), 13,   // Call double
+        static_cast<uint64_t>(Opcode::POP),
+        static_cast<uint64_t>(Opcode::CALL), 14,
         static_cast<uint64_t>(Opcode::RET),
 
-        // double at address 13: multiplies by 2
+	// Fn 2
         static_cast<uint64_t>(Opcode::PUSH), 2,
+        static_cast<uint64_t>(Opcode::PUSH), 15,
         static_cast<uint64_t>(Opcode::MUL),
         static_cast<uint64_t>(Opcode::RET),
     };
 
     vm.load_program(program);
+    const uint64_t starting_sp = vm.get_sp();
     vm.execute();
 
     // (5 + 10) * 2 = 30
     assert(vm.get_top() == 30);
+    assert(vm.get_sp() == starting_sp - 2);
     std::cout << "  ✓ Nested calls: (5 + 10) * 2 = 30" << std::endl;
 }
 
@@ -218,12 +226,11 @@ int main() {
         test_conditional_branch();
         test_conditional_branch_else();
         test_simple_loop();
-        // Note: CALL/RET are better tested via Lisp compiler (test_lambda.cpp)
-        // since they require proper calling convention setup
         test_jump_bounds_check();
+	test_call_ret();
+	test_nested_calls();
 
         std::cout << "\n✓ All control flow tests passed!" << std::endl;
-        std::cout << "  (CALL/RET tested in Lisp compiler tests)" << std::endl;
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "\n✗ Test failed: " << e.what() << std::endl;

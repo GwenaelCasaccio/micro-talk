@@ -5,6 +5,7 @@
 #include <cstring>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <iostream>
 
 // Opcodes for the stack VM
 enum class Opcode : uint8_t {
@@ -23,6 +24,8 @@ enum class Opcode : uint8_t {
     GT,        // Pop two, push 1 if greater than, 0 otherwise
     JMP,       // Unconditional jump to address
     JZ,        // Jump if top of stack is zero
+    ENTER,     // Save previous BP to the stack set it to SP
+    LEAVE,     // Restore BP from the stack
     CALL,      // Call function at address
     RET,       // Return from function
     LOAD,      // Load from memory address on stack
@@ -228,7 +231,18 @@ public:
                     }
                     break;
                 }
-                
+               
+		case Opcode::ENTER: {
+		    push(bp);
+		    bp = sp;
+		    break;
+		} 
+
+		case Opcode::LEAVE: {
+		   bp = pop();
+		    break;
+		}
+
                 case Opcode::CALL: {
                     if (ip >= CODE_SIZE) throw std::runtime_error("IP out of bounds");
                     uint64_t target = memory[ip++];  // Read target and advance IP
@@ -270,7 +284,7 @@ public:
                 }
                 
                 case Opcode::PRINT:
-                    printf("DEBUG: %llu\n", peek());
+	            std::cout << "DEBUG: " << peek() << std::endl;
                     break;
                     
                 case Opcode::PRINT_STR: {
@@ -278,16 +292,16 @@ public:
                     check_memory_bounds(addr);
                     // Read length from first word
                     uint64_t len = memory[addr];
-                    printf("DEBUG_STR: ");
+		    std::cout << "DEBUG_STR: ";
                     // Read characters (packed as 8 bytes per word)
                     for (uint64_t i = 0; i < len; i++) {
                         uint64_t word_idx = (i / 8) + 1;
                         uint64_t byte_idx = i % 8;
                         uint64_t word = memory[addr + word_idx];
                         char c = (word >> (byte_idx * 8)) & 0xFF;
-                        printf("%c", c);
+			std::cout << c;
                     }
-                    printf("\n");
+		    std::cout << std::endl;
                     break;
                 }
                     
