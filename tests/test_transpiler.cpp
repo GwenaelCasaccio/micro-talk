@@ -193,6 +193,48 @@ void test_bitwise() {
     test_transpile_and_run("bitwise_shr", "(bit-shr 20 2)", "5");
 }
 
+void test_structs() {
+    // Basic struct definition and creation
+    test_transpile_and_run("struct_basic",
+        "(do (define-struct token (type start end length)) (define tok (make-token 1 0 5 5)) (token-type tok))",
+        "1");
+
+    // Field access for all fields
+    test_transpile_and_run("struct_all_fields",
+        "(do (define-struct token (type start end length)) (define tok (make-token 3 10 20 10)) (+ (token-type tok) (token-start tok) (token-end tok) (token-length tok)))",
+        "43");
+
+    // Field mutation
+    test_transpile_and_run("struct_mutation",
+        "(do (define-struct token (type start end length)) (define tok (make-token 1 0 5 5)) (set-token-type! tok 2) (token-type tok))",
+        "2");
+
+    // Multiple mutations
+    test_transpile_and_run("struct_multi_mutation",
+        "(do (define-struct token (type start end length)) (define tok (make-token 1 0 5 5)) (set-token-type! tok 3) (set-token-length! tok 10) (+ (token-type tok) (token-length tok)))",
+        "13");
+
+    // Struct fields in expressions
+    test_transpile_and_run("struct_in_expression",
+        "(do (define-struct token (type start end length)) (define tok (make-token 1 5 15 10)) (if (= (token-type tok) 1) (+ (token-start tok) (token-length tok)) 0))",
+        "15");
+
+    // Multiple struct types
+    test_transpile_and_run("multiple_struct_types",
+        "(do (define-struct point (x y)) (define-struct rect (left top right bottom)) (define p (make-point 10 20)) (define r (make-rect 0 0 100 100)) (+ (point-x p) (rect-right r)))",
+        "110");
+
+    // Struct with single field
+    test_transpile_and_run("struct_single_field",
+        "(do (define-struct wrapper (value)) (define w (make-wrapper 42)) (wrapper-value w))",
+        "42");
+
+    // Struct with many fields
+    test_transpile_and_run("struct_many_fields",
+        "(do (define-struct data (f1 f2 f3 f4 f5 f6 f7 f8)) (define d (make-data 1 2 3 4 5 6 7 8)) (+ (data-f1 d) (data-f8 d)))",
+        "9");
+}
+
 int main() {
     std::cout << "=== Lisp to C++ Transpiler Tests ===" << std::endl;
 
@@ -229,6 +271,9 @@ int main() {
 
         std::cout << "\n--- Bitwise Operations ---" << std::endl;
         test_bitwise();
+
+        std::cout << "\n--- Structs ---" << std::endl;
+        test_structs();
 
         std::cout << "\n✓ All transpiler tests passed!" << std::endl;
         return 0;

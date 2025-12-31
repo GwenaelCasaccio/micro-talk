@@ -3,19 +3,29 @@
 #include <sstream>
 #include <map>
 #include <set>
+#include <algorithm>
 #include <stdexcept>
 
 class LispToCppCompiler {
 private:
+    struct StructDef {
+        std::string name;
+        std::vector<std::string> fields;
+    };
+
     std::ostringstream code;
     std::ostringstream functions;
     std::ostringstream string_decls;  // String declarations at top of main
+    std::ostringstream struct_decls;  // Struct declarations before functions
     std::map<std::string, std::string> variables;  // Lisp name -> C++ name
-    std::map<std::string, std::string> variable_types;  // Track variable types (int64_t, string, vector)
+    std::map<std::string, std::string> variable_types;  // Track variable types (int64_t, string, vector, struct:name)
+    std::map<std::string, StructDef> struct_defs;  // Struct name -> definition
     std::set<std::string> function_names;
+    std::set<std::string> custom_includes;  // Additional C++ includes requested via (c++-include "header")
     int var_counter = 0;
     int label_counter = 0;
     int string_counter = 0;
+    int struct_counter = 0;
     int indent_level = 0;
 
     std::string get_indent() const {
@@ -35,6 +45,19 @@ private:
 
     std::string fresh_string_var() {
         return "str_" + std::to_string(string_counter++);
+    }
+
+    std::string fresh_struct_var(const std::string& struct_name) {
+        return sanitize_name(struct_name) + "_" + std::to_string(struct_counter++);
+    }
+
+    std::string struct_type_name(const std::string& struct_name) {
+        // Convert "token" -> "Token" (capitalize first letter)
+        std::string result = struct_name;
+        if (!result.empty()) {
+            result[0] = std::toupper(result[0]);
+        }
+        return result;
     }
 
     std::string escape_string(const std::string& str) {
@@ -158,6 +181,61 @@ private:
                     return "(" + list[1]->as_string() + ")";
                 }
 
+                // FFI - Add custom C++ include
+                if (op == "c++-include") {
+                    if (list.size() != 2 || list[1]->type != NodeType::STRING) {
+                        throw std::runtime_error("c++-include requires a string argument: (c++-include \"header.h\")");
+                    }
+                    custom_includes.insert(list[1]->as_string());
+                    return "0LL";
+                }
+
+                // Struct definition
+                if (op == "define-struct") {
+                    compile_struct_def(list);
+                    return "0LL";
+                }
+
+                // Check for make-<structname> constructor
+                if (op.substr(0, 5) == "make-") {
+                    std::string struct_name = op.substr(5);
+                    if (struct_defs.find(struct_name) != struct_defs.end()) {
+                        return compile_make_struct(list, struct_name);
+                    }
+                }
+
+                // Check for <structname>-<field> accessor or set-<structname>-<field>! mutator
+                size_t dash_pos = op.find('-');
+                if (dash_pos != std::string::npos) {
+                    // Check for set-<structname>-<field>! mutator
+                    if (op.substr(0, 4) == "set-" && op.back() == '!') {
+                        std::string rest = op.substr(4, op.size() - 5);  // Remove "set-" and "!"
+                        size_t rest_dash = rest.find('-');
+                        if (rest_dash != std::string::npos) {
+                            std::string potential_struct = rest.substr(0, rest_dash);
+                            std::string potential_field = rest.substr(rest_dash + 1);
+
+                            if (struct_defs.find(potential_struct) != struct_defs.end()) {
+                                const auto& fields = struct_defs[potential_struct].fields;
+                                if (std::find(fields.begin(), fields.end(), potential_field) != fields.end()) {
+                                    return compile_struct_mutator(list, potential_struct, potential_field);
+                                }
+                            }
+                        }
+                    }
+
+                    // Check for <structname>-<field> accessor
+                    std::string potential_struct = op.substr(0, dash_pos);
+                    std::string potential_field = op.substr(dash_pos + 1);
+
+                    if (struct_defs.find(potential_struct) != struct_defs.end()) {
+                        const auto& fields = struct_defs[potential_struct].fields;
+                        if (std::find(fields.begin(), fields.end(), potential_field) != fields.end()) {
+                            return compile_struct_accessor(list, potential_struct, potential_field);
+                        }
+                    }
+                }
+
                 // Function call
                 if (function_names.find(op) != function_names.end()) {
                     return compile_function_call(list);
@@ -222,21 +300,27 @@ private:
             throw std::runtime_error("while requires at least 1 argument: (while cond body...)");
         }
 
-        std::string cond = compile_expr(list[1]);
+        // Use a label-based loop that re-evaluates the condition each iteration
+        std::string loop_label = fresh_label();
+        std::string end_label = loop_label + "_end";
 
-        code << get_indent() << "while (" << cond << ") {\n";
+        code << get_indent() << loop_label << ":\n";
         increase_indent();
 
+        // Evaluate condition at the start of each iteration
+        std::string cond = compile_expr(list[1]);
+        code << get_indent() << "if (!(" << cond << ")) goto " << end_label << ";\n";
+
+        // Loop body
         for (size_t i = 2; i < list.size(); i++) {
             std::string expr = compile_expr(list[i]);
             code << get_indent() << expr << ";\n";
         }
 
-        // Re-evaluate condition
-        cond = compile_expr(list[1]);
+        code << get_indent() << "goto " << loop_label << ";\n";
 
         decrease_indent();
-        code << get_indent() << "}\n";
+        code << get_indent() << end_label << ":\n";
 
         return "0LL";
     }
@@ -329,7 +413,22 @@ private:
         // Check if variable already exists
         if (variables.find(var_name) == variables.end()) {
             // Determine type from value
-            if (value.find("str_") == 0 || value.find("std::string") != std::string::npos) {
+            // Check if value is a known struct variable
+            std::string value_type;
+            for (const auto& vt : variable_types) {
+                if (vt.first == value && vt.second.substr(0, 7) == "struct:") {
+                    value_type = vt.second;
+                    break;
+                }
+            }
+
+            if (!value_type.empty() && value_type.substr(0, 7) == "struct:") {
+                // It's a struct type
+                std::string struct_name = value_type.substr(7);
+                std::string cpp_struct = struct_type_name(struct_name);
+                code << get_indent() << cpp_struct << " " << cpp_var << " = " << value << ";\n";
+                variable_types[var_name] = value_type;
+            } else if (value.find("str_") == 0 || value.find("std::string") != std::string::npos) {
                 code << get_indent() << "std::string " << cpp_var << " = " << value << ";\n";
                 variable_types[var_name] = "string";
             } else if (value.find("vec_") == 0 || value.find("std::vector") != std::string::npos) {
@@ -408,11 +507,18 @@ private:
 
         // Compile function body
         std::string body_result = compile_expr(list[2]);
+
+        // Get the generated code from the function body
+        std::string func_body = code.str();
+
+        // Insert the function body code before the return statement
+        if (!func_body.empty()) {
+            func_code << func_body;
+        }
         func_code << get_indent() << "return " << body_result << ";\n";
         func_code << "}\n\n";
 
         // Restore context
-        std::string func_body = code.str();
         code.str(old_code);
         code.clear();
         code << old_code;
@@ -421,10 +527,6 @@ private:
 
         // Add function to functions section
         functions << func_code.str();
-        // Include any code generated in function body
-        if (!func_body.empty()) {
-            functions << func_body;
-        }
     }
 
     std::string compile_function_call(const std::vector<ASTNodePtr>& list) {
@@ -615,6 +717,122 @@ private:
         return value;
     }
 
+    // Struct operations
+    void compile_struct_def(const std::vector<ASTNodePtr>& list) {
+        // (define-struct token (type start end length))
+        if (list.size() != 3) {
+            throw std::runtime_error("define-struct requires 2 arguments: (define-struct name (fields...))");
+        }
+
+        if (list[1]->type != NodeType::SYMBOL) {
+            throw std::runtime_error("Struct name must be a symbol");
+        }
+
+        if (list[2]->type != NodeType::LIST) {
+            throw std::runtime_error("Struct fields must be a list");
+        }
+
+        std::string struct_name = list[1]->as_symbol();
+        const auto& field_nodes = list[2]->as_list();
+
+        StructDef def;
+        def.name = struct_name;
+
+        for (const auto& field : field_nodes) {
+            if (field->type != NodeType::SYMBOL) {
+                throw std::runtime_error("Struct fields must be symbols");
+            }
+            def.fields.push_back(field->as_symbol());
+        }
+
+        struct_defs[struct_name] = def;
+
+        // Generate C++ struct definition
+        std::string cpp_struct = struct_type_name(struct_name);
+        struct_decls << "struct " << cpp_struct << " {\n";
+
+        // Fields
+        for (const auto& field : def.fields) {
+            struct_decls << "    int64_t " << field << ";\n";
+        }
+        struct_decls << "\n";
+
+        // Default constructor
+        struct_decls << "    " << cpp_struct << "() : ";
+        for (size_t i = 0; i < def.fields.size(); i++) {
+            if (i > 0) struct_decls << ", ";
+            struct_decls << def.fields[i] << "(0)";
+        }
+        struct_decls << " {}\n\n";
+
+        // Parameterized constructor
+        struct_decls << "    " << cpp_struct << "(";
+        for (size_t i = 0; i < def.fields.size(); i++) {
+            if (i > 0) struct_decls << ", ";
+            struct_decls << "int64_t " << def.fields[i] << "_";
+        }
+        struct_decls << ")\n        : ";
+        for (size_t i = 0; i < def.fields.size(); i++) {
+            if (i > 0) struct_decls << ", ";
+            struct_decls << def.fields[i] << "(" << def.fields[i] << "_)";
+        }
+        struct_decls << " {}\n";
+
+        struct_decls << "};\n\n";
+    }
+
+    std::string compile_make_struct(const std::vector<ASTNodePtr>& list, const std::string& struct_name) {
+        // (make-token 1 0 5 5)
+        const auto& def = struct_defs[struct_name];
+
+        if (list.size() != def.fields.size() + 1) {
+            throw std::runtime_error("make-" + struct_name + " requires " +
+                                   std::to_string(def.fields.size()) + " arguments");
+        }
+
+        std::string var_name = fresh_struct_var(struct_name);
+        std::string cpp_struct = struct_type_name(struct_name);
+
+        code << get_indent() << cpp_struct << " " << var_name << "(";
+        for (size_t i = 1; i < list.size(); i++) {
+            if (i > 1) code << ", ";
+            code << compile_expr(list[i]);
+        }
+        code << ");\n";
+
+        // Track as struct type
+        variable_types[var_name] = "struct:" + struct_name;
+
+        return var_name;
+    }
+
+    std::string compile_struct_accessor(const std::vector<ASTNodePtr>& list,
+                                       const std::string& struct_name,
+                                       const std::string& field) {
+        // (token-type tok)
+        if (list.size() != 2) {
+            throw std::runtime_error(struct_name + "-" + field + " requires 1 argument");
+        }
+
+        std::string obj = compile_expr(list[1]);
+        return obj + "." + field;
+    }
+
+    std::string compile_struct_mutator(const std::vector<ASTNodePtr>& list,
+                                      const std::string& struct_name,
+                                      const std::string& field) {
+        // (set-token-type! tok 2)
+        if (list.size() != 3) {
+            throw std::runtime_error("set-" + struct_name + "-" + field + "! requires 2 arguments");
+        }
+
+        std::string obj = compile_expr(list[1]);
+        std::string value = compile_expr(list[2]);
+
+        code << get_indent() << obj << "." << field << " = " << value << ";\n";
+        return value;
+    }
+
 public:
     std::string compile(const ASTNodePtr& ast) {
         // Reset state
@@ -624,20 +842,34 @@ public:
         functions.clear();
         string_decls.str("");
         string_decls.clear();
+        struct_decls.str("");
+        struct_decls.clear();
         variables.clear();
         variable_types.clear();
+        struct_defs.clear();
         function_names.clear();
+        custom_includes.clear();
         var_counter = 0;
         label_counter = 0;
         string_counter = 0;
+        struct_counter = 0;
         indent_level = 1;
 
         // Start building the C++ program
         std::ostringstream program;
         program << "#include <cstdint>\n";
         program << "#include <iostream>\n";
+        program << "#include <iomanip>\n";
+        program << "#include <fstream>\n";
+        program << "#include <sstream>\n";
         program << "#include <string>\n";
-        program << "#include <vector>\n\n";
+        program << "#include <vector>\n";
+
+        // Add custom includes
+        for (const auto& inc : custom_includes) {
+            program << "#include <" << inc << ">\n";
+        }
+        program << "\n";
 
         // Compile the main expression
         std::string result = compile_expr(ast);
@@ -646,13 +878,20 @@ public:
         std::ostringstream full_code;
         full_code << program.str();
 
+        // Add struct definitions BEFORE function definitions
+        if (!struct_decls.str().empty()) {
+            full_code << "// Struct definitions\n";
+            full_code << struct_decls.str();
+            full_code << "\n";
+        }
+
         // Add function definitions
         if (!functions.str().empty()) {
             full_code << "// Function definitions\n";
             full_code << functions.str();
         }
 
-        full_code << "int main() {\n";
+        full_code << "int main(int argc, char** argv) {\n";
 
         // Add string declarations first
         if (!string_decls.str().empty()) {

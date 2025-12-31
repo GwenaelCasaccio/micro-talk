@@ -24,6 +24,8 @@ TEST_COMPILER_FUNCTIONS = build/test_compiler_functions
 TEST_TRANSPILER = build/test_transpiler
 TEST_TRANSPILER_EXT = build/test_transpiler_extended
 TRANSPILER_DEMO = build/transpiler_demo
+TOKENIZER_TRANSPILER = build/transpile_tokenizer
+ST_TOKENIZER = build/st_tokenizer_file
 
 all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TEST_TRANSPILER_EXT) $(TRANSPILER_DEMO)
 
@@ -98,6 +100,12 @@ $(TEST_TRANSPILER_EXT): tests/test_transpiler_extended.cpp src/lisp_parser.hpp s
 
 $(TRANSPILER_DEMO): examples/transpiler_demo.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
 	$(CXX) $(CXXFLAGS) -o $(TRANSPILER_DEMO) examples/transpiler_demo.cpp
+
+$(TOKENIZER_TRANSPILER): src/transpile_tokenizer.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
+	$(CXX) $(CXXFLAGS) -o $(TOKENIZER_TRANSPILER) src/transpile_tokenizer.cpp
+
+$(ST_TOKENIZER): src/tokenizer_main.cpp src/lisp_parser.hpp
+	$(CXX) $(CXXFLAGS) -o $(ST_TOKENIZER) src/tokenizer_main.cpp
 
 clean:
 	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TEST_TRANSPILER_EXT) $(TRANSPILER_DEMO)
@@ -187,6 +195,49 @@ transpiler: $(TEST_TRANSPILER) $(TEST_TRANSPILER_EXT)
 transpiler-demo: $(TRANSPILER_DEMO)
 	./$(TRANSPILER_DEMO)
 
+tokenizer: $(TOKENIZER_TRANSPILER)
+	@echo "=== Transpiling Smalltalk Tokenizer ==="
+	./$(TOKENIZER_TRANSPILER)
+	@echo ""
+	@echo "=== Compiling Generated C++ ==="
+	g++ -std=c++17 -o build/st_tokenizer build/smalltalk_tokenizer.cpp
+	@echo ""
+	@echo "=== Running Tokenizer ==="
+	./build/st_tokenizer
+
+tokenizer-transpile: $(TOKENIZER_TRANSPILER)
+	@echo "=== Regenerating tokenizer_main.cpp from Lisp source ==="
+	./$(TOKENIZER_TRANSPILER) lisp/smalltalk_tokenizer_ffi.lisp build/tokenizer_main_tmp.cpp
+	@echo ""
+	@echo "Adding header comments..."
+	@echo "// AUTO-GENERATED CODE - DO NOT EDIT MANUALLY" > src/tokenizer_main.cpp
+	@echo "// This file was transpiled from: lisp/smalltalk_tokenizer_ffi.lisp" >> src/tokenizer_main.cpp
+	@echo "// To regenerate, run: make tokenizer-transpile" >> src/tokenizer_main.cpp
+	@echo "//" >> src/tokenizer_main.cpp
+	@echo "// Smalltalk Tokenizer with FFI for file I/O" >> src/tokenizer_main.cpp
+	@echo "// Demonstrates the Lisp-to-C++ transpiler with FFI capabilities" >> src/tokenizer_main.cpp
+	@echo "" >> src/tokenizer_main.cpp
+	@tail -n +2 build/tokenizer_main_tmp.cpp >> src/tokenizer_main.cpp
+	@rm build/tokenizer_main_tmp.cpp
+	@echo "✓ tokenizer_main.cpp regenerated successfully!"
+
+tokenizer-file: $(ST_TOKENIZER)
+	@echo "=== Smalltalk Tokenizer with File I/O ==="
+	@echo ""
+	@if [ -f examples/test.st ]; then \
+		echo "Testing on examples/test.st:"; \
+		./$(ST_TOKENIZER) examples/test.st; \
+		echo ""; \
+	fi
+	@if [ -f /tmp/smalltalk_syntax.txt ]; then \
+		echo "Testing on /tmp/smalltalk_syntax.txt:"; \
+		./$(ST_TOKENIZER) /tmp/smalltalk_syntax.txt | head -50; \
+		echo "... (truncated)"; \
+	else \
+		echo "Running with default input:"; \
+		./$(ST_TOKENIZER); \
+	fi
+
 integration-all: test simple vars lambda loops micro advanced smalltalk comments
 	@echo ""
 	@echo "✓ All integration tests passed!"
@@ -207,4 +258,4 @@ test-all: vm-all parser-all compiler-all transpiler integration-all
 	@echo "    ✓ Smalltalk, Comments"
 	@echo "======================================"
 
-.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all transpiler transpiler-demo integration-all test-all
+.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all transpiler transpiler-demo tokenizer tokenizer-transpile tokenizer-file integration-all test-all
