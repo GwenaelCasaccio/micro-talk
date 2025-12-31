@@ -13,6 +13,11 @@ private:
         std::vector<std::string> fields;
     };
 
+    struct FunctionSignature {
+        std::vector<std::string> param_types;  // C++ types: "int64_t", "std::string", etc.
+        std::string return_type;                // C++ return type
+    };
+
     std::ostringstream code;
     std::ostringstream functions;
     std::ostringstream string_decls;  // String declarations at top of main
@@ -20,6 +25,7 @@ private:
     std::map<std::string, std::string> variables;  // Lisp name -> C++ name
     std::map<std::string, std::string> variable_types;  // Track variable types (int64_t, string, vector, struct:name)
     std::map<std::string, StructDef> struct_defs;  // Struct name -> definition
+    std::map<std::string, FunctionSignature> function_signatures;  // Function name -> signature
     std::set<std::string> function_names;
     std::set<std::string> custom_includes;  // Additional C++ includes requested via (c++-include "header")
     int var_counter = 0;
@@ -89,17 +95,130 @@ private:
         return "fn_" + sanitize_name(name);
     }
 
+    std::string lisp_type_to_cpp(const std::string& lisp_type) {
+        // Convert Lisp type names to C++ types
+        if (lisp_type == "int" || lisp_type == "int64" || lisp_type == "integer") {
+            return "int64_t";
+        }
+        if (lisp_type == "string" || lisp_type == "str") {
+            return "std::string";
+        }
+        if (lisp_type == "bool" || lisp_type == "boolean") {
+            return "int64_t";  // Booleans as int64_t (0/1)
+        }
+        // Check if it's a struct type
+        if (struct_defs.find(lisp_type) != struct_defs.end()) {
+            return struct_type_name(lisp_type);
+        }
+        // Default to int64_t for unknown types
+        return "int64_t";
+    }
+
+    std::string infer_expr_type(const ASTNodePtr& node) {
+        // Infer the C++ type of an expression
+        switch (node->type) {
+            case NodeType::NUMBER:
+                return "int64_t";
+
+            case NodeType::STRING:
+                return "std::string";
+
+            case NodeType::SYMBOL: {
+                std::string sym = node->as_symbol();
+                // Check if it's a known variable
+                if (variable_types.find(sym) != variable_types.end()) {
+                    return variable_types[sym];
+                }
+                // Default to int64_t for unknown symbols
+                return "int64_t";
+            }
+
+            case NodeType::LIST: {
+                const auto& list = node->as_list();
+                if (list.empty()) return "int64_t";
+
+                if (list[0]->type != NodeType::SYMBOL) return "int64_t";
+                std::string op = list[0]->as_symbol();
+
+                // String operations return string
+                if (op == "string-concat" || op == "substring") {
+                    return "std::string";
+                }
+
+                // Comparison and logical operations return int64_t (boolean)
+                if (op == "=" || op == "<" || op == ">" || op == "<=" || op == ">=") {
+                    return "int64_t";
+                }
+
+                // Arithmetic operations return int64_t
+                if (op == "+" || op == "-" || op == "*" || op == "/" || op == "%") {
+                    return "int64_t";
+                }
+
+                // Control flow - infer from branches
+                if (op == "if" && list.size() >= 3) {
+                    return infer_expr_type(list[2]);  // Type of then branch
+                }
+                if (op == "do" && list.size() >= 2) {
+                    return infer_expr_type(list[list.size() - 1]);  // Type of last expression
+                }
+
+                // set returns the type of the variable being set
+                if (op == "set" && list.size() == 3 && list[1]->type == NodeType::SYMBOL) {
+                    std::string var_name = list[1]->as_symbol();
+                    if (variable_types.find(var_name) != variable_types.end()) {
+                        return variable_types[var_name];
+                    }
+                }
+
+                // List/vector operations
+                if (op == "list") {
+                    return "std::vector<int64_t>";
+                }
+
+                // Struct constructors: make-<structname>
+                if (op.substr(0, 5) == "make-") {
+                    std::string struct_name = op.substr(5);
+                    if (struct_defs.find(struct_name) != struct_defs.end()) {
+                        return struct_type_name(struct_name);
+                    }
+                }
+
+                // Struct accessors: <structname>-<field>
+                size_t dash_pos = op.find('-');
+                if (dash_pos != std::string::npos) {
+                    std::string potential_struct = op.substr(0, dash_pos);
+                    std::string potential_field = op.substr(dash_pos + 1);
+                    if (struct_defs.find(potential_struct) != struct_defs.end()) {
+                        const auto& fields = struct_defs[potential_struct].fields;
+                        if (std::find(fields.begin(), fields.end(), potential_field) != fields.end()) {
+                            // Struct field access returns int64_t
+                            return "int64_t";
+                        }
+                    }
+                }
+
+                // Function calls - look up return type
+                if (function_signatures.find(op) != function_signatures.end()) {
+                    return function_signatures[op].return_type;
+                }
+
+                // Default to int64_t
+                return "int64_t";
+            }
+        }
+
+        return "int64_t";
+    }
+
     std::string compile_expr(const ASTNodePtr& node) {
         switch (node->type) {
             case NodeType::NUMBER:
                 return std::to_string(node->as_number()) + "LL";
 
             case NodeType::STRING: {
-                // Create a string variable
-                std::string str_var = fresh_string_var();
-                string_decls << "    std::string " << str_var << " = \""
-                            << escape_string(node->as_string()) << "\";\n";
-                return str_var;
+                // Return inline string literal
+                return "std::string(\"" + escape_string(node->as_string()) + "\")";
             }
 
             case NodeType::SYMBOL: {
@@ -276,10 +395,13 @@ private:
             throw std::runtime_error("if requires 3 arguments: (if cond then else)");
         }
 
+        // Infer result type from the then branch
+        std::string result_type = infer_expr_type(list[2]);
+
         std::string result_var = fresh_var();
         std::string cond = compile_expr(list[1]);
 
-        code << get_indent() << "int64_t " << result_var << ";\n";
+        code << get_indent() << result_type << " " << result_var << ";\n";
         code << get_indent() << "if (" << cond << ") {\n";
         increase_indent();
         std::string then_expr = compile_expr(list[2]);
@@ -408,36 +530,17 @@ private:
         std::string var_name = list[1]->as_symbol();
         std::string cpp_var = sanitize_name(var_name);
 
+        // Infer type from the expression BEFORE compiling it
+        std::string inferred_type = infer_expr_type(list[2]);
+
+        // Now compile the value expression
         std::string value = compile_expr(list[2]);
 
         // Check if variable already exists
         if (variables.find(var_name) == variables.end()) {
-            // Determine type from value
-            // Check if value is a known struct variable
-            std::string value_type;
-            for (const auto& vt : variable_types) {
-                if (vt.first == value && vt.second.substr(0, 7) == "struct:") {
-                    value_type = vt.second;
-                    break;
-                }
-            }
-
-            if (!value_type.empty() && value_type.substr(0, 7) == "struct:") {
-                // It's a struct type
-                std::string struct_name = value_type.substr(7);
-                std::string cpp_struct = struct_type_name(struct_name);
-                code << get_indent() << cpp_struct << " " << cpp_var << " = " << value << ";\n";
-                variable_types[var_name] = value_type;
-            } else if (value.find("str_") == 0 || value.find("std::string") != std::string::npos) {
-                code << get_indent() << "std::string " << cpp_var << " = " << value << ";\n";
-                variable_types[var_name] = "string";
-            } else if (value.find("vec_") == 0 || value.find("std::vector") != std::string::npos) {
-                code << get_indent() << "auto " << cpp_var << " = " << value << ";\n";
-                variable_types[var_name] = "vector";
-            } else {
-                code << get_indent() << "int64_t " << cpp_var << " = " << value << ";\n";
-                variable_types[var_name] = "int64_t";
-            }
+            // Use the inferred type
+            code << get_indent() << inferred_type << " " << cpp_var << " = " << value << ";\n";
+            variable_types[var_name] = inferred_type;
             variables[var_name] = cpp_var;
         } else {
             code << get_indent() << variables[var_name] << " = " << value << ";\n";
@@ -464,7 +567,11 @@ private:
     }
 
     void compile_function_def(const std::vector<ASTNodePtr>& list) {
-        // (define (name param1 param2...) body)
+        // Syntax options:
+        // (define (name param1 param2...) body)                    - untyped (backward compatible)
+        // (define (name (param1 type1) (param2 type2)) body)      - typed params, inferred return
+        // (define (name (param1 type1) (param2 type2)) type body) - typed params and return
+
         const auto& sig = list[1]->as_list();
         if (sig.empty() || sig[0]->type != NodeType::SYMBOL) {
             throw std::runtime_error("Function definition requires a name");
@@ -475,38 +582,93 @@ private:
 
         function_names.insert(func_name);
 
+        // Parse parameters and their types
+        std::vector<std::string> param_names;
+        std::vector<std::string> param_types;  // C++ types
+
+        for (size_t i = 1; i < sig.size(); i++) {
+            if (sig[i]->type == NodeType::SYMBOL) {
+                // Untyped parameter: just a symbol
+                std::string param = sig[i]->as_symbol();
+                param_names.push_back(param);
+                param_types.push_back("int64_t");  // default type
+            } else if (sig[i]->type == NodeType::LIST) {
+                // Typed parameter: (name type)
+                const auto& param_def = sig[i]->as_list();
+                if (param_def.size() != 2 ||
+                    param_def[0]->type != NodeType::SYMBOL ||
+                    param_def[1]->type != NodeType::SYMBOL) {
+                    throw std::runtime_error("Typed parameter must be (name type)");
+                }
+                std::string param = param_def[0]->as_symbol();
+                std::string type = param_def[1]->as_symbol();
+                param_names.push_back(param);
+                param_types.push_back(lisp_type_to_cpp(type));
+            } else {
+                throw std::runtime_error("Function parameters must be symbols or (name type) lists");
+            }
+        }
+
+        // Determine return type and body position
+        std::string return_type;
+        size_t body_index;
+
+        if (list.size() == 3) {
+            // (define (name ...) body) - no explicit return type, infer it
+            body_index = 2;
+            // Temporarily add parameters to scope for type inference
+            auto old_vars = variables;
+            auto old_types = variable_types;
+            for (size_t i = 0; i < param_names.size(); i++) {
+                variables[param_names[i]] = sanitize_name(param_names[i]);
+                variable_types[param_names[i]] = param_types[i];
+            }
+            // Infer return type from body
+            return_type = infer_expr_type(list[body_index]);
+            // Restore scope
+            variables = old_vars;
+            variable_types = old_types;
+        } else if (list.size() == 4 && list[2]->type == NodeType::SYMBOL) {
+            // (define (name ...) type body) - explicit return type
+            return_type = lisp_type_to_cpp(list[2]->as_symbol());
+            body_index = 3;
+        } else {
+            return_type = "int64_t";
+            body_index = 2;
+        }
+
+        // Store function signature
+        FunctionSignature func_sig;
+        func_sig.param_types = param_types;
+        func_sig.return_type = return_type;
+        function_signatures[func_name] = func_sig;
+
         // Build function signature
         std::ostringstream func_code;
-        func_code << "int64_t " << cpp_func << "(";
+        func_code << return_type << " " << cpp_func << "(";
 
-        std::vector<std::string> param_names;
-        for (size_t i = 1; i < sig.size(); i++) {
-            if (sig[i]->type != NodeType::SYMBOL) {
-                throw std::runtime_error("Function parameters must be symbols");
-            }
-            std::string param = sig[i]->as_symbol();
-            std::string cpp_param = sanitize_name(param);
-            param_names.push_back(param);
-
-            if (i > 1) func_code << ", ";
-            func_code << "int64_t " << cpp_param;
+        for (size_t i = 0; i < param_names.size(); i++) {
+            if (i > 0) func_code << ", ";
+            func_code << param_types[i] << " " << sanitize_name(param_names[i]);
         }
         func_code << ") {\n";
 
         // Save current context
         auto old_variables = variables;
+        auto old_variable_types = variable_types;
         auto old_code = code.str();
         code.str("");
         code.clear();
         indent_level = 1;
 
-        // Add parameters to scope
-        for (const auto& param : param_names) {
-            variables[param] = sanitize_name(param);
+        // Add parameters to scope with their types
+        for (size_t i = 0; i < param_names.size(); i++) {
+            variables[param_names[i]] = sanitize_name(param_names[i]);
+            variable_types[param_names[i]] = param_types[i];
         }
 
         // Compile function body
-        std::string body_result = compile_expr(list[2]);
+        std::string body_result = compile_expr(list[body_index]);
 
         // Get the generated code from the function body
         std::string func_body = code.str();
@@ -523,6 +685,7 @@ private:
         code.clear();
         code << old_code;
         variables = old_variables;
+        variable_types = old_variable_types;
         indent_level = 0;
 
         // Add function to functions section
@@ -649,11 +812,8 @@ private:
         std::string start = compile_expr(list[2]);
         std::string end = compile_expr(list[3]);
 
-        std::string result_var = fresh_string_var();
-        string_decls << "    std::string " << result_var << ";\n";
-        code << get_indent() << result_var << " = " << str
-             << ".substr(" << start << ", " << end << " - " << start << ");\n";
-        return result_var;
+        // Return inline expression
+        return "(" + str + ".substr(" + start + ", " + end + " - " + start + "))";
     }
 
     std::string compile_string_concat(const std::vector<ASTNodePtr>& list) {
@@ -661,17 +821,16 @@ private:
             throw std::runtime_error("string-concat requires at least 1 argument");
         }
 
-        std::string result_var = fresh_string_var();
-        string_decls << "    std::string " << result_var << ";\n";
-
-        code << get_indent() << result_var << " = ";
+        // Build inline expression: (str1 + str2 + str3)
+        std::ostringstream expr;
+        expr << "(";
         for (size_t i = 1; i < list.size(); i++) {
-            if (i > 1) code << " + ";
-            code << compile_expr(list[i]);
+            if (i > 1) expr << " + ";
+            expr << compile_expr(list[i]);
         }
-        code << ";\n";
+        expr << ")";
 
-        return result_var;
+        return expr.str();
     }
 
     // List/Array operations (using std::vector<int64_t>)
@@ -871,6 +1030,9 @@ public:
         }
         program << "\n";
 
+        // Infer the result type BEFORE compiling
+        std::string result_type = infer_expr_type(ast);
+
         // Compile the main expression
         std::string result = compile_expr(ast);
 
@@ -901,24 +1063,9 @@ public:
 
         full_code << code.str();
 
-        // Handle different result types
-        // Check if it's a pure vector variable (no indexing or operations)
-        bool is_pure_vec = (result.find("vec_") == 0 && result.find('[') == std::string::npos
-                           && result.find('(') == std::string::npos);
-        bool is_pure_str = (result.find("str_") == 0 && result.find('[') == std::string::npos
-                           && result.find('(') == std::string::npos);
-
-        if (is_pure_str) {
-            // String result
-            full_code << "    std::cout << " << result << " << std::endl;\n";
-        } else if (is_pure_vec) {
-            // Vector result - print size
-            full_code << "    std::cout << " << result << ".size() << std::endl;\n";
-        } else {
-            // Integer result (or expression)
-            full_code << "    int64_t result = " << result << ";\n";
-            full_code << "    std::cout << result << std::endl;\n";
-        }
+        // Use inferred type for result variable
+        full_code << "    " << result_type << " result = " << result << ";\n";
+        full_code << "    std::cout << result << std::endl;\n";
 
         full_code << "    return 0;\n";
         full_code << "}\n";

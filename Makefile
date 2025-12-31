@@ -238,6 +238,36 @@ tokenizer-file: $(ST_TOKENIZER)
 		./$(ST_TOKENIZER); \
 	fi
 
+parser: $(TOKENIZER_TRANSPILER)
+	@echo "=== Transpiling Smalltalk Parser ==="
+	./$(TOKENIZER_TRANSPILER) lisp/smalltalk_parser.lisp build/smalltalk_parser.cpp
+	@echo ""
+	@echo "=== Compiling Generated C++ ==="
+	g++ -std=c++17 -o build/st_parser build/smalltalk_parser.cpp
+	@echo ""
+	@echo "=== Running Parser ==="
+	./build/st_parser
+
+typed-functions: $(TOKENIZER_TRANSPILER)
+	@echo "=== Transpiling Typed Functions Test ==="
+	./$(TOKENIZER_TRANSPILER) lisp/test_typed_functions.lisp build/test_typed_functions.cpp
+	@echo ""
+	@echo "=== Compiling Generated C++ ==="
+	g++ -std=c++17 -o build/test_typed_functions build/test_typed_functions.cpp
+	@echo ""
+	@echo "=== Running Typed Functions Test ==="
+	./build/test_typed_functions
+
+parser-typed: $(TOKENIZER_TRANSPILER)
+	@echo "=== Transpiling Smalltalk Parser (Typed Strings) ==="
+	./$(TOKENIZER_TRANSPILER) lisp/smalltalk_parser_typed.lisp build/smalltalk_parser_typed.cpp
+	@echo ""
+	@echo "=== Compiling Generated C++ ==="
+	g++ -std=c++17 -o build/st_parser_typed build/smalltalk_parser_typed.cpp
+	@echo ""
+	@echo "=== Running Smalltalk Parser ==="
+	./build/st_parser_typed
+
 integration-all: test simple vars lambda loops micro advanced smalltalk comments
 	@echo ""
 	@echo "✓ All integration tests passed!"
