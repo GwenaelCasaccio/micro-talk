@@ -1,6 +1,6 @@
-#include "stack_vm.hpp"
-#include "lisp_parser.hpp"
-#include "lisp_compiler.hpp"
+#include "../src/stack_vm.hpp"
+#include "../src/lisp_parser.hpp"
+#include "../src/lisp_compiler.hpp"
 #include <iostream>
 
 int main() {
@@ -55,9 +55,9 @@ int main() {
             std::string code = R"(
                 (do
                     ; Set x to 10
-                    (define x 10)
+                    (define-var x 10)
                     ; Set y to 20
-                    (define y 20)
+                    (define-var y 20)
                     ; Add them together
                     (+ x y))
             )";
@@ -104,10 +104,10 @@ int main() {
             std::cout << "\nTest 5: Multiple expressions with comments" << std::endl;
             std::string code = R"(
                 ; First calculation
-                (define a (+ 5 5))
+                (define-var a (+ 5 5))
 
                 ; Second calculation
-                (define b (* 3 3))
+                (define-var b (* 3 3))
 
                 ; Final result
                 (+ a b)

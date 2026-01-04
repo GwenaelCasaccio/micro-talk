@@ -1,13 +1,13 @@
-#include "../src/stack_vm.hpp"
-#include "../src/lisp_parser.hpp"
 #include "../src/lisp_compiler.hpp"
-#include <iostream>
+#include "../src/lisp_parser.hpp"
+#include "../src/stack_vm.hpp"
 #include <cassert>
+#include <iostream>
 
 void test_compile_define() {
     std::cout << "Testing variable definition..." << std::endl;
 
-    std::string code = "(do (define x 42) x)";
+    std::string code = "(do (define-var x 42) x)";
     LispParser parser(code);
     auto ast = parser.parse();
     LispCompiler compiler;
@@ -18,7 +18,7 @@ void test_compile_define() {
     vm.execute();
 
     assert(vm.get_top() == 42);
-    std::cout << "  ✓ Define and use: (define x 42) x = 42" << std::endl;
+    std::cout << "  ✓ Define and use: (define-var x 42) x = 42" << std::endl;
 }
 
 void test_compile_multiple_defines() {
@@ -26,9 +26,9 @@ void test_compile_multiple_defines() {
 
     std::string code = R"(
         (do
-            (define x 10)
-            (define y 20)
-            (define z 30)
+            (define-var x 10)
+            (define-var y 20)
+            (define-var z 30)
             (+ x (+ y z)))
     )";
 
@@ -50,7 +50,7 @@ void test_compile_set() {
 
     std::string code = R"(
         (do
-            (define x 10)
+            (define-var x 10)
             (set x 42)
             x)
     )";
@@ -73,7 +73,7 @@ void test_compile_set_with_expression() {
 
     std::string code = R"(
         (do
-            (define x 10)
+            (define-var x 10)
             (set x (+ x 5))
             x)
     )";
@@ -117,7 +117,7 @@ void test_compile_let_shadowing() {
 
     std::string code = R"(
         (do
-            (define x 100)
+            (define-var x 100)
             (let ((x 42))
                 x))
     )";
@@ -140,7 +140,7 @@ void test_compile_let_multiple_body() {
 
     std::string code = R"(
         (let ((x 10) (y 5))
-            (define z (* x y))
+            (define-var z (* x y))
             (+ z 10))
     )";
 
@@ -185,10 +185,10 @@ void test_compile_variable_arithmetic() {
 
     std::string code = R"(
         (do
-            (define a 5)
-            (define b 3)
-            (define sum (+ a b))
-            (define product (* a b))
+            (define-var a 5)
+            (define-var b 3)
+            (define-var sum (+ a b))
+            (define-var product (* a b))
             (+ sum product))
     )";
 

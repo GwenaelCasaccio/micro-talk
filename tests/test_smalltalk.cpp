@@ -1,13 +1,13 @@
-#include "stack_vm.hpp"
-#include "lisp_parser.hpp"
-#include "lisp_compiler.hpp"
+#include "../src/stack_vm.hpp"
+#include "../src/lisp_parser.hpp"
+#include "../src/lisp_compiler.hpp"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 
 int main() {
     // std::ifstream file("smalltalk_demo_strings.lisp");
-    std::ifstream file("method_lookup_fixed.lisp");
+    std::ifstream file("lisp/method_lookup_fixed.lisp");
     std::stringstream buffer;
     buffer << file.rdbuf();
     std::string code = buffer.str();

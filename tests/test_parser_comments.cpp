@@ -1,6 +1,6 @@
 #include "../src/lisp_parser.hpp"
-#include <iostream>
 #include <cassert>
+#include <iostream>
 
 void test_single_line_comment() {
     std::cout << "Testing single line comments..." << std::endl;
@@ -42,7 +42,8 @@ void test_comments_in_lists() {
     assert(items2.size() == 3);
     std::cout << "  ✓ Comments between all elements" << std::endl;
 
-    LispParser parser3("(do\n  ; Step 1\n  (define x 10)\n  ; Step 2\n  (define y 20)\n  ; Result\n  (+ x y))");
+    LispParser parser3("(do\n  ; Step 1\n  (define-var x 10)\n  ; Step 2\n  (define-var y 20)\n  ; "
+                       "Result\n  (+ x y))");
     auto node3 = parser3.parse();
     const auto& items3 = node3->as_list();
     assert(items3[0]->as_symbol() == "do");
@@ -55,10 +56,10 @@ void test_comments_with_multiple_expressions() {
 
     std::string code = R"(
         ; Define x
-        (define x 10)
+        (define-var x 10)
 
         ; Define y
-        (define y 20)
+        (define-var y 20)
 
         ; Calculate sum
         (+ x y)

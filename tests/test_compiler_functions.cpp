@@ -1,15 +1,15 @@
-#include "../src/stack_vm.hpp"
-#include "../src/lisp_parser.hpp"
 #include "../src/lisp_compiler.hpp"
-#include <iostream>
+#include "../src/lisp_parser.hpp"
+#include "../src/stack_vm.hpp"
 #include <cassert>
+#include <iostream>
 
 void test_compile_simple_function() {
     std::cout << "Testing simple function..." << std::endl;
 
     std::string code = R"(
         (do
-            (define (square x) (* x x))
+            (define-func (square x) (* x x))
             (square 7))
     )";
 
@@ -31,7 +31,7 @@ void test_compile_function_two_params() {
 
     std::string code = R"(
         (do
-            (define (add a b) (+ a b))
+            (define-func (add a b) (+ a b))
             (add 10 20))
     )";
 
@@ -53,9 +53,9 @@ void test_compile_function_multiple_calls() {
 
     std::string code = R"(
         (do
-            (define (double x) (* x 2))
-            (define a (double 5))
-            (define b (double 10))
+            (define-func (double x) (* x 2))
+            (define-var a (double 5))
+            (define-var b (double 10))
             (+ a b))
     )";
 
@@ -78,10 +78,10 @@ void test_compile_function_with_body() {
 
     std::string code = R"(
         (do
-            (define (calculate x y)
+            (define-func (calculate x y)
                 (do
-                    (define sum (+ x y))
-                    (define product (* x y))
+                    (define-var sum (+ x y))
+                    (define-var product (* x y))
                     (+ sum product)))
             (calculate 3 4))
     )";
@@ -105,11 +105,11 @@ void test_compile_recursive_function() {
 
     std::string code = R"(
         (do
-            (define (factorial n)
+            (define-func (factorial n)
                 (if (= n 0)
                     1
                     (* n (factorial (- n 1)))))
-            (factorial 3))
+            (factorial 5))
     )";
 
     LispParser parser(code);
@@ -121,9 +121,8 @@ void test_compile_recursive_function() {
     vm.load_program(bytecode);
     vm.execute();
 
-    // 3! = 6
-    assert(vm.get_top() == 6);
-    std::cout << "  ✓ Recursive: factorial(3) = 6" << std::endl;
+    assert(vm.get_top() == 120);
+    std::cout << "  ✓ Recursive: factorial(5) = 120" << std::endl;
 }
 
 void test_compile_function_calling_function() {
@@ -131,8 +130,8 @@ void test_compile_function_calling_function() {
 
     std::string code = R"(
         (do
-            (define (double x) (* x 2))
-            (define (quadruple x) (double (double x)))
+            (define-func (double x) (* x 2))
+            (define-func (quadruple x) (double (double x)))
             (quadruple 3))
     )";
 
@@ -154,7 +153,7 @@ void test_compile_function_with_conditionals() {
 
     std::string code = R"(
         (do
-            (define (max a b)
+            (define-func (max a b)
                 (if (> a b) a b))
             (max 15 20))
     )";
@@ -177,7 +176,7 @@ void test_compile_fibonacci() {
 
     std::string code = R"(
         (do
-            (define (fib n)
+            (define-func (fib n)
                 (if (< n 2)
                     n
                     (+ (fib (- n 1)) (fib (- n 2)))))
@@ -198,6 +197,30 @@ void test_compile_fibonacci() {
     std::cout << "  ✓ Fibonacci: fib(5) = 5" << std::endl;
 }
 
+void test_compile_function_with_arguments_and_temporaries() {
+    std::cout << "Testing function with arguments and temporaries..." << std::endl;
+
+    std::string code = R"(
+        (do
+            (define-func (fn a b c)
+		(let ((x (+ a 1)) (y (+ b 2)) (z (+ c 3)))
+		     (+ (+ (+ a b) (+ c x)) (+ y z))))
+            (fn 12 23 34))
+    )";
+
+    LispParser parser(code);
+    auto ast = parser.parse();
+    LispCompiler compiler;
+    auto bytecode = compiler.compile(ast);
+
+    StackVM vm;
+    vm.load_program(bytecode);
+    vm.execute();
+
+    assert(vm.get_top() == 144);
+    std::cout << "  ✓ fn: f(12, 23, 34) = 144" << std::endl;
+}
+
 int main() {
     std::cout << "=== Compiler Function Tests ===" << std::endl;
 
@@ -208,14 +231,13 @@ int main() {
         test_compile_function_with_body();
         std::cout << std::endl;
 
-        // Note: Recursion tests skipped - better tested in src/test_lambda.cpp
-        // test_compile_recursive_function();
-        // test_compile_fibonacci();
+        test_compile_recursive_function();
+        test_compile_fibonacci();
         test_compile_function_calling_function();
         test_compile_function_with_conditionals();
+        test_compile_function_with_arguments_and_temporaries();
 
         std::cout << "\n✓ All compiler function tests passed!" << std::endl;
-        std::cout << "  (Recursion tested in src/test_lambda.cpp)" << std::endl;
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "\n✗ Test failed: " << e.what() << std::endl;

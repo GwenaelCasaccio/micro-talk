@@ -1,8 +1,8 @@
-#include "../src/stack_vm.hpp"
-#include "../src/lisp_parser.hpp"
 #include "../src/lisp_compiler.hpp"
-#include <iostream>
+#include "../src/lisp_parser.hpp"
+#include "../src/stack_vm.hpp"
 #include <cassert>
+#include <iostream>
 
 void test_compile_if_then() {
     std::cout << "Testing if (then branch)..." << std::endl;
@@ -73,8 +73,8 @@ void test_compile_while() {
 
     std::string code = R"(
         (do
-            (define counter 0)
-            (define sum 0)
+            (define-var counter 0)
+            (define-var sum 0)
             (while (< counter 5)
                 (do
                     (set sum (+ sum counter))
@@ -101,7 +101,7 @@ void test_compile_for() {
 
     std::string code = R"(
         (do
-            (define total 0)
+            (define-var total 0)
             (for (i 0 5)
                 (set total (+ total i)))
             total)
@@ -126,7 +126,7 @@ void test_compile_for_nested() {
 
     std::string code = R"(
         (do
-            (define result 0)
+            (define-var result 0)
             (for (i 1 4)
                 (for (j 1 4)
                     (set result (+ result 1))))
@@ -152,7 +152,7 @@ void test_compile_while_with_condition() {
 
     std::string code = R"(
         (do
-            (define x 10)
+            (define-var x 10)
             (while (> x 0)
                 (set x (- x 2)))
             x)

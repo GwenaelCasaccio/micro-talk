@@ -1,5 +1,43 @@
-#include "microcode.hpp"
+#include "../src/microcode.hpp"
 #include <iostream>
+
+// Example microcode library for Smalltalk-like operations
+namespace SmalltalkMicrocode {
+    // Generate standard Smalltalk microcodes
+    void define_smalltalk_primitives(MicrocodeCompiler& compiler) {
+        // Object creation: new-object
+        compiler.compile_defmicro(
+            "(defmicro new-object (class-id) "
+            "  (do "
+            "    (define-var TAG_OOP 0) "
+            "    (define-var obj-addr 16384) "
+            "    (bit-or obj-addr TAG_OOP)))");
+        
+        // Send message (simplified): send
+        compiler.compile_defmicro(
+            "(defmicro send-msg (receiver selector) "
+            "  (do "
+            "    (define-var TAG_MASK 7) "
+            "    (define-var is-oop-check (= (bit-and receiver TAG_MASK) 0)) "
+            "    (if is-oop-check receiver 0)))");
+        
+        // Get class of object
+        compiler.compile_defmicro(
+            "(defmicro get-class (obj) "
+            "  (do "
+            "    (define-var addr (bit-and obj (bit-xor -1 7))) "
+            "    (define-var class-id addr) "
+            "    class-id)))");
+        
+        // Array access
+        compiler.compile_defmicro(
+            "(defmicro array-at (array index) "
+            "  (do "
+            "    (define-var base (bit-and array (bit-xor -1 7))) "
+            "    (define-var offset (+ base index)) "
+            "    offset)))");
+    }
+}
 
 void test_microcode(const std::string& name, const std::string& source, MicrocodeCompiler& compiler) {
     std::cout << "=== " << name << " ===" << std::endl;
@@ -55,17 +93,17 @@ int main() {
     compiler.compile_defmicro(
         "(defmicro tagged-add (a b) "
         "  (do "
-        "    (define ua (bit-ashr a 3)) "
-        "    (define ub (bit-ashr b 3)) "
-        "    (define sum (+ ua ub)) "
+        "    (define-var ua (bit-ashr a 3)) "
+        "    (define-var ub (bit-ashr b 3)) "
+        "    (define-var sum (+ ua ub)) "
         "    (bit-or (bit-shl sum 3) 1)))");
     
     compiler.compile_defmicro(
         "(defmicro tagged-mul (a b) "
         "  (do "
-        "    (define ua (bit-ashr a 3)) "
-        "    (define ub (bit-ashr b 3)) "
-        "    (define prod (* ua ub)) "
+        "    (define-var ua (bit-ashr a 3)) "
+        "    (define-var ub (bit-ashr b 3)) "
+        "    (define-var prod (* ua ub)) "
         "    (bit-or (bit-shl prod 3) 1)))");
     
     // Object operations
@@ -89,53 +127,53 @@ int main() {
     
     test_microcode("Square",
         "(do "
-        "  (define (square x) (* x x)) "
+        "  (define-func (square x) (* x x)) "
         "  (square 9))",
         compiler);
     
     test_microcode("Cube",
         "(do "
-        "  (define (cube x) (* x (* x x))) "
+        "  (define-func (cube x) (* x (* x x))) "
         "  (cube 5))",
         compiler);
     
     test_microcode("Add3",
         "(do "
-        "  (define (add3 a b c) (+ a (+ b c))) "
+        "  (define-func (add3 a b c) (+ a (+ b c))) "
         "  (add3 10 20 30))",
         compiler);
     
     test_microcode("Tag and untag",
         "(do "
-        "  (define (tag-int value) (bit-or (bit-shl value 3) 1)) "
-        "  (define (untag-int tagged) (bit-ashr tagged 3)) "
-        "  (define tagged (tag-int 42)) "
+        "  (define-func (tag-int value) (bit-or (bit-shl value 3) 1)) "
+        "  (define-func (untag-int tagged) (bit-ashr tagged 3)) "
+        "  (define-var tagged (tag-int 42)) "
         "  (print tagged) "
         "  (untag-int tagged))",
         compiler);
     
     test_microcode("Tagged arithmetic",
         "(do "
-        "  (define (tag-int value) (bit-or (bit-shl value 3) 1)) "
-        "  (define (untag-int tagged) (bit-ashr tagged 3)) "
-        "  (define (tagged-add a b) "
+        "  (define-func (tag-int value) (bit-or (bit-shl value 3) 1)) "
+        "  (define-func (untag-int tagged) (bit-ashr tagged 3)) "
+        "  (define-func (tagged-add a b) "
         "    (do "
-        "      (define ua (bit-ashr a 3)) "
-        "      (define ub (bit-ashr b 3)) "
-        "      (define sum (+ ua ub)) "
+        "      (define-var ua (bit-ashr a 3)) "
+        "      (define-var ub (bit-ashr b 3)) "
+        "      (define-var sum (+ ua ub)) "
         "      (bit-or (bit-shl sum 3) 1))) "
-        "  (define a (tag-int 10)) "
-        "  (define b (tag-int 20)) "
-        "  (define result (tagged-add a b)) "
+        "  (define-var a (tag-int 10)) "
+        "  (define-var b (tag-int 20)) "
+        "  (define-var result (tagged-add a b)) "
         "  (print result) "
         "  (untag-int result))",
         compiler);
     
     test_microcode("Type checking",
         "(do "
-        "  (define (tag-int value) (bit-or (bit-shl value 3) 1)) "
-        "  (define (is-tagged-int obj) (= (bit-and obj 7) 1)) "
-        "  (define obj (tag-int 99)) "
+        "  (define-var (tag-int value) (bit-or (bit-shl value 3) 1)) "
+        "  (define-var (is-tagged-int obj) (= (bit-and obj 7) 1)) "
+        "  (define-func obj (tag-int 99)) "
         "  (is-tagged-int obj))",
         compiler);
     
@@ -150,32 +188,32 @@ int main() {
     
     test_microcode("Smalltalk int-add",
         "(do "
-        "  (define (int-add a b) "
+        "  (define-func (int-add a b) "
         "    (do "
-        "      (define TAG_INT 1) "
-        "      (define ua (bit-ashr a 3)) "
-        "      (define ub (bit-ashr b 3)) "
-        "      (define sum (+ ua ub)) "
+        "      (define-var TAG_INT 1) "
+        "      (define-var ua (bit-ashr a 3)) "
+        "      (define-var ub (bit-ashr b 3)) "
+        "      (define-var sum (+ ua ub)) "
         "      (bit-or (bit-shl sum 3) TAG_INT))) "
-        "  (define a (bit-or (bit-shl 15 3) 1)) "
-        "  (define b (bit-or (bit-shl 27 3) 1)) "
-        "  (define result (int-add a b)) "
-        "  (bit-ashr result 3))",
+        "  (define-var a1 (bit-or (bit-shl 15 3) 1)) "
+        "  (define-var b1 (bit-or (bit-shl 27 3) 1)) "
+        "  (define-var result1 (int-add a1 b1)) "
+        "  (bit-ashr result1 3))",
         compiler);
     
     test_microcode("Smalltalk int-mul",
         "(do "
-        "  (define (int-mul a b) "
+        "  (define-func (int-mul a b) "
         "    (do "
-        "      (define TAG_INT 1) "
-        "      (define ua (bit-ashr a 3)) "
-        "      (define ub (bit-ashr b 3)) "
-        "      (define prod (* ua ub)) "
+        "      (define-var TAG_INT 1) "
+        "      (define-var ua (bit-ashr a 3)) "
+        "      (define-var ub (bit-ashr b 3)) "
+        "      (define-var prod (* ua ub)) "
         "      (bit-or (bit-shl prod 3) TAG_INT))) "
-        "  (define a (bit-or (bit-shl 6 3) 1)) "
-        "  (define b (bit-or (bit-shl 7 3) 1)) "
-        "  (define result (int-mul a b)) "
-        "  (bit-ashr result 3))",
+        "  (define-var a2 (bit-or (bit-shl 6 3) 1)) "
+        "  (define-var b2 (bit-or (bit-shl 7 3) 1)) "
+        "  (define-var result2 (int-mul a2 b2)) "
+        "  (bit-ashr result2 3))",
         compiler);
     
     std::cout << "=== Demo Complete ===" << std::endl;

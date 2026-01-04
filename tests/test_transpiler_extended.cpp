@@ -1,9 +1,9 @@
 #include "../src/lisp_parser.hpp"
 #include "../src/lisp_to_cpp.hpp"
-#include <iostream>
-#include <fstream>
 #include <cassert>
 #include <cstdlib>
+#include <fstream>
+#include <iostream>
 
 void save_cpp_file(const std::string& filename, const std::string& code) {
     std::ofstream out(filename);
@@ -28,13 +28,15 @@ std::string run_command(const std::string& cmd) {
 
     int status = pclose(pipe);
     if (status != 0) {
-        throw std::runtime_error("Command failed with status " + std::to_string(status) + ": " + cmd);
+        throw std::runtime_error("Command failed with status " + std::to_string(status) + ": " +
+                                 cmd);
     }
 
     return result;
 }
 
-void test_transpile_and_run(const std::string& name, const std::string& lisp_code, const std::string& expected_output) {
+void test_transpile_and_run(const std::string& name, const std::string& lisp_code,
+                            const std::string& expected_output) {
     std::cout << "Testing " << name << "..." << std::endl;
 
     // Parse
@@ -81,98 +83,76 @@ void test_transpile_and_run(const std::string& name, const std::string& lisp_cod
 }
 
 void test_string_literals() {
-    test_transpile_and_run("string_literal",
-        "\"hello\"",
-        "hello");
+    test_transpile_and_run("string_literal", "\"hello\"", "hello");
 
-    test_transpile_and_run("string_literal_spaces",
-        "\"hello world\"",
-        "hello world");
+    test_transpile_and_run("string_literal_spaces", "\"hello world\"", "hello world");
 }
 
 void test_string_operations() {
-    test_transpile_and_run("string_length",
-        "(string-length \"hello\")",
-        "5");
+    test_transpile_and_run("string_length", "(string-length \"hello\")", "5");
 
-    test_transpile_and_run("char_at",
-        "(char-at \"hello\" 1)",
-        "101");  // ASCII 'e'
+    test_transpile_and_run("char_at", "(char-at \"hello\" 1)",
+                           "101"); // ASCII 'e'
 
-    test_transpile_and_run("substring",
-        "(substring \"hello world\" 0 5)",
-        "hello");
+    test_transpile_and_run("substring", "(substring \"hello world\" 0 5)", "hello");
 
-    test_transpile_and_run("string_concat",
-        "(string-concat \"hello\" \" \" \"world\")",
-        "hello world");
+    test_transpile_and_run("string_concat", "(string-concat \"hello\" \" \" \"world\")",
+                           "hello world");
 }
 
 void test_let_bindings() {
-    test_transpile_and_run("let_simple",
-        "(let ((x 10) (y 20)) (+ x y))",
-        "30");
+    test_transpile_and_run("let_simple", "(let ((x 10) (y 20)) (+ x y))", "30");
 
-    test_transpile_and_run("let_nested",
-        "(let ((x 10)) (let ((y 20)) (+ x y)))",
-        "30");
+    test_transpile_and_run("let_nested", "(let ((x 10)) (let ((y 20)) (+ x y)))", "30");
 
-    test_transpile_and_run("let_string",
-        "(let ((s \"hello\")) (string-length s))",
-        "5");
+    test_transpile_and_run("let_string", "(let ((s \"hello\")) (string-length s))", "5");
 
-    test_transpile_and_run("let_shadowing",
-        "(do (define x 100) (let ((x 42)) x))",
-        "42");
+    test_transpile_and_run("let_shadowing", "(do (define-var x 100) (let ((x 42)) x))", "42");
 }
 
 void test_list_operations() {
-    test_transpile_and_run("list_create",
-        "(list-length (list 1 2 3 4 5))",
-        "5");
+    test_transpile_and_run("list_create", "(list-length (list 1 2 3 4 5))", "5");
 
-    test_transpile_and_run("list_ref",
-        "(list-ref (list 10 20 30 40) 2)",
-        "30");
+    test_transpile_and_run("list_ref", "(list-ref (list 10 20 30 40) 2)", "30");
 
     test_transpile_and_run("list_set",
-        R"((do
-            (define lst (list 1 2 3))
+                           R"((do
+            (define-var lst (list 1 2 3))
             (list-set! lst 1 99)
             (list-ref lst 1)))",
-        "99");
+                           "99");
 }
 
 void test_string_parsing() {
     // Test case for parsing - count characters
     test_transpile_and_run("parse_count_chars",
-        R"((let ((text "hello"))
+                           R"((let ((text "hello"))
             (string-length text)))",
-        "5");
+                           "5");
 
     // Test case for character iteration
     test_transpile_and_run("parse_iterate_chars",
-        R"((do
-            (define text "abc")
-            (define sum 0)
+                           R"((do
+            (define-var text "abc")
+            (define-var sum 0)
             (for (i 0 (string-length text))
                 (set sum (+ sum (char-at text i))))
             sum))",
-        "294");  // 'a'=97 + 'b'=98 + 'c'=99
+                           "294"); // 'a'=97 + 'b'=98 + 'c'=99
 }
 
 void test_tokenizer_example() {
     // Simple tokenizer - count spaces
     test_transpile_and_run("count_spaces",
-        R"((do
-            (define text "hello world test")
-            (define count 0)
+                           R"((do
+            (define-var text "hello world test")
+            (define-var count 0)
             (for (i 0 (string-length text))
                 (if (= (char-at text i) 32)
                     (set count (+ count 1))
                     0))
             count))",
-        "2");
+                           "2");
 }
 
 int main() {

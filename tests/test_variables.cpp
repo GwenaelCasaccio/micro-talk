@@ -1,6 +1,6 @@
-#include "stack_vm.hpp"
-#include "lisp_parser.hpp"
-#include "lisp_compiler.hpp"
+#include "../src/stack_vm.hpp"
+#include "../src/lisp_parser.hpp"
+#include "../src/lisp_compiler.hpp"
 #include <iostream>
 
 void test(const std::string& name, const std::string& code) {
@@ -33,35 +33,35 @@ int main() {
     std::cout << "--- DEFINE Tests ---" << std::endl;
     test("Simple define", 
          "(do "
-         "  (define x 42) "
+         "  (define-var x 42) "
          "  x)");
     
     test("Define and use",
          "(do "
-         "  (define a 10) "
-         "  (define b 20) "
+         "  (define-var a 10) "
+         "  (define-var b 20) "
          "  (+ a b))");
     
     test("Define with expression",
          "(do "
-         "  (define x 5) "
-         "  (define y (* x 2)) "
+         "  (define-var x 5) "
+         "  (define-var y (* x 2)) "
          "  (+ x y))");
     
     test("Define returns value",
-         "(define result 99)");
+         "(define-var result 99)");
     
     // Test set
     std::cout << "--- SET Tests ---" << std::endl;
     test("Simple set",
          "(do "
-         "  (define x 10) "
+         "  (define-var x 10) "
          "  (set x 20) "
          "  x)");
     
     test("Set with expression",
          "(do "
-         "  (define counter 0) "
+         "  (define-var counter 0) "
          "  (set counter (+ counter 1)) "
          "  (set counter (+ counter 1)) "
          "  (set counter (+ counter 1)) "
@@ -69,7 +69,7 @@ int main() {
     
     test("Set returns value",
          "(do "
-         "  (define x 5) "
+         "  (define-var x 5) "
          "  (set x 100))");
     
     // Test let
@@ -109,8 +109,8 @@ int main() {
     std::cout << "--- Complex Examples ---" << std::endl;
     test("Factorial-like calculation",
          "(do "
-         "  (define n 5) "
-         "  (define result 1) "
+         "  (define-var n 5) "
+         "  (define-var result 1) "
          "  (set result (* result n)) "
          "  (set n (- n 1)) "
          "  (set result (* result n)) "
@@ -122,8 +122,8 @@ int main() {
     
     test("Tagging with variables",
          "(do "
-         "  (define TAG_INT 1) "
-         "  (define value 42) "
+         "  (define-var TAG_INT 1) "
+         "  (define-var value 42) "
          "  (define tagged (bit-or (bit-shl value 3) TAG_INT)) "
          "  (print tagged) "
          "  (define untagged (bit-ashr tagged 3)) "
@@ -137,7 +137,7 @@ int main() {
     
     test("Counter with set",
          "(do "
-         "  (define count 0) "
+         "  (define-var count 0) "
          "  (set count (+ count 10)) "
          "  (set count (+ count 20)) "
          "  (set count (+ count 30)) "

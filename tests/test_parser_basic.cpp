@@ -1,6 +1,6 @@
 #include "../src/lisp_parser.hpp"
-#include <iostream>
 #include <cassert>
+#include <iostream>
 
 void test_parse_number() {
     std::cout << "Testing number parsing..." << std::endl;
@@ -202,7 +202,7 @@ void test_parse_multiple_expressions() {
     assert(exprs1[2]->type == NodeType::LIST);
     std::cout << "  ✓ Three expressions: 42 foo (+ 1 2)" << std::endl;
 
-    LispParser parser2("(define x 10)\n(define y 20)\n(+ x y)");
+    LispParser parser2("(define-var x 10)\n(define-var y 20)\n(+ x y)");
     auto exprs2 = parser2.parse_all();
     assert(exprs2.size() == 3);
     std::cout << "  ✓ Multiple definitions with newlines" << std::endl;

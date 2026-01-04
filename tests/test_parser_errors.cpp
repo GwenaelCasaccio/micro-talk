@@ -1,6 +1,6 @@
 #include "../src/lisp_parser.hpp"
-#include <iostream>
 #include <cassert>
+#include <iostream>
 #include <string>
 
 void test_unclosed_list() {
@@ -13,8 +13,7 @@ void test_unclosed_list() {
     } catch (const std::runtime_error& e) {
         caught = true;
         std::string msg(e.what());
-        assert(msg.find("')'") != std::string::npos ||
-               msg.find("Expected") != std::string::npos);
+        assert(msg.find("')'") != std::string::npos || msg.find("Expected") != std::string::npos);
     }
     assert(caught);
     std::cout << "  ✓ Unclosed list detected" << std::endl;
@@ -47,8 +46,7 @@ void test_unclosed_string() {
     } catch (const std::runtime_error& e) {
         caught = true;
         std::string msg(e.what());
-        assert(msg.find("\"") != std::string::npos ||
-               msg.find("closing") != std::string::npos ||
+        assert(msg.find("\"") != std::string::npos || msg.find("closing") != std::string::npos ||
                msg.find("Expected") != std::string::npos);
     }
     assert(caught);
@@ -170,7 +168,7 @@ void test_complex_error_recovery() {
 
     caught = false;
     try {
-        LispParser parser("(define (foo x y) (* x y)");
+        LispParser parser("(define-func (foo x y) (* x y)");
         parser.parse();
     } catch (const std::runtime_error& e) {
         caught = true;

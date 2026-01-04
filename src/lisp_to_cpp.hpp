@@ -1,33 +1,35 @@
 #pragma once
 #include "lisp_parser.hpp"
-#include <sstream>
+#include <algorithm>
 #include <map>
 #include <set>
-#include <algorithm>
+#include <sstream>
 #include <stdexcept>
 
 class LispToCppCompiler {
-private:
+  private:
     struct StructDef {
         std::string name;
         std::vector<std::string> fields;
     };
 
     struct FunctionSignature {
-        std::vector<std::string> param_types;  // C++ types: "int64_t", "std::string", etc.
-        std::string return_type;                // C++ return type
+        std::vector<std::string> param_types; // C++ types: "int64_t", "std::string", etc.
+        std::string return_type;              // C++ return type
     };
 
     std::ostringstream code;
     std::ostringstream functions;
-    std::ostringstream string_decls;  // String declarations at top of main
-    std::ostringstream struct_decls;  // Struct declarations before functions
-    std::map<std::string, std::string> variables;  // Lisp name -> C++ name
-    std::map<std::string, std::string> variable_types;  // Track variable types (int64_t, string, vector, struct:name)
-    std::map<std::string, StructDef> struct_defs;  // Struct name -> definition
-    std::map<std::string, FunctionSignature> function_signatures;  // Function name -> signature
+    std::ostringstream string_decls;              // String declarations at top of main
+    std::ostringstream struct_decls;              // Struct declarations before functions
+    std::map<std::string, std::string> variables; // Lisp name -> C++ name
+    std::map<std::string, std::string>
+        variable_types; // Track variable types (int64_t, string, vector, struct:name)
+    std::map<std::string, StructDef> struct_defs;                 // Struct name -> definition
+    std::map<std::string, FunctionSignature> function_signatures; // Function name -> signature
     std::set<std::string> function_names;
-    std::set<std::string> custom_includes;  // Additional C++ includes requested via (c++-include "header")
+    std::set<std::string>
+        custom_includes; // Additional C++ includes requested via (c++-include "header")
     int var_counter = 0;
     int label_counter = 0;
     int string_counter = 0;
@@ -38,8 +40,12 @@ private:
         return std::string(indent_level * 4, ' ');
     }
 
-    void increase_indent() { indent_level++; }
-    void decrease_indent() { indent_level--; }
+    void increase_indent() {
+        indent_level++;
+    }
+    void decrease_indent() {
+        indent_level--;
+    }
 
     std::string fresh_var() {
         return "var_" + std::to_string(var_counter++);
@@ -69,11 +75,16 @@ private:
     std::string escape_string(const std::string& str) {
         std::string result;
         for (char c : str) {
-            if (c == '"') result += "\\\"";
-            else if (c == '\\') result += "\\\\";
-            else if (c == '\n') result += "\\n";
-            else if (c == '\t') result += "\\t";
-            else result += c;
+            if (c == '"')
+                result += "\\\"";
+            else if (c == '\\')
+                result += "\\\\";
+            else if (c == '\n')
+                result += "\\n";
+            else if (c == '\t')
+                result += "\\t";
+            else
+                result += c;
         }
         return result;
     }
@@ -81,11 +92,16 @@ private:
     std::string sanitize_name(const std::string& name) {
         std::string result;
         for (char c : name) {
-            if (c == '-') result += '_';
-            else if (c == '?' ) result += "_p";
-            else if (c == '!') result += "_bang";
-            else if (std::isalnum(c)) result += c;
-            else result += '_';
+            if (c == '-')
+                result += '_';
+            else if (c == '?')
+                result += "_p";
+            else if (c == '!')
+                result += "_bang";
+            else if (std::isalnum(c))
+                result += c;
+            else
+                result += '_';
         }
         return result;
     }
@@ -104,7 +120,7 @@ private:
             return "std::string";
         }
         if (lisp_type == "bool" || lisp_type == "boolean") {
-            return "int64_t";  // Booleans as int64_t (0/1)
+            return "int64_t"; // Booleans as int64_t (0/1)
         }
         // Check if it's a struct type
         if (struct_defs.find(lisp_type) != struct_defs.end()) {
@@ -135,9 +151,11 @@ private:
 
             case NodeType::LIST: {
                 const auto& list = node->as_list();
-                if (list.empty()) return "int64_t";
+                if (list.empty())
+                    return "int64_t";
 
-                if (list[0]->type != NodeType::SYMBOL) return "int64_t";
+                if (list[0]->type != NodeType::SYMBOL)
+                    return "int64_t";
                 std::string op = list[0]->as_symbol();
 
                 // String operations return string
@@ -157,10 +175,10 @@ private:
 
                 // Control flow - infer from branches
                 if (op == "if" && list.size() >= 3) {
-                    return infer_expr_type(list[2]);  // Type of then branch
+                    return infer_expr_type(list[2]); // Type of then branch
                 }
                 if (op == "do" && list.size() >= 2) {
-                    return infer_expr_type(list[list.size() - 1]);  // Type of last expression
+                    return infer_expr_type(list[list.size() - 1]); // Type of last expression
                 }
 
                 // set returns the type of the variable being set
@@ -191,7 +209,8 @@ private:
                     std::string potential_field = op.substr(dash_pos + 1);
                     if (struct_defs.find(potential_struct) != struct_defs.end()) {
                         const auto& fields = struct_defs[potential_struct].fields;
-                        if (std::find(fields.begin(), fields.end(), potential_field) != fields.end()) {
+                        if (std::find(fields.begin(), fields.end(), potential_field) !=
+                            fields.end()) {
                             // Struct field access returns int64_t
                             return "int64_t";
                         }
@@ -242,35 +261,59 @@ private:
                 std::string op = list[0]->as_symbol();
 
                 // Arithmetic operations
-                if (op == "+") return compile_binary_op(list, "+", true);
-                if (op == "-") return compile_binary_op(list, "-", true);
-                if (op == "*") return compile_binary_op(list, "*", true);
-                if (op == "/") return compile_binary_op(list, "/", true);
-                if (op == "%") return compile_binary_op(list, "%", true);
+                if (op == "+")
+                    return compile_binary_op(list, "+", true);
+                if (op == "-")
+                    return compile_binary_op(list, "-", true);
+                if (op == "*")
+                    return compile_binary_op(list, "*", true);
+                if (op == "/")
+                    return compile_binary_op(list, "/", true);
+                if (op == "%")
+                    return compile_binary_op(list, "%", true);
 
                 // Comparison operations
-                if (op == "=") return compile_binary_op(list, "==", false);
-                if (op == "<") return compile_binary_op(list, "<", false);
-                if (op == ">") return compile_binary_op(list, ">", false);
-                if (op == "<=") return compile_binary_op(list, "<=", false);
-                if (op == ">=") return compile_binary_op(list, ">=", false);
+                if (op == "=")
+                    return compile_binary_op(list, "==", false);
+                if (op == "<")
+                    return compile_binary_op(list, "<", false);
+                if (op == ">")
+                    return compile_binary_op(list, ">", false);
+                if (op == "<=")
+                    return compile_binary_op(list, "<=", false);
+                if (op == ">=")
+                    return compile_binary_op(list, ">=", false);
 
                 // Bitwise operations
-                if (op == "bit-and") return compile_binary_op(list, "&", false);
-                if (op == "bit-or") return compile_binary_op(list, "|", false);
-                if (op == "bit-xor") return compile_binary_op(list, "^", false);
-                if (op == "bit-shl") return compile_binary_op(list, "<<", false);
-                if (op == "bit-shr") return compile_binary_op(list, ">>", false);
-                if (op == "bit-ashr") return compile_binary_op(list, ">>", false); // Same as >> for signed
+                if (op == "bit-and")
+                    return compile_binary_op(list, "&", false);
+                if (op == "bit-or")
+                    return compile_binary_op(list, "|", false);
+                if (op == "bit-xor")
+                    return compile_binary_op(list, "^", false);
+                if (op == "bit-shl")
+                    return compile_binary_op(list, "<<", false);
+                if (op == "bit-shr")
+                    return compile_binary_op(list, ">>", false);
+                if (op == "bit-ashr")
+                    return compile_binary_op(list, ">>", false); // Same as >> for signed
 
                 // Control flow
-                if (op == "if") return compile_if(list);
-                if (op == "while") return compile_while(list);
-                if (op == "for") return compile_for(list);
-                if (op == "do") return compile_do(list);
+                if (op == "if")
+                    return compile_if(list);
+                if (op == "while")
+                    return compile_while(list);
+                if (op == "for")
+                    return compile_for(list);
+                if (op == "do")
+                    return compile_do(list);
 
                 // Variables
-                if (op == "define") {
+                if (op == "define-var") {
+                    compile_define(list);
+                    return "0LL"; // define returns 0
+                }
+                if (op == "define-func") {
                     compile_define(list);
                     return "0LL"; // define returns 0
                 }
@@ -278,19 +321,28 @@ private:
                     compile_set(list);
                     return variables[list[1]->as_symbol()];
                 }
-                if (op == "let") return compile_let(list);
+                if (op == "let")
+                    return compile_let(list);
 
                 // String operations
-                if (op == "string-length") return compile_string_length(list);
-                if (op == "char-at") return compile_char_at(list);
-                if (op == "substring") return compile_substring(list);
-                if (op == "string-concat") return compile_string_concat(list);
+                if (op == "string-length")
+                    return compile_string_length(list);
+                if (op == "char-at")
+                    return compile_char_at(list);
+                if (op == "substring")
+                    return compile_substring(list);
+                if (op == "string-concat")
+                    return compile_string_concat(list);
 
                 // List/Array operations
-                if (op == "list") return compile_list(list);
-                if (op == "list-ref") return compile_list_ref(list);
-                if (op == "list-length") return compile_list_length(list);
-                if (op == "list-set!") return compile_list_set(list);
+                if (op == "list")
+                    return compile_list(list);
+                if (op == "list-ref")
+                    return compile_list_ref(list);
+                if (op == "list-length")
+                    return compile_list_length(list);
+                if (op == "list-set!")
+                    return compile_list_set(list);
 
                 // FFI - Native C++ call
                 if (op == "c++") {
@@ -303,7 +355,8 @@ private:
                 // FFI - Add custom C++ include
                 if (op == "c++-include") {
                     if (list.size() != 2 || list[1]->type != NodeType::STRING) {
-                        throw std::runtime_error("c++-include requires a string argument: (c++-include \"header.h\")");
+                        throw std::runtime_error(
+                            "c++-include requires a string argument: (c++-include \"header.h\")");
                     }
                     custom_includes.insert(list[1]->as_string());
                     return "0LL";
@@ -328,7 +381,7 @@ private:
                 if (dash_pos != std::string::npos) {
                     // Check for set-<structname>-<field>! mutator
                     if (op.substr(0, 4) == "set-" && op.back() == '!') {
-                        std::string rest = op.substr(4, op.size() - 5);  // Remove "set-" and "!"
+                        std::string rest = op.substr(4, op.size() - 5); // Remove "set-" and "!"
                         size_t rest_dash = rest.find('-');
                         if (rest_dash != std::string::npos) {
                             std::string potential_struct = rest.substr(0, rest_dash);
@@ -336,8 +389,10 @@ private:
 
                             if (struct_defs.find(potential_struct) != struct_defs.end()) {
                                 const auto& fields = struct_defs[potential_struct].fields;
-                                if (std::find(fields.begin(), fields.end(), potential_field) != fields.end()) {
-                                    return compile_struct_mutator(list, potential_struct, potential_field);
+                                if (std::find(fields.begin(), fields.end(), potential_field) !=
+                                    fields.end()) {
+                                    return compile_struct_mutator(list, potential_struct,
+                                                                  potential_field);
                                 }
                             }
                         }
@@ -349,7 +404,8 @@ private:
 
                     if (struct_defs.find(potential_struct) != struct_defs.end()) {
                         const auto& fields = struct_defs[potential_struct].fields;
-                        if (std::find(fields.begin(), fields.end(), potential_field) != fields.end()) {
+                        if (std::find(fields.begin(), fields.end(), potential_field) !=
+                            fields.end()) {
                             return compile_struct_accessor(list, potential_struct, potential_field);
                         }
                     }
@@ -367,9 +423,8 @@ private:
         return "";
     }
 
-    std::string compile_binary_op(const std::vector<ASTNodePtr>& list,
-                                   const std::string& cpp_op,
-                                   bool multi_arg) {
+    std::string compile_binary_op(const std::vector<ASTNodePtr>& list, const std::string& cpp_op,
+                                  bool multi_arg) {
         if (multi_arg) {
             // Support multi-argument like (+ 1 2 3)
             if (list.size() < 2) {
@@ -449,7 +504,8 @@ private:
 
     std::string compile_for(const std::vector<ASTNodePtr>& list) {
         if (list.size() < 3) {
-            throw std::runtime_error("for requires at least 2 arguments: (for (var start end) body...)");
+            throw std::runtime_error(
+                "for requires at least 2 arguments: (for (var start end) body...)");
         }
 
         if (list[1]->type != NodeType::LIST || list[1]->as_list().size() != 3) {
@@ -473,8 +529,8 @@ private:
 
         variables[loop_var] = cpp_var;
 
-        code << get_indent() << "for (int64_t " << cpp_var << " = " << start
-             << "; " << cpp_var << " < " << end << "; " << cpp_var << "++) {\n";
+        code << get_indent() << "for (int64_t " << cpp_var << " = " << start << "; " << cpp_var
+             << " < " << end << "; " << cpp_var << "++) {\n";
         increase_indent();
 
         for (size_t i = 2; i < list.size(); i++) {
@@ -584,19 +640,18 @@ private:
 
         // Parse parameters and their types
         std::vector<std::string> param_names;
-        std::vector<std::string> param_types;  // C++ types
+        std::vector<std::string> param_types; // C++ types
 
         for (size_t i = 1; i < sig.size(); i++) {
             if (sig[i]->type == NodeType::SYMBOL) {
                 // Untyped parameter: just a symbol
                 std::string param = sig[i]->as_symbol();
                 param_names.push_back(param);
-                param_types.push_back("int64_t");  // default type
+                param_types.push_back("int64_t"); // default type
             } else if (sig[i]->type == NodeType::LIST) {
                 // Typed parameter: (name type)
                 const auto& param_def = sig[i]->as_list();
-                if (param_def.size() != 2 ||
-                    param_def[0]->type != NodeType::SYMBOL ||
+                if (param_def.size() != 2 || param_def[0]->type != NodeType::SYMBOL ||
                     param_def[1]->type != NodeType::SYMBOL) {
                     throw std::runtime_error("Typed parameter must be (name type)");
                 }
@@ -605,7 +660,8 @@ private:
                 param_names.push_back(param);
                 param_types.push_back(lisp_type_to_cpp(type));
             } else {
-                throw std::runtime_error("Function parameters must be symbols or (name type) lists");
+                throw std::runtime_error(
+                    "Function parameters must be symbols or (name type) lists");
             }
         }
 
@@ -648,7 +704,8 @@ private:
         func_code << return_type << " " << cpp_func << "(";
 
         for (size_t i = 0; i < param_names.size(); i++) {
-            if (i > 0) func_code << ", ";
+            if (i > 0)
+                func_code << ", ";
             func_code << param_types[i] << " " << sanitize_name(param_names[i]);
         }
         func_code << ") {\n";
@@ -699,7 +756,8 @@ private:
         std::ostringstream call;
         call << cpp_func << "(";
         for (size_t i = 1; i < list.size(); i++) {
-            if (i > 1) call << ", ";
+            if (i > 1)
+                call << ", ";
             call << compile_expr(list[i]);
         }
         call << ")";
@@ -710,7 +768,8 @@ private:
     // Let bindings: (let ((var1 val1) (var2 val2)) body...)
     std::string compile_let(const std::vector<ASTNodePtr>& list) {
         if (list.size() < 3) {
-            throw std::runtime_error("let requires at least 2 arguments: (let ((bindings...)) body...)");
+            throw std::runtime_error(
+                "let requires at least 2 arguments: (let ((bindings...)) body...)");
         }
 
         if (list[1]->type != NodeType::LIST) {
@@ -806,7 +865,8 @@ private:
 
     std::string compile_substring(const std::vector<ASTNodePtr>& list) {
         if (list.size() != 4) {
-            throw std::runtime_error("substring requires 3 arguments: (substring string start end)");
+            throw std::runtime_error(
+                "substring requires 3 arguments: (substring string start end)");
         }
         std::string str = compile_expr(list[1]);
         std::string start = compile_expr(list[2]);
@@ -825,7 +885,8 @@ private:
         std::ostringstream expr;
         expr << "(";
         for (size_t i = 1; i < list.size(); i++) {
-            if (i > 1) expr << " + ";
+            if (i > 1)
+                expr << " + ";
             expr << compile_expr(list[i]);
         }
         expr << ")";
@@ -839,7 +900,8 @@ private:
 
         code << get_indent() << "std::vector<int64_t> " << vec_var << " = {";
         for (size_t i = 1; i < list.size(); i++) {
-            if (i > 1) code << ", ";
+            if (i > 1)
+                code << ", ";
             code << compile_expr(list[i]);
         }
         code << "};\n";
@@ -866,7 +928,8 @@ private:
 
     std::string compile_list_set(const std::vector<ASTNodePtr>& list) {
         if (list.size() != 4) {
-            throw std::runtime_error("list-set! requires 3 arguments: (list-set! list index value)");
+            throw std::runtime_error(
+                "list-set! requires 3 arguments: (list-set! list index value)");
         }
         std::string vec = compile_expr(list[1]);
         std::string index = compile_expr(list[2]);
@@ -880,7 +943,8 @@ private:
     void compile_struct_def(const std::vector<ASTNodePtr>& list) {
         // (define-struct token (type start end length))
         if (list.size() != 3) {
-            throw std::runtime_error("define-struct requires 2 arguments: (define-struct name (fields...))");
+            throw std::runtime_error(
+                "define-struct requires 2 arguments: (define-struct name (fields...))");
         }
 
         if (list[1]->type != NodeType::SYMBOL) {
@@ -919,7 +983,8 @@ private:
         // Default constructor
         struct_decls << "    " << cpp_struct << "() : ";
         for (size_t i = 0; i < def.fields.size(); i++) {
-            if (i > 0) struct_decls << ", ";
+            if (i > 0)
+                struct_decls << ", ";
             struct_decls << def.fields[i] << "(0)";
         }
         struct_decls << " {}\n\n";
@@ -927,12 +992,14 @@ private:
         // Parameterized constructor
         struct_decls << "    " << cpp_struct << "(";
         for (size_t i = 0; i < def.fields.size(); i++) {
-            if (i > 0) struct_decls << ", ";
+            if (i > 0)
+                struct_decls << ", ";
             struct_decls << "int64_t " << def.fields[i] << "_";
         }
         struct_decls << ")\n        : ";
         for (size_t i = 0; i < def.fields.size(); i++) {
-            if (i > 0) struct_decls << ", ";
+            if (i > 0)
+                struct_decls << ", ";
             struct_decls << def.fields[i] << "(" << def.fields[i] << "_)";
         }
         struct_decls << " {}\n";
@@ -940,13 +1007,14 @@ private:
         struct_decls << "};\n\n";
     }
 
-    std::string compile_make_struct(const std::vector<ASTNodePtr>& list, const std::string& struct_name) {
+    std::string compile_make_struct(const std::vector<ASTNodePtr>& list,
+                                    const std::string& struct_name) {
         // (make-token 1 0 5 5)
         const auto& def = struct_defs[struct_name];
 
         if (list.size() != def.fields.size() + 1) {
             throw std::runtime_error("make-" + struct_name + " requires " +
-                                   std::to_string(def.fields.size()) + " arguments");
+                                     std::to_string(def.fields.size()) + " arguments");
         }
 
         std::string var_name = fresh_struct_var(struct_name);
@@ -954,7 +1022,8 @@ private:
 
         code << get_indent() << cpp_struct << " " << var_name << "(";
         for (size_t i = 1; i < list.size(); i++) {
-            if (i > 1) code << ", ";
+            if (i > 1)
+                code << ", ";
             code << compile_expr(list[i]);
         }
         code << ");\n";
@@ -966,8 +1035,7 @@ private:
     }
 
     std::string compile_struct_accessor(const std::vector<ASTNodePtr>& list,
-                                       const std::string& struct_name,
-                                       const std::string& field) {
+                                        const std::string& struct_name, const std::string& field) {
         // (token-type tok)
         if (list.size() != 2) {
             throw std::runtime_error(struct_name + "-" + field + " requires 1 argument");
@@ -978,8 +1046,7 @@ private:
     }
 
     std::string compile_struct_mutator(const std::vector<ASTNodePtr>& list,
-                                      const std::string& struct_name,
-                                      const std::string& field) {
+                                       const std::string& struct_name, const std::string& field) {
         // (set-token-type! tok 2)
         if (list.size() != 3) {
             throw std::runtime_error("set-" + struct_name + "-" + field + "! requires 2 arguments");
@@ -992,7 +1059,7 @@ private:
         return value;
     }
 
-public:
+  public:
     std::string compile(const ASTNodePtr& ast) {
         // Reset state
         code.str("");

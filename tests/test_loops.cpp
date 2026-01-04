@@ -1,6 +1,6 @@
-#include "stack_vm.hpp"
-#include "lisp_parser.hpp"
-#include "lisp_compiler.hpp"
+#include "../src/stack_vm.hpp"
+#include "../src/lisp_parser.hpp"
+#include "../src/lisp_compiler.hpp"
 #include <iostream>
 
 void test(const std::string& name, const std::string& code) {
@@ -34,7 +34,7 @@ int main() {
     
     test("Simple while - count to 5",
          "(do "
-         "  (define counter 0) "
+         "  (define-var counter 0) "
          "  (while (< counter 5) "
          "    (do "
          "      (print counter) "
@@ -43,8 +43,8 @@ int main() {
     
     test("While with accumulator",
          "(do "
-         "  (define sum 0) "
-         "  (define i 1) "
+         "  (define-var sum 0) "
+         "  (define-var i 1) "
          "  (while (< i 11) "
          "    (do "
          "      (set sum (+ sum i)) "
@@ -53,9 +53,9 @@ int main() {
     
     test("While computing factorial",
          "(do "
-         "  (define n 5) "
-         "  (define result 1) "
-         "  (define i 1) "
+         "  (define-var n 5) "
+         "  (define-var result 1) "
+         "  (define-var i 1) "
          "  (while (< i (+ n 1)) "
          "    (do "
          "      (set result (* result i)) "
@@ -64,7 +64,7 @@ int main() {
     
     test("While with early exit condition",
          "(do "
-         "  (define x 0) "
+         "  (define-var x 0) "
          "  (while (< x 100) "
          "    (set x (+ x 7))) "
          "  x)");  // First x >= 100
@@ -80,28 +80,28 @@ int main() {
     
     test("For with accumulator",
          "(do "
-         "  (define sum 0) "
+         "  (define-var sum 0) "
          "  (for (i 1 11) "
          "    (set sum (+ sum i))) "
          "  sum)");  // Sum of 1..10 = 55
     
     test("For computing factorial",
          "(do "
-         "  (define result 1) "
+         "  (define-var result 1) "
          "  (for (i 1 6) "
          "    (set result (* result i))) "
          "  result)");  // 5! = 120
     
     test("For with multiplication table",
          "(do "
-         "  (define product 0) "
+         "  (define-var product 0) "
          "  (for (i 1 6) "
          "    (set product (* i i))) "
          "  product)");  // Last iteration: 5*5 = 25
     
     test("Nested for loops",
          "(do "
-         "  (define sum 0) "
+         "  (define-var sum 0) "
          "  (for (i 1 4) "
          "    (for (j 1 4) "
          "      (set sum (+ sum 1)))) "
@@ -112,10 +112,10 @@ int main() {
     
     test("Function using while",
          "(do "
-         "  (define (factorial n) "
+         "  (define-func (factorial n) "
          "    (do "
-         "      (define result 1) "
-         "      (define i 1) "
+         "      (define-var result 1) "
+         "      (define-var i 1) "
          "      (while (< i (+ n 1)) "
          "        (do "
          "          (set result (* result i)) "
@@ -125,9 +125,9 @@ int main() {
     
     test("Function using for",
          "(do "
-         "  (define (sum-range start end) "
+         "  (define-func (sum-range start end) "
          "    (do "
-         "      (define total 0) "
+         "      (define-var total 0) "
          "      (for (i start end) "
          "        (set total (+ total i))) "
          "      total)) "
@@ -149,25 +149,25 @@ int main() {
     
     test("Tag multiple integers",
          "(do "
-         "  (define TAG_INT 1) "
-         "  (define (tag-int v) (bit-or (bit-shl v 3) TAG_INT)) "
-         "  (define last 0) "
+         "  (define-var TAG_INT 1) "
+         "  (define-func (tag-int v) (bit-or (bit-shl v 3) TAG_INT)) "
+         "  (define-var last 0) "
          "  (for (i 0 5) "
          "    (do "
-         "      (define tagged (tag-int i)) "
+         "      (define-var tagged (tag-int i)) "
          "      (print tagged) "
          "      (set last tagged))) "
          "  last)");
     
     test("Build array of tagged integers",
          "(do "
-         "  (define TAG_INT 1) "
-         "  (define (tag-int v) (bit-or (bit-shl v 3) TAG_INT)) "
-         "  (define sum 0) "
+         "  (define-var TAG_INT 1) "
+         "  (define-func (tag-int v) (bit-or (bit-shl v 3) TAG_INT)) "
+         "  (define-var sum 0) "
          "  (for (i 1 6) "
          "    (do "
-         "      (define tagged (tag-int i)) "
-         "      (define untagged (bit-ashr tagged 3)) "
+         "      (define-var tagged (tag-int i)) "
+         "      (define-func untagged (bit-ashr tagged 3)) "
          "      (set sum (+ sum untagged)))) "
          "  sum)");  // 1+2+3+4+5 = 15
     
@@ -176,13 +176,13 @@ int main() {
     
     test("Fibonacci using while",
          "(do "
-         "  (define a 0) "
-         "  (define b 1) "
-         "  (define n 10) "
-         "  (define i 0) "
+         "  (define-var a 0) "
+         "  (define-var b 1) "
+         "  (define-var n 10) "
+         "  (define-var i 0) "
          "  (while (< i n) "
          "    (do "
-         "      (define temp b) "
+         "      (define-var temp b) "
          "      (set b (+ a b)) "
          "      (set a temp) "
          "      (set i (+ i 1)))) "
@@ -190,9 +190,9 @@ int main() {
     
     test("Power function using for",
          "(do "
-         "  (define (power base exp) "
+         "  (define-func (power base exp) "
          "    (do "
-         "      (define result 1) "
+         "      (define-var result 1) "
          "      (for (i 0 exp) "
          "        (set result (* result base))) "
          "      result)) "
@@ -200,11 +200,11 @@ int main() {
     
     test("GCD using while",
          "(do "
-         "  (define a 48) "
-         "  (define b 18) "
+         "  (define-var a 48) "
+         "  (define-var b 18) "
          "  (while (> b 0) "
          "    (do "
-         "      (define temp b) "
+         "      (define-var temp b) "
          "      (set b (% a b)) "
          "      (set a temp))) "
          "  a)");  // GCD(48, 18) = 6

@@ -1,6 +1,6 @@
-#include "stack_vm.hpp"
-#include "lisp_parser.hpp"
-#include "lisp_compiler.hpp"
+#include "../src/stack_vm.hpp"
+#include "../src/lisp_parser.hpp"
+#include "../src/lisp_compiler.hpp"
 #include <iostream>
 #include <fstream>
 #include <sstream>

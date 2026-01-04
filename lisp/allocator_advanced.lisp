@@ -1,33 +1,33 @@
 (do
-  (define HEAP_START 20000)
-  (define HEAP_END 40000)
-  (define NULL 0)
-  (define ALIGNMENT 8)
-  (define MIN_BLOCK_SIZE 8)
+  (define-var HEAP_START 20000)
+  (define-var HEAP_END 40000)
+  (define-var NULL 0)
+  (define-var ALIGNMENT 8)
+  (define-var MIN_BLOCK_SIZE 8)
   
-  (define SIZE_OFFSET 0)
-  (define NEXT_OFFSET 1)
-  (define HEADER_SIZE 2)
+  (define-var SIZE_OFFSET 0)
+  (define-var NEXT_OFFSET 1)
+  (define-var HEADER_SIZE 2)
   
-  (define free-list-head NULL)
-  (define heap-pointer HEAP_START)
-  (define total-allocated 0)
-  (define total-freed 0)
-  (define num-allocations 0)
-  (define num-frees 0)
-  (define bytes-in-use 0)
+  (define-var free-list-head NULL)
+  (define-var heap-pointer HEAP_START)
+  (define-var total-allocated 0)
+  (define-var total-freed 0)
+  (define-var num-allocations 0)
+  (define-var num-frees 0)
+  (define-var bytes-in-use 0)
   
-  (define (align-up size alignment)
+  (define-func (align-up size alignment)
     (do
-      (define mask (- alignment 1))
-      (define aligned (+ size mask))
-      (define result (- aligned (% aligned alignment)))
+      (define-var mask (- alignment 1))
+      (define-var aligned (+ size mask))
+      (define-var result (- aligned (% aligned alignment)))
       result))
   
-  (define (max a b)
+  (define-func (max a b)
     (if (> a b) a b))
   
-  (define (init-allocator)
+  (define-func (init-allocator)
     (do
       (set free-list-head NULL)
       (set heap-pointer HEAP_START)
@@ -39,12 +39,12 @@
       (print 1000)
       0))
   
-  (define (malloc size)
+  (define-func (malloc size)
     (do
-      (define aligned-size (align-up size ALIGNMENT))
-      (define actual-size (max aligned-size MIN_BLOCK_SIZE))
-      (define needed (+ actual-size HEADER_SIZE))
-      (define result heap-pointer)
+      (define-var aligned-size (align-up size ALIGNMENT))
+      (define-var actual-size (max aligned-size MIN_BLOCK_SIZE))
+      (define-var needed (+ actual-size HEADER_SIZE))
+      (define-var result heap-pointer)
       
       (if (> (+ result needed) HEAP_END)
           (do
@@ -57,34 +57,34 @@
             (set num-allocations (+ num-allocations 1))
             (+ result HEADER_SIZE)))))
   
-  (define (free ptr)
+  (define-func (free ptr)
     (do
       (if (= ptr NULL)
           0
           (do
-            (define block (- ptr HEADER_SIZE))
+            (define-var block (- ptr HEADER_SIZE))
             (set num-frees (+ num-frees 1))
             0))))
   
-  (define (get-used-memory)
+  (define-func (get-used-memory)
     bytes-in-use)
   
-  (define (get-free-memory)
+  (define-func (get-free-memory)
     (- (- HEAP_END HEAP_START) bytes-in-use))
   
-  (define (get-heap-size)
+  (define-func (get-heap-size)
     (- HEAP_END HEAP_START))
   
-  (define (get-fragmentation)
+  (define-func (get-fragmentation)
     (do
-      (define total (get-heap-size))
-      (define used bytes-in-use)
-      (define wasted (- (- heap-pointer HEAP_START) used))
+      (define-var total (get-heap-size))
+      (define-var used bytes-in-use)
+      (define-var wasted (- (- heap-pointer HEAP_START) used))
       (if (= used 0)
           0
           (/ (* wasted 100) used))))
   
-  (define (print-stats)
+  (define-func (print-stats)
     (do
       (print 7777)
       (print num-allocations)
@@ -95,17 +95,17 @@
       (print (get-fragmentation))
       0))
   
-  (define (test-alignment size)
+  (define-func (test-alignment size)
     (do
-      (define ptr (malloc size))
+      (define-var ptr (malloc size))
       (print 6000)
       (print size)
       (print ptr)
-      (define offset (% (- ptr HEAP_START) ALIGNMENT))
+      (define-var offset (% (- ptr HEAP_START) ALIGNMENT))
       (print offset)
       ptr))
   
-  (define (test-aligned-allocator)
+  (define-func (test-aligned-allocator)
     (do
       (print 5000)
       (init-allocator)
@@ -126,9 +126,9 @@
       (print-stats)
       
       (print 5003)
-      (define p1 (malloc 100))
-      (define p2 (malloc 200))
-      (define p3 (malloc 300))
+      (define-var p1 (malloc 100))
+      (define-var p2 (malloc 200))
+      (define-var p3 (malloc 300))
       
       (print 5004)
       (print-stats)
@@ -140,7 +140,7 @@
       (print-stats)
       
       (print 5007)
-      (define p4 (malloc 5000))
+      (define-var p4 (malloc 5000))
       (print p4)
       
       (print 5008)

@@ -32,32 +32,32 @@ all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOP
 $(TARGET): src/main.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(TARGET) src/main.cpp
 
-$(TEST_TAG): src/test_tagging.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_TAG) src/test_tagging.cpp
+$(TEST_TAG): tests/test_tagging.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_TAG) tests/test_tagging.cpp
 
 $(SIMPLE_TAG): src/simple_tagging_test.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
 	$(CXX) $(CXXFLAGS) -o $(SIMPLE_TAG) src/simple_tagging_test.cpp
 
-$(TEST_VARS): src/test_variables.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_VARS) src/test_variables.cpp
+$(TEST_VARS): tests/test_variables.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_VARS) tests/test_variables.cpp
 
-$(TEST_LAMBDA): src/test_lambda.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_LAMBDA) src/test_lambda.cpp
+$(TEST_LAMBDA): tests/test_lambda.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_LAMBDA) tests/test_lambda.cpp
 
-$(TEST_LOOPS): src/test_loops.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_LOOPS) src/test_loops.cpp
+$(TEST_LOOPS): tests/test_loops.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_LOOPS) tests/test_loops.cpp
 
-$(TEST_MICRO): src/test_microcode.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp src/microcode.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_MICRO) src/test_microcode.cpp
+$(TEST_MICRO): tests/test_microcode.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp src/microcode.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_MICRO) tests/test_microcode.cpp
 
-$(TEST_ADVANCED): src/test_advanced.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp src/microcode.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_ADVANCED) src/test_advanced.cpp
+$(TEST_ADVANCED): tests/test_advanced.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp src/microcode.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_ADVANCED) tests/test_advanced.cpp
 
-$(TEST_SMALLTALK): src/test_smalltalk.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp src/microcode.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_SMALLTALK) src/test_smalltalk.cpp
+$(TEST_SMALLTALK): tests/test_smalltalk.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp src/microcode.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_SMALLTALK) tests/test_smalltalk.cpp
 
-$(TEST_COMMENTS): src/test_comments.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_COMMENTS) src/test_comments.cpp
+$(TEST_COMMENTS): tests/test_comments.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
+	$(CXX) $(CXXFLAGS) -o $(TEST_COMMENTS) tests/test_comments.cpp
 
 $(TEST_VM_STACK): tests/test_vm_stack.cpp src/stack_vm.hpp
 	$(CXX) $(CXXFLAGS) -o $(TEST_VM_STACK) tests/test_vm_stack.cpp
