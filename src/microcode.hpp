@@ -12,11 +12,11 @@ class MicrocodeSystem {
   public:
     struct Microcode {
         std::string name;
-        uint8_t opcode;
-        int param_count;                // Number of parameters (from stack)
+        uint8_t opcode{0};
+        int param_count{0};             // Number of parameters (from stack)
         std::vector<uint64_t> bytecode; // Compiled Lisp code
 
-        Microcode() : opcode(0), param_count(0) {}
+        Microcode() = default;
     };
 
   private:
@@ -54,12 +54,12 @@ class MicrocodeSystem {
     }
 
     // Check if opcode is a microcode instruction
-    bool is_microcode(uint8_t opcode) const {
+    [[nodiscard]] bool is_microcode(uint8_t opcode) const {
         return instructions.find(opcode) != instructions.end();
     }
 
     // Get microcode by opcode
-    const Microcode* get(uint8_t opcode) const {
+    [[nodiscard]] const Microcode* get(uint8_t opcode) const {
         auto it = instructions.find(opcode);
         return (it != instructions.end()) ? &it->second : nullptr;
     }
@@ -75,8 +75,9 @@ class MicrocodeSystem {
     }
 
     // List all microcode instructions
-    std::vector<std::string> list() const {
+    [[nodiscard]] std::vector<std::string> list() const {
         std::vector<std::string> names;
+        names.reserve(instructions.size());
         for (const auto& [opcode, mc] : instructions) {
             names.push_back(mc.name + " (opcode " + std::to_string(opcode) + ", " +
                             std::to_string(mc.param_count) + " params)");

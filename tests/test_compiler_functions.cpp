@@ -5,7 +5,7 @@
 #include <iostream>
 
 void test_compile_simple_function() {
-    std::cout << "Testing simple function..." << std::endl;
+    std::cout << "Testing simple function..." << '\n';
 
     std::string code = R"(
         (do
@@ -23,11 +23,11 @@ void test_compile_simple_function() {
     vm.execute();
 
     assert(vm.get_top() == 49);
-    std::cout << "  ✓ Simple function: (square 7) = 49" << std::endl;
+    std::cout << "  ✓ Simple function: (square 7) = 49" << '\n';
 }
 
 void test_compile_function_two_params() {
-    std::cout << "Testing function with two parameters..." << std::endl;
+    std::cout << "Testing function with two parameters..." << '\n';
 
     std::string code = R"(
         (do
@@ -45,11 +45,11 @@ void test_compile_function_two_params() {
     vm.execute();
 
     assert(vm.get_top() == 30);
-    std::cout << "  ✓ Two params: (add 10 20) = 30" << std::endl;
+    std::cout << "  ✓ Two params: (add 10 20) = 30" << '\n';
 }
 
 void test_compile_function_multiple_calls() {
-    std::cout << "Testing multiple function calls..." << std::endl;
+    std::cout << "Testing multiple function calls..." << '\n';
 
     std::string code = R"(
         (do
@@ -70,11 +70,11 @@ void test_compile_function_multiple_calls() {
 
     // a = 10, b = 20, result = 30
     assert(vm.get_top() == 30);
-    std::cout << "  ✓ Multiple calls: double(5) + double(10) = 30" << std::endl;
+    std::cout << "  ✓ Multiple calls: double(5) + double(10) = 30" << '\n';
 }
 
 void test_compile_function_with_body() {
-    std::cout << "Testing function with complex body..." << std::endl;
+    std::cout << "Testing function with complex body..." << '\n';
 
     std::string code = R"(
         (do
@@ -97,11 +97,11 @@ void test_compile_function_with_body() {
 
     // sum = 7, product = 12, result = 19
     assert(vm.get_top() == 19);
-    std::cout << "  ✓ Complex body: sum=7, product=12, result = 19" << std::endl;
+    std::cout << "  ✓ Complex body: sum=7, product=12, result = 19" << '\n';
 }
 
 void test_compile_recursive_function() {
-    std::cout << "Testing recursive function (factorial)..." << std::endl;
+    std::cout << "Testing recursive function (factorial)..." << '\n';
 
     std::string code = R"(
         (do
@@ -122,11 +122,11 @@ void test_compile_recursive_function() {
     vm.execute();
 
     assert(vm.get_top() == 120);
-    std::cout << "  ✓ Recursive: factorial(5) = 120" << std::endl;
+    std::cout << "  ✓ Recursive: factorial(5) = 120" << '\n';
 }
 
 void test_compile_function_calling_function() {
-    std::cout << "Testing function calling another function..." << std::endl;
+    std::cout << "Testing function calling another function..." << '\n';
 
     std::string code = R"(
         (do
@@ -145,11 +145,11 @@ void test_compile_function_calling_function() {
     vm.execute();
 
     assert(vm.get_top() == 12);
-    std::cout << "  ✓ Function calling function: quadruple(3) = 12" << std::endl;
+    std::cout << "  ✓ Function calling function: quadruple(3) = 12" << '\n';
 }
 
 void test_compile_function_with_conditionals() {
-    std::cout << "Testing function with conditionals..." << std::endl;
+    std::cout << "Testing function with conditionals..." << '\n';
 
     std::string code = R"(
         (do
@@ -168,11 +168,11 @@ void test_compile_function_with_conditionals() {
     vm.execute();
 
     assert(vm.get_top() == 20);
-    std::cout << "  ✓ Conditional function: max(15, 20) = 20" << std::endl;
+    std::cout << "  ✓ Conditional function: max(15, 20) = 20" << '\n';
 }
 
 void test_compile_fibonacci() {
-    std::cout << "Testing fibonacci function..." << std::endl;
+    std::cout << "Testing fibonacci function..." << '\n';
 
     std::string code = R"(
         (do
@@ -194,11 +194,11 @@ void test_compile_fibonacci() {
 
     // fib(5) = 5 (0,1,1,2,3,5)
     assert(vm.get_top() == 5);
-    std::cout << "  ✓ Fibonacci: fib(5) = 5" << std::endl;
+    std::cout << "  ✓ Fibonacci: fib(5) = 5" << '\n';
 }
 
 void test_compile_function_with_arguments_and_temporaries() {
-    std::cout << "Testing function with arguments and temporaries..." << std::endl;
+    std::cout << "Testing function with arguments and temporaries..." << '\n';
 
     std::string code = R"(
         (do
@@ -218,18 +218,18 @@ void test_compile_function_with_arguments_and_temporaries() {
     vm.execute();
 
     assert(vm.get_top() == 144);
-    std::cout << "  ✓ fn: f(12, 23, 34) = 144" << std::endl;
+    std::cout << "  ✓ fn: f(12, 23, 34) = 144" << '\n';
 }
 
 int main() {
-    std::cout << "=== Compiler Function Tests ===" << std::endl;
+    std::cout << "=== Compiler Function Tests ===" << '\n';
 
     try {
         test_compile_simple_function();
         test_compile_function_two_params();
         test_compile_function_multiple_calls();
         test_compile_function_with_body();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_compile_recursive_function();
         test_compile_fibonacci();
@@ -237,10 +237,10 @@ int main() {
         test_compile_function_with_conditionals();
         test_compile_function_with_arguments_and_temporaries();
 
-        std::cout << "\n✓ All compiler function tests passed!" << std::endl;
+        std::cout << "\n✓ All compiler function tests passed!" << '\n';
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "\n✗ Test failed: " << e.what() << std::endl;
+        std::cerr << "\n✗ Test failed: " << e.what() << '\n';
         return 1;
     }
 }

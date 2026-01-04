@@ -16,7 +16,7 @@ void save_cpp_file(const std::string& filename, const std::string& code) {
 
 std::string run_command(const std::string& cmd) {
     FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe) {
+    if (pipe == nullptr) {
         throw std::runtime_error("Failed to run command: " + cmd);
     }
 
@@ -37,7 +37,7 @@ std::string run_command(const std::string& cmd) {
 
 void test_transpile_and_run(const std::string& name, const std::string& lisp_code,
                             const std::string& expected_output) {
-    std::cout << "Testing " << name << "..." << std::endl;
+    std::cout << "Testing " << name << "..." << '\n';
 
     // Parse
     LispParser parser(lisp_code);
@@ -57,8 +57,8 @@ void test_transpile_and_run(const std::string& name, const std::string& lisp_cod
     try {
         run_command(compile_cmd);
     } catch (const std::exception& e) {
-        std::cerr << "Compilation failed for " << name << std::endl;
-        std::cerr << "C++ code:\n" << cpp_code << std::endl;
+        std::cerr << "Compilation failed for " << name << '\n';
+        std::cerr << "C++ code:\n" << cpp_code << '\n';
         throw;
     }
 
@@ -73,13 +73,13 @@ void test_transpile_and_run(const std::string& name, const std::string& lisp_cod
 
     // Verify
     if (output != expected_output) {
-        std::cerr << "Expected: " << expected_output << std::endl;
-        std::cerr << "Got: " << output << std::endl;
-        std::cerr << "C++ code:\n" << cpp_code << std::endl;
+        std::cerr << "Expected: " << expected_output << '\n';
+        std::cerr << "Got: " << output << '\n';
+        std::cerr << "C++ code:\n" << cpp_code << '\n';
         throw std::runtime_error("Output mismatch for " + name);
     }
 
-    std::cout << "  ✓ " << name << ": " << output << std::endl;
+    std::cout << "  ✓ " << name << ": " << output << '\n';
 }
 
 void test_string_literals() {
@@ -96,7 +96,7 @@ void test_string_operations() {
 
     test_transpile_and_run("substring", "(substring \"hello world\" 0 5)", "hello");
 
-    test_transpile_and_run("string_concat", "(string-concat \"hello\" \" \" \"world\")",
+    test_transpile_and_run("string_concat", R"((string-concat "hello" " " "world"))",
                            "hello world");
 }
 
@@ -156,31 +156,31 @@ void test_tokenizer_example() {
 }
 
 int main() {
-    std::cout << "=== Extended Transpiler Tests ===" << std::endl;
+    std::cout << "=== Extended Transpiler Tests ===" << '\n';
 
     try {
-        std::cout << "\n--- String Literals ---" << std::endl;
+        std::cout << "\n--- String Literals ---" << '\n';
         test_string_literals();
 
-        std::cout << "\n--- String Operations ---" << std::endl;
+        std::cout << "\n--- String Operations ---" << '\n';
         test_string_operations();
 
-        std::cout << "\n--- Let Bindings ---" << std::endl;
+        std::cout << "\n--- Let Bindings ---" << '\n';
         test_let_bindings();
 
-        std::cout << "\n--- List Operations ---" << std::endl;
+        std::cout << "\n--- List Operations ---" << '\n';
         test_list_operations();
 
-        std::cout << "\n--- String Parsing Examples ---" << std::endl;
+        std::cout << "\n--- String Parsing Examples ---" << '\n';
         test_string_parsing();
 
-        std::cout << "\n--- Tokenizer Example ---" << std::endl;
+        std::cout << "\n--- Tokenizer Example ---" << '\n';
         test_tokenizer_example();
 
-        std::cout << "\n✓ All extended transpiler tests passed!" << std::endl;
+        std::cout << "\n✓ All extended transpiler tests passed!" << '\n';
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "\n✗ Test failed: " << e.what() << std::endl;
+        std::cerr << "\n✗ Test failed: " << e.what() << '\n';
         return 1;
     }
 }

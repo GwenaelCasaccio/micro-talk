@@ -1,15 +1,15 @@
-#include "../src/stack_vm.hpp"
-#include "../src/lisp_parser.hpp"
 #include "../src/lisp_compiler.hpp"
+#include "../src/lisp_parser.hpp"
+#include "../src/stack_vm.hpp"
 #include <iostream>
 
 int main() {
     try {
-        std::cout << "=== Testing Comment Support ===" << std::endl;
+        std::cout << "=== Testing Comment Support ===" << '\n';
 
         // Test 1: Simple line comment
         {
-            std::cout << "\nTest 1: Simple line comment" << std::endl;
+            std::cout << "\nTest 1: Simple line comment" << '\n';
             std::string code = R"(
                 ; This is a comment
                 (+ 5 3)
@@ -24,12 +24,12 @@ int main() {
             vm.load_program(bytecode);
             vm.execute();
 
-            std::cout << "Result: " << vm.get_top() << " (expected: 8)" << std::endl;
+            std::cout << "Result: " << vm.get_top() << " (expected: 8)" << '\n';
         }
 
         // Test 2: Multiple comments
         {
-            std::cout << "\nTest 2: Multiple comments" << std::endl;
+            std::cout << "\nTest 2: Multiple comments" << '\n';
             std::string code = R"(
                 ; First comment
                 ; Second comment
@@ -46,12 +46,12 @@ int main() {
             vm.load_program(bytecode);
             vm.execute();
 
-            std::cout << "Result: " << vm.get_top() << " (expected: 42)" << std::endl;
+            std::cout << "Result: " << vm.get_top() << " (expected: 42)" << '\n';
         }
 
         // Test 3: Inline comments in do block
         {
-            std::cout << "\nTest 3: Inline comments in expressions" << std::endl;
+            std::cout << "\nTest 3: Inline comments in expressions" << '\n';
             std::string code = R"(
                 (do
                     ; Set x to 10
@@ -71,12 +71,12 @@ int main() {
             vm.load_program(bytecode);
             vm.execute();
 
-            std::cout << "Result: " << vm.get_top() << " (expected: 30)" << std::endl;
+            std::cout << "Result: " << vm.get_top() << " (expected: 30)" << '\n';
         }
 
         // Test 4: Comments in list
         {
-            std::cout << "\nTest 4: Comments between list elements" << std::endl;
+            std::cout << "\nTest 4: Comments between list elements" << '\n';
             std::string code = R"(
                 (+
                     ; First operand
@@ -96,12 +96,12 @@ int main() {
             vm.load_program(bytecode);
             vm.execute();
 
-            std::cout << "Result: " << vm.get_top() << " (expected: 600)" << std::endl;
+            std::cout << "Result: " << vm.get_top() << " (expected: 600)" << '\n';
         }
 
         // Test 5: Multiple expressions with comments
         {
-            std::cout << "\nTest 5: Multiple expressions with comments" << std::endl;
+            std::cout << "\nTest 5: Multiple expressions with comments" << '\n';
             std::string code = R"(
                 ; First calculation
                 (define-var a (+ 5 5))
@@ -122,12 +122,12 @@ int main() {
             vm.load_program(bytecode);
             vm.execute();
 
-            std::cout << "Result: " << vm.get_top() << " (expected: 19)" << std::endl;
+            std::cout << "Result: " << vm.get_top() << " (expected: 19)" << '\n';
         }
 
         // Test 6: Comment at end of file
         {
-            std::cout << "\nTest 6: Comment at end of file" << std::endl;
+            std::cout << "\nTest 6: Comment at end of file" << '\n';
             std::string code = R"(
                 (+ 1 2 3 4 5)
                 ; This is the end
@@ -142,13 +142,13 @@ int main() {
             vm.load_program(bytecode);
             vm.execute();
 
-            std::cout << "Result: " << vm.get_top() << " (expected: 15)" << std::endl;
+            std::cout << "Result: " << vm.get_top() << " (expected: 15)" << '\n';
         }
 
-        std::cout << "\n=== All Comment Tests Passed ===" << std::endl;
+        std::cout << "\n=== All Comment Tests Passed ===" << '\n';
 
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << '\n';
         return 1;
     }
 

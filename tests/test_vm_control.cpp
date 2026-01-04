@@ -4,7 +4,7 @@
 #include <vector>
 
 void test_jmp() {
-    std::cout << "Testing JMP (unconditional jump)..." << std::endl;
+    std::cout << "Testing JMP (unconditional jump)..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -18,11 +18,11 @@ void test_jmp() {
     vm.execute();
 
     assert(vm.get_top() == 10);
-    std::cout << "  ✓ JMP skips instructions correctly" << std::endl;
+    std::cout << "  ✓ JMP skips instructions correctly" << '\n';
 }
 
 void test_jz_when_zero() {
-    std::cout << "Testing JZ (jump if zero, condition true)..." << std::endl;
+    std::cout << "Testing JZ (jump if zero, condition true)..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -37,11 +37,11 @@ void test_jz_when_zero() {
     vm.execute();
 
     assert(vm.get_top() == 42);
-    std::cout << "  ✓ JZ jumps when condition is zero" << std::endl;
+    std::cout << "  ✓ JZ jumps when condition is zero" << '\n';
 }
 
 void test_jz_when_nonzero() {
-    std::cout << "Testing JZ (jump if zero, condition false)..." << std::endl;
+    std::cout << "Testing JZ (jump if zero, condition false)..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -60,11 +60,11 @@ void test_jz_when_nonzero() {
     vm.execute();
 
     assert(vm.get_top() == 42);
-    std::cout << "  ✓ JZ does not jump when condition is non-zero" << std::endl;
+    std::cout << "  ✓ JZ does not jump when condition is non-zero" << '\n';
 }
 
 void test_conditional_branch() {
-    std::cout << "Testing conditional branch (if-then-else)..." << std::endl;
+    std::cout << "Testing conditional branch (if-then-else)..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -92,11 +92,11 @@ void test_conditional_branch() {
     vm.execute();
 
     assert(vm.get_top() == 100);
-    std::cout << "  ✓ Conditional branch (then) works" << std::endl;
+    std::cout << "  ✓ Conditional branch (then) works" << '\n';
 }
 
 void test_conditional_branch_else() {
-    std::cout << "Testing conditional branch (else path)..." << std::endl;
+    std::cout << "Testing conditional branch (else path)..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -124,11 +124,11 @@ void test_conditional_branch_else() {
     vm.execute();
 
     assert(vm.get_top() == 200);
-    std::cout << "  ✓ Conditional branch (else) works" << std::endl;
+    std::cout << "  ✓ Conditional branch (else) works" << '\n';
 }
 
 void test_simple_loop() {
-    std::cout << "Testing backward jump..." << std::endl;
+    std::cout << "Testing backward jump..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -142,11 +142,11 @@ void test_simple_loop() {
     vm.execute();
 
     assert(vm.get_top() == 30);
-    std::cout << "  ✓ Backward jump capability verified (simplified)" << std::endl;
+    std::cout << "  ✓ Backward jump capability verified (simplified)" << '\n';
 }
 
 void test_call_without_args() {
-    std::cout << "Testing CALL without ARGS..." << std::endl;
+    std::cout << "Testing CALL without ARGS..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -162,17 +162,17 @@ void test_call_without_args() {
     };
 
     vm.load_program(program);
-    const uint64_t starting_sp = vm.get_sp();
+    const uint64_t STARTING_SP = vm.get_sp();
     vm.execute();
 
-    assert(vm.get_sp() == starting_sp - 1);
+    assert(vm.get_sp() == STARTING_SP - 1);
     assert(vm.get_top() == 3); // First function IP
     assert(vm.get_ip() == 6);
-    std::cout << "  ✓ CALL/RET: function" << std::endl;
+    std::cout << "  ✓ CALL/RET: function" << '\n';
 }
 
 void test_call_with_args() {
-    std::cout << "Testing CALL with ARGS..." << std::endl;
+    std::cout << "Testing CALL with ARGS..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -194,10 +194,10 @@ void test_call_with_args() {
     };
 
     vm.load_program(program);
-    const uint64_t starting_sp = vm.get_sp();
+    const uint64_t STARTING_SP = vm.get_sp();
     vm.execute();
 
-    assert(vm.get_sp() == starting_sp - 7);
+    assert(vm.get_sp() == STARTING_SP - 7);
     assert(vm.stack_pop() == 16);
     assert(vm.stack_pop() == 15);
     assert(vm.stack_pop() == 14);
@@ -206,11 +206,11 @@ void test_call_with_args() {
     assert(vm.stack_pop() == 15);
     assert(vm.stack_pop() == 14);
     assert(vm.get_ip() == 12);
-    std::cout << "  ✓ CALL/RET: function" << std::endl;
+    std::cout << "  ✓ CALL/RET: function" << '\n';
 }
 
 void test_call_ret_enter_leave() {
-    std::cout << "Testing CALL and RET with ENTER and LEAVE..." << std::endl;
+    std::cout << "Testing CALL and RET with ENTER and LEAVE..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -228,17 +228,17 @@ void test_call_ret_enter_leave() {
     };
 
     vm.load_program(program);
-    const uint64_t starting_sp = vm.get_sp();
+    const uint64_t STARTING_SP = vm.get_sp();
     vm.execute();
 
     assert(vm.get_ip() == 6);
-    assert(vm.get_sp() == starting_sp - 1);
+    assert(vm.get_sp() == STARTING_SP - 1);
     assert(vm.get_top() == 20);
-    std::cout << "  ✓ CALL/RET: function doubles 10 -> 20" << std::endl;
+    std::cout << "  ✓ CALL/RET: function doubles 10 -> 20" << '\n';
 }
 
 void test_nested_calls_enter_leave() {
-    std::cout << "Testing nested function calls with ENTER and LEAVE..." << std::endl;
+    std::cout << "Testing nested function calls with ENTER and LEAVE..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -264,18 +264,18 @@ void test_nested_calls_enter_leave() {
     };
 
     vm.load_program(program);
-    const uint64_t starting_sp = vm.get_sp();
+    const uint64_t STARTING_SP = vm.get_sp();
     vm.execute();
 
     // (5 + 10) * 2 = 30
     assert(vm.get_ip() == 6);
-    assert(vm.get_sp() == starting_sp - 1);
+    assert(vm.get_sp() == STARTING_SP - 1);
     assert(vm.get_top() == 30);
-    std::cout << "  ✓ Nested calls: (5 + 10) * 2 = 30" << std::endl;
+    std::cout << "  ✓ Nested calls: (5 + 10) * 2 = 30" << '\n';
 }
 
 void test_jump_bounds_check() {
-    std::cout << "Testing jump bounds checking..." << std::endl;
+    std::cout << "Testing jump bounds checking..." << '\n';
 
     StackVM vm;
     std::vector<uint64_t> program = {
@@ -297,11 +297,11 @@ void test_jump_bounds_check() {
     }
 
     assert(caught);
-    std::cout << "  ✓ Jump bounds checking works" << std::endl;
+    std::cout << "  ✓ Jump bounds checking works" << '\n';
 }
 
 int main() {
-    std::cout << "=== VM Control Flow Tests ===" << std::endl;
+    std::cout << "=== VM Control Flow Tests ===" << '\n';
 
     try {
         test_jmp();
@@ -316,10 +316,10 @@ int main() {
         test_call_ret_enter_leave();
         test_nested_calls_enter_leave();
 
-        std::cout << "\n✓ All control flow tests passed!" << std::endl;
+        std::cout << "\n✓ All control flow tests passed!" << '\n';
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "\n✗ Test failed: " << e.what() << std::endl;
+        std::cerr << "\n✗ Test failed: " << e.what() << '\n';
         return 1;
     }
 }

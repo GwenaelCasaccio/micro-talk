@@ -4,7 +4,7 @@
 #include <string>
 
 void test_unclosed_list() {
-    std::cout << "Testing unclosed list error..." << std::endl;
+    std::cout << "Testing unclosed list error..." << '\n';
 
     bool caught = false;
     try {
@@ -16,11 +16,11 @@ void test_unclosed_list() {
         assert(msg.find("')'") != std::string::npos || msg.find("Expected") != std::string::npos);
     }
     assert(caught);
-    std::cout << "  ✓ Unclosed list detected" << std::endl;
+    std::cout << "  ✓ Unclosed list detected" << '\n';
 }
 
 void test_unexpected_closing_paren() {
-    std::cout << "Testing unexpected closing paren..." << std::endl;
+    std::cout << "Testing unexpected closing paren..." << '\n';
 
     bool caught = false;
     try {
@@ -33,11 +33,11 @@ void test_unexpected_closing_paren() {
     }
     // This might not throw depending on parser implementation
     // Just document the behavior
-    std::cout << "  ✓ Extra closing paren handled" << std::endl;
+    std::cout << "  ✓ Extra closing paren handled" << '\n';
 }
 
 void test_unclosed_string() {
-    std::cout << "Testing unclosed string error..." << std::endl;
+    std::cout << "Testing unclosed string error..." << '\n';
 
     bool caught = false;
     try {
@@ -46,15 +46,15 @@ void test_unclosed_string() {
     } catch (const std::runtime_error& e) {
         caught = true;
         std::string msg(e.what());
-        assert(msg.find("\"") != std::string::npos || msg.find("closing") != std::string::npos ||
+        assert(msg.find('\"') != std::string::npos || msg.find("closing") != std::string::npos ||
                msg.find("Expected") != std::string::npos);
     }
     assert(caught);
-    std::cout << "  ✓ Unclosed string detected" << std::endl;
+    std::cout << "  ✓ Unclosed string detected" << '\n';
 }
 
 void test_empty_input_error() {
-    std::cout << "Testing empty/whitespace-only input..." << std::endl;
+    std::cout << "Testing empty/whitespace-only input..." << '\n';
 
     bool caught = false;
     try {
@@ -67,7 +67,7 @@ void test_empty_input_error() {
                msg.find("Unexpected") != std::string::npos);
     }
     assert(caught);
-    std::cout << "  ✓ Empty input error detected" << std::endl;
+    std::cout << "  ✓ Empty input error detected" << '\n';
 
     caught = false;
     try {
@@ -77,11 +77,11 @@ void test_empty_input_error() {
         caught = true;
     }
     assert(caught);
-    std::cout << "  ✓ Whitespace-only input error detected" << std::endl;
+    std::cout << "  ✓ Whitespace-only input error detected" << '\n';
 }
 
 void test_invalid_number() {
-    std::cout << "Testing invalid number formats..." << std::endl;
+    std::cout << "Testing invalid number formats..." << '\n';
 
     // Test minus sign without digits
     bool caught = false;
@@ -93,11 +93,11 @@ void test_invalid_number() {
         // Might be parsed as symbol or throw error
     }
     // This is actually valid as a symbol in Lisp
-    std::cout << "  ✓ Lone minus sign handled (likely as symbol)" << std::endl;
+    std::cout << "  ✓ Lone minus sign handled (likely as symbol)" << '\n';
 }
 
 void test_nested_unclosed() {
-    std::cout << "Testing nested unclosed structures..." << std::endl;
+    std::cout << "Testing nested unclosed structures..." << '\n';
 
     bool caught = false;
     try {
@@ -107,7 +107,7 @@ void test_nested_unclosed() {
         caught = true;
     }
     assert(caught);
-    std::cout << "  ✓ Nested unclosed list detected" << std::endl;
+    std::cout << "  ✓ Nested unclosed list detected" << '\n';
 
     caught = false;
     try {
@@ -117,28 +117,28 @@ void test_nested_unclosed() {
         caught = true;
     }
     assert(caught);
-    std::cout << "  ✓ Multiple levels unclosed detected" << std::endl;
+    std::cout << "  ✓ Multiple levels unclosed detected" << '\n';
 }
 
 void test_string_escape_errors() {
-    std::cout << "Testing string escape handling..." << std::endl;
+    std::cout << "Testing string escape handling..." << '\n';
 
     // Test valid escapes work
-    LispParser parser1("\"\\n\\t\\r\"");
+    LispParser parser1(R"("\n\t\r")");
     auto node1 = parser1.parse();
     assert(node1->type == NodeType::STRING);
     assert(node1->as_string() == "\n\t\r");
-    std::cout << "  ✓ Valid escape sequences work" << std::endl;
+    std::cout << "  ✓ Valid escape sequences work" << '\n';
 
     // Unknown escape sequences are kept as-is (documented behavior)
-    LispParser parser2("\"\\x\"");
+    LispParser parser2(R"("\x")");
     auto node2 = parser2.parse();
     assert(node2->type == NodeType::STRING);
-    std::cout << "  ✓ Unknown escape sequences handled" << std::endl;
+    std::cout << "  ✓ Unknown escape sequences handled" << '\n';
 }
 
 void test_mismatched_delimiters() {
-    std::cout << "Testing mismatched delimiters..." << std::endl;
+    std::cout << "Testing mismatched delimiters..." << '\n';
 
     // More closing than opening
     bool caught = false;
@@ -150,11 +150,11 @@ void test_mismatched_delimiters() {
     } catch (const std::runtime_error& e) {
         caught = true;
     }
-    std::cout << "  ✓ Extra closing paren handled" << std::endl;
+    std::cout << "  ✓ Extra closing paren handled" << '\n';
 }
 
 void test_complex_error_recovery() {
-    std::cout << "Testing complex malformed expressions..." << std::endl;
+    std::cout << "Testing complex malformed expressions..." << '\n';
 
     bool caught = false;
     try {
@@ -164,7 +164,7 @@ void test_complex_error_recovery() {
         caught = true;
     }
     assert(caught);
-    std::cout << "  ✓ Incomplete if expression detected" << std::endl;
+    std::cout << "  ✓ Incomplete if expression detected" << '\n';
 
     caught = false;
     try {
@@ -174,43 +174,43 @@ void test_complex_error_recovery() {
         caught = true;
     }
     assert(caught);
-    std::cout << "  ✓ Incomplete function definition detected" << std::endl;
+    std::cout << "  ✓ Incomplete function definition detected" << '\n';
 }
 
 int main() {
-    std::cout << "=== Parser Error Handling Tests ===" << std::endl;
+    std::cout << "=== Parser Error Handling Tests ===" << '\n';
 
     try {
         test_unclosed_list();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_unexpected_closing_paren();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_unclosed_string();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_empty_input_error();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_invalid_number();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_nested_unclosed();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_string_escape_errors();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_mismatched_delimiters();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_complex_error_recovery();
 
-        std::cout << "\n✓ All parser error handling tests passed!" << std::endl;
+        std::cout << "\n✓ All parser error handling tests passed!" << '\n';
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "\n✗ Test failed: " << e.what() << std::endl;
+        std::cerr << "\n✗ Test failed: " << e.what() << '\n';
         return 1;
     }
 }

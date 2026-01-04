@@ -46,11 +46,11 @@ enum class Opcode : uint8_t {
 class StackVM {
   private:
     uint64_t* memory; // Flat linear mmap'd memory (64-bit words)
-    uint64_t ip;      // Instruction pointer
+    uint64_t ip{0};   // Instruction pointer
     uint64_t sp;      // Stack pointer
     uint64_t bp;      // Base/frame pointer
     uint64_t hp;      // Heap pointer
-    bool running;
+    bool running{false};
 
     // Memory layout (in 64-bit words):
     // [0 ... CODE_SIZE)           : Code segment
@@ -75,21 +75,21 @@ class StackVM {
         return memory[sp++];
     }
 
-    uint64_t peek() const {
+    [[nodiscard]] uint64_t peek() const {
         if (sp >= STACK_BASE) {
             throw std::runtime_error("Stack is empty");
         }
         return memory[sp];
     }
 
-    void check_memory_bounds(uint64_t addr) const {
+    static void check_memory_bounds(uint64_t addr) {
         if (addr >= MEMORY_SIZE) {
             throw std::runtime_error("Memory access out of bounds");
         }
     }
 
   public:
-    StackVM() : ip(0), sp(STACK_BASE), bp(STACK_BASE), hp(CODE_SIZE), running(false) {
+    StackVM() : sp(STACK_BASE), bp(STACK_BASE), hp(CODE_SIZE) {
         // Allocate memory using mmap
         void* ptr = mmap(nullptr, MEMORY_SIZE * sizeof(uint64_t), PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -102,7 +102,7 @@ class StackVM {
     }
 
     ~StackVM() {
-        if (memory) {
+        if (memory != nullptr) {
             munmap(memory, MEMORY_SIZE * sizeof(uint64_t));
         }
     }
@@ -127,10 +127,10 @@ class StackVM {
         running = true;
 
         while (running && ip < CODE_SIZE) {
-            const uint64_t instruction = memory[ip++];
-            const Opcode op = static_cast<Opcode>(instruction & 0xFF);
+            const uint64_t INSTRUCTION = memory[ip++];
+            const auto OP = static_cast<Opcode>(INSTRUCTION & 0xFF);
 
-            switch (op) {
+            switch (OP) {
                 case Opcode::HALT:
                     running = false;
                     break;
@@ -241,9 +241,9 @@ class StackVM {
                 case Opcode::ENTER: {
                     if (ip >= CODE_SIZE)
                         throw std::runtime_error("IP out of bounds");
-                    const size_t tempSize = memory[ip++];
+                    const size_t TEMP_SIZE = memory[ip++];
 
-                    for (uint64_t i = 0; i < tempSize; i++) {
+                    for (uint64_t i = 0; i < TEMP_SIZE; i++) {
                         push(0);
                     }
                     push(bp);
@@ -255,37 +255,34 @@ class StackVM {
                 case Opcode::LEAVE: {
                     if (ip >= CODE_SIZE)
                         throw std::runtime_error("IP out of bounds");
-                    const size_t tempSize = memory[ip++];
-                    const uint64_t result = pop();
+                    const size_t TEMP_SIZE = memory[ip++];
+                    const uint64_t RESULT = pop();
 
                     bp = pop();
 
-                    for (uint64_t i = 0; i < tempSize; i++) {
+                    for (uint64_t i = 0; i < TEMP_SIZE; i++) {
                         pop();
                     }
 
-                    push(result);
+                    push(RESULT);
                     break;
                 }
 
                 case Opcode::CALL: {
                     if (ip >= CODE_SIZE)
                         throw std::runtime_error("IP out of bounds");
-                    const uint64_t target = memory[ip++]; // Read target and advance IP
+                    const uint64_t TARGET = memory[ip++]; // Read target and advance IP
                     if (ip >= CODE_SIZE)
                         throw std::runtime_error("IP out of bounds");
-                    const uint64_t nbArgs = memory[ip++]; // Arguments
+                    const uint64_t NB_ARGS = memory[ip++]; // Arguments
 
-                    const uint64_t base = sp;
+                    const uint64_t BASE = sp;
 
                     push(ip);    // Save return address (now past the operand)
-                    ip = target; // Jump to function
+                    ip = TARGET; // Jump to function
 
-                    std::cout << "args " << nbArgs << std::endl;
-                    for (uint64_t i = 0; i < nbArgs; i++) {
-                        std::cout << base - nbArgs - 1 << " :: " << memory[base + nbArgs - 1 - i]
-                                  << std::endl;
-                        push(memory[base + nbArgs - 1 - i]);
+                    for (uint64_t i = 0; i < NB_ARGS; i++) {
+                        push(memory[BASE + NB_ARGS - 1 - i]);
                     }
 
                     if (ip >= CODE_SIZE)
@@ -296,23 +293,23 @@ class StackVM {
                 case Opcode::RET: {
                     if (ip >= CODE_SIZE)
                         throw std::runtime_error("IP out of bounds");
-                    const size_t nbArgs = memory[ip++];
+                    const size_t NB_ARGS = memory[ip++];
 
-                    const uint64_t result = pop();
+                    const uint64_t RESULT = pop();
 
-                    for (uint64_t i = 0; i < nbArgs; i++) {
+                    for (uint64_t i = 0; i < NB_ARGS; i++) {
                         pop();
                     }
 
-                    const uint64_t ret_addr = pop(); // Pop return address
+                    const uint64_t RET_ADDR = pop(); // Pop return address
 
-                    for (uint64_t i = 0; i < nbArgs; i++) {
+                    for (uint64_t i = 0; i < NB_ARGS; i++) {
                         pop();
                     }
 
-                    push(result);
+                    push(RESULT);
 
-                    ip = ret_addr; // Return to caller
+                    ip = RET_ADDR; // Return to caller
 
                     if (ip >= CODE_SIZE && ip != CODE_SIZE) {
                         throw std::runtime_error("Return address out of code segment");
@@ -340,34 +337,30 @@ class StackVM {
                 }
 
                 case Opcode::BP_LOAD: {
-                    const uint64_t idx = pop();
-                    const uint64_t adr = bp + idx + 1;
-                    check_memory_bounds(adr);
-                    const uint64_t value = memory[adr];
-                    std::cout << "BP_LOAD " << adr << " " << bp << " " << idx << " " << value
-                              << std::endl;
-                    push(value);
+                    const uint64_t IDX = pop();
+                    const uint64_t ADR = bp + IDX + 1;
+                    check_memory_bounds(ADR);
+                    const uint64_t VALUE = memory[ADR];
+                    push(VALUE);
                     break;
                 }
 
                 case Opcode::BP_STORE: {
-                    const uint64_t idx = pop();
-                    const uint64_t value = pop();
-                    const uint64_t adr = bp + idx + 1; // with SP ++ IP on the stack
-                    check_memory_bounds(adr);
-                    if (idx < 1) {
-                        std::cout << "Idx is " << idx << std::endl;
+                    const uint64_t IDX = pop();
+                    const uint64_t VALUE = pop();
+                    const uint64_t ADR = bp + IDX + 1; // with SP ++ IP on the stack
+                    check_memory_bounds(ADR);
+                    if (IDX < 1) {
                         throw std::runtime_error("At least return");
                     }
-                    if (adr < CODE_SIZE) {
+                    if (ADR < CODE_SIZE) {
                         throw std::runtime_error("Cannot write to code segment");
                     }
-                    std::cout << adr << " " << bp << " " << idx << " " << value << std::endl;
-                    memory[adr] = value;
+                    memory[ADR] = VALUE;
                     break;
                 }
                 case Opcode::PRINT:
-                    std::cout << "DEBUG: " << peek() << std::endl;
+                    std::cout << "DEBUG: " << peek() << '\n';
                     break;
 
                 case Opcode::PRINT_STR: {
@@ -384,7 +377,7 @@ class StackVM {
                         char c = (word >> (byte_idx * 8)) & 0xFF;
                         std::cout << c;
                     }
-                    std::cout << std::endl;
+                    std::cout << '\n';
                     break;
                 }
 
@@ -426,7 +419,7 @@ class StackVM {
                 case Opcode::ASHR: {
                     uint64_t b = pop();
                     uint64_t a = pop();
-                    int64_t signed_a = static_cast<int64_t>(a);
+                    auto signed_a = static_cast<int64_t>(a);
                     push(static_cast<uint64_t>(signed_a >> b));
                     break;
                 }
@@ -437,31 +430,26 @@ class StackVM {
         }
     }
 
-    uint64_t get_top() const {
+    // Debug accessors
+    [[nodiscard]] uint64_t get_top() const {
         return peek();
     }
-
     uint64_t stack_pop() {
         return pop();
     }
-
-    // Debug accessors
-    uint64_t get_ip() const {
+    [[nodiscard]] uint64_t get_ip() const {
         return ip;
     }
-    uint64_t get_sp() const {
+    [[nodiscard]] uint64_t get_sp() const {
         return sp;
     }
-    uint64_t get_bp() const {
+    [[nodiscard]] uint64_t get_bp() const {
         return bp;
     }
-
-    // Direct memory access (for debugging/inspection)
-    uint64_t read_memory(uint64_t addr) const {
+    [[nodiscard]] uint64_t read_memory(uint64_t addr) const {
         check_memory_bounds(addr);
         return memory[addr];
     }
-
     void write_memory(uint64_t addr, uint64_t value) {
         check_memory_bounds(addr);
         if (addr < CODE_SIZE) {

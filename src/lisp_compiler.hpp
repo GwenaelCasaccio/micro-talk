@@ -23,17 +23,17 @@ class LispCompiler {
         std::map<std::string, Variable> variables;
     };
 
-    bool is_in_function;
+    bool is_in_function{false};
     std::vector<Scope> scopes;
     uint64_t next_var_address;
-    uint64_t function_local_var_index;
-    uint64_t function_temporary_var_index;
+    uint64_t function_local_var_index{0};
+    uint64_t function_temporary_var_index{0};
 
     // Function definitions
     struct Function {
         std::vector<std::string> params;
         ASTNodePtr body;
-        uint64_t code_address;
+        uint64_t code_address{};
     };
     std::map<std::string, Function> functions;
 
@@ -47,13 +47,13 @@ class LispCompiler {
         emit(static_cast<uint64_t>(op));
     }
 
-    size_t current_address() const {
+    [[nodiscard]] size_t current_address() const {
         return bytecode.size();
     }
 
     // Push a new scope
     void push_scope() {
-        scopes.push_back(Scope());
+        scopes.emplace_back();
     }
 
     // Pop the current scope
@@ -502,7 +502,7 @@ class LispCompiler {
             compile_expr(binding_list[1]);
 
             // Define variable in new scope
-            uint64_t addr;
+            uint64_t addr = 0;
             if (!is_in_function) {
                 addr = define_variable(var_name);
             } else {
@@ -719,7 +719,7 @@ class LispCompiler {
         // 3. Write characters (packed 8 per word)
         // 4. Return address
 
-        const size_t len = str.length();
+        const size_t LEN = str.length();
 
         // We need to call malloc at runtime
         // For now, generate a compile-time allocated string in a global area
@@ -734,16 +734,16 @@ class LispCompiler {
 
         // Store length
         emit_opcode(Opcode::PUSH);
-        emit(len);
+        emit(LEN);
         emit_opcode(Opcode::PUSH);
         emit(str_addr);
         emit_opcode(Opcode::STORE);
 
         // Pack and store characters
-        for (size_t word_idx = 0; word_idx < (len + 7) / 8; word_idx++) {
+        for (size_t word_idx = 0; word_idx < (LEN + 7) / 8; word_idx++) {
             uint64_t word = 0;
-            for (size_t byte_idx = 0; byte_idx < 8 && (word_idx * 8 + byte_idx) < len; byte_idx++) {
-                uint8_t ch = str[word_idx * 8 + byte_idx];
+            for (size_t byte_idx = 0; byte_idx < 8 && (word_idx * 8 + byte_idx) < LEN; byte_idx++) {
+                uint8_t ch = str[(word_idx * 8) + byte_idx];
                 word |= (static_cast<uint64_t>(ch) << (byte_idx * 8));
             }
 
@@ -789,15 +789,13 @@ class LispCompiler {
         emit(num_args);
 
         // Store label reference for later patching
-        label_refs.push_back({call_addr_pos, func_name});
+        label_refs.emplace_back(call_addr_pos, func_name);
 
         // Result is now on stack
     }
 
   public:
-    LispCompiler()
-        : is_in_function(false), next_var_address(VAR_START), function_local_var_index(0),
-          function_temporary_var_index(0) {
+    LispCompiler() : next_var_address(VAR_START) {
         // Start with global scope
         push_scope();
     }
@@ -871,7 +869,7 @@ class LispCompiler {
             }
 
             emit_opcode(Opcode::ENTER);
-            uint64_t patchTemporaries = current_address();
+            uint64_t patch_temporaries = current_address();
             // placeholder for temporaries
             emit(0);
 
@@ -880,7 +878,7 @@ class LispCompiler {
 
             emit_opcode(Opcode::LEAVE);
             emit(function_temporary_var_index);
-            bytecode[patchTemporaries] = function_temporary_var_index;
+            bytecode[patch_temporaries] = function_temporary_var_index;
 
             // Return
             emit_opcode(Opcode::RET);

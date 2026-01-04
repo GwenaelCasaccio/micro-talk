@@ -1,11 +1,11 @@
-#include "../src/stack_vm.hpp"
-#include "../src/lisp_parser.hpp"
 #include "../src/lisp_compiler.hpp"
-#include <iostream>
+#include "../src/lisp_parser.hpp"
+#include "../src/stack_vm.hpp"
 #include <cassert>
+#include <iostream>
 
 void test_compile_number() {
-    std::cout << "Testing number compilation..." << std::endl;
+    std::cout << "Testing number compilation..." << '\n';
 
     LispParser parser("42");
     auto ast = parser.parse();
@@ -17,11 +17,11 @@ void test_compile_number() {
     vm.execute();
 
     assert(vm.get_top() == 42);
-    std::cout << "  ✓ Number literal: 42" << std::endl;
+    std::cout << "  ✓ Number literal: 42" << '\n';
 }
 
 void test_compile_arithmetic() {
-    std::cout << "Testing arithmetic compilation..." << std::endl;
+    std::cout << "Testing arithmetic compilation..." << '\n';
 
     // Addition
     {
@@ -35,7 +35,7 @@ void test_compile_arithmetic() {
         vm.execute();
 
         assert(vm.get_top() == 30);
-        std::cout << "  ✓ Addition: (+ 10 20) = 30" << std::endl;
+        std::cout << "  ✓ Addition: (+ 10 20) = 30" << '\n';
     }
 
     // Subtraction
@@ -50,7 +50,7 @@ void test_compile_arithmetic() {
         vm.execute();
 
         assert(vm.get_top() == 30);
-        std::cout << "  ✓ Subtraction: (- 50 20) = 30" << std::endl;
+        std::cout << "  ✓ Subtraction: (- 50 20) = 30" << '\n';
     }
 
     // Multiplication
@@ -65,7 +65,7 @@ void test_compile_arithmetic() {
         vm.execute();
 
         assert(vm.get_top() == 42);
-        std::cout << "  ✓ Multiplication: (* 6 7) = 42" << std::endl;
+        std::cout << "  ✓ Multiplication: (* 6 7) = 42" << '\n';
     }
 
     // Division
@@ -80,7 +80,7 @@ void test_compile_arithmetic() {
         vm.execute();
 
         assert(vm.get_top() == 20);
-        std::cout << "  ✓ Division: (/ 100 5) = 20" << std::endl;
+        std::cout << "  ✓ Division: (/ 100 5) = 20" << '\n';
     }
 
     // Modulo
@@ -95,7 +95,7 @@ void test_compile_arithmetic() {
         vm.execute();
 
         assert(vm.get_top() == 2);
-        std::cout << "  ✓ Modulo: (% 17 5) = 2" << std::endl;
+        std::cout << "  ✓ Modulo: (% 17 5) = 2" << '\n';
     }
 
     // Multi-argument addition
@@ -110,12 +110,12 @@ void test_compile_arithmetic() {
         vm.execute();
 
         assert(vm.get_top() == 15);
-        std::cout << "  ✓ Multi-arg addition: (+ 1 2 3 4 5) = 15" << std::endl;
+        std::cout << "  ✓ Multi-arg addition: (+ 1 2 3 4 5) = 15" << '\n';
     }
 }
 
 void test_compile_comparison() {
-    std::cout << "Testing comparison compilation..." << std::endl;
+    std::cout << "Testing comparison compilation..." << '\n';
 
     // Equal (true)
     {
@@ -129,7 +129,7 @@ void test_compile_comparison() {
         vm.execute();
 
         assert(vm.get_top() == 1);
-        std::cout << "  ✓ Equal (true): (= 42 42) = 1" << std::endl;
+        std::cout << "  ✓ Equal (true): (= 42 42) = 1" << '\n';
     }
 
     // Equal (false)
@@ -144,7 +144,7 @@ void test_compile_comparison() {
         vm.execute();
 
         assert(vm.get_top() == 0);
-        std::cout << "  ✓ Equal (false): (= 42 100) = 0" << std::endl;
+        std::cout << "  ✓ Equal (false): (= 42 100) = 0" << '\n';
     }
 
     // Less than (true)
@@ -159,7 +159,7 @@ void test_compile_comparison() {
         vm.execute();
 
         assert(vm.get_top() == 1);
-        std::cout << "  ✓ Less than (true): (< 10 20) = 1" << std::endl;
+        std::cout << "  ✓ Less than (true): (< 10 20) = 1" << '\n';
     }
 
     // Greater than (false)
@@ -174,12 +174,12 @@ void test_compile_comparison() {
         vm.execute();
 
         assert(vm.get_top() == 0);
-        std::cout << "  ✓ Greater than (false): (> 5 10) = 0" << std::endl;
+        std::cout << "  ✓ Greater than (false): (> 5 10) = 0" << '\n';
     }
 }
 
 void test_compile_nested() {
-    std::cout << "Testing nested expression compilation..." << std::endl;
+    std::cout << "Testing nested expression compilation..." << '\n';
 
     {
         LispParser parser("(+ (* 2 3) 4)");
@@ -192,7 +192,7 @@ void test_compile_nested() {
         vm.execute();
 
         assert(vm.get_top() == 10);
-        std::cout << "  ✓ Nested: (+ (* 2 3) 4) = 10" << std::endl;
+        std::cout << "  ✓ Nested: (+ (* 2 3) 4) = 10" << '\n';
     }
 
     {
@@ -206,7 +206,7 @@ void test_compile_nested() {
         vm.execute();
 
         assert(vm.get_top() == 30);
-        std::cout << "  ✓ Complex nested: (* (+ 2 3) (- 10 4)) = 30" << std::endl;
+        std::cout << "  ✓ Complex nested: (* (+ 2 3) (- 10 4)) = 30" << '\n';
     }
 
     {
@@ -220,12 +220,12 @@ void test_compile_nested() {
         vm.execute();
 
         assert(vm.get_top() == 19);
-        std::cout << "  ✓ Deep nested: (+ (* 2 (+ 3 4)) (- 10 5)) = 19" << std::endl;
+        std::cout << "  ✓ Deep nested: (+ (* 2 (+ 3 4)) (- 10 5)) = 19" << '\n';
     }
 }
 
 void test_compile_do() {
-    std::cout << "Testing do block compilation..." << std::endl;
+    std::cout << "Testing do block compilation..." << '\n';
 
     {
         LispParser parser("(do (+ 1 2) (* 3 4) (- 10 5))");
@@ -238,7 +238,7 @@ void test_compile_do() {
         vm.execute();
 
         assert(vm.get_top() == 5);
-        std::cout << "  ✓ Do block returns last value: 5" << std::endl;
+        std::cout << "  ✓ Do block returns last value: 5" << '\n';
     }
 
     {
@@ -252,12 +252,12 @@ void test_compile_do() {
         vm.execute();
 
         assert(vm.get_top() == 42);
-        std::cout << "  ✓ Single expression do: 42" << std::endl;
+        std::cout << "  ✓ Single expression do: 42" << '\n';
     }
 }
 
 void test_compile_bitwise() {
-    std::cout << "Testing bitwise operation compilation..." << std::endl;
+    std::cout << "Testing bitwise operation compilation..." << '\n';
 
     {
         LispParser parser("(bit-and 12 10)");
@@ -270,7 +270,7 @@ void test_compile_bitwise() {
         vm.execute();
 
         assert(vm.get_top() == 8);
-        std::cout << "  ✓ Bitwise AND: (bit-and 12 10) = 8" << std::endl;
+        std::cout << "  ✓ Bitwise AND: (bit-and 12 10) = 8" << '\n';
     }
 
     {
@@ -284,7 +284,7 @@ void test_compile_bitwise() {
         vm.execute();
 
         assert(vm.get_top() == 14);
-        std::cout << "  ✓ Bitwise OR: (bit-or 12 10) = 14" << std::endl;
+        std::cout << "  ✓ Bitwise OR: (bit-or 12 10) = 14" << '\n';
     }
 
     {
@@ -298,7 +298,7 @@ void test_compile_bitwise() {
         vm.execute();
 
         assert(vm.get_top() == 6);
-        std::cout << "  ✓ Bitwise XOR: (bit-xor 12 10) = 6" << std::endl;
+        std::cout << "  ✓ Bitwise XOR: (bit-xor 12 10) = 6" << '\n';
     }
 
     {
@@ -312,7 +312,7 @@ void test_compile_bitwise() {
         vm.execute();
 
         assert(vm.get_top() == 20);
-        std::cout << "  ✓ Shift left: (bit-shl 5 2) = 20" << std::endl;
+        std::cout << "  ✓ Shift left: (bit-shl 5 2) = 20" << '\n';
     }
 
     {
@@ -326,35 +326,35 @@ void test_compile_bitwise() {
         vm.execute();
 
         assert(vm.get_top() == 5);
-        std::cout << "  ✓ Shift right: (bit-shr 20 2) = 5" << std::endl;
+        std::cout << "  ✓ Shift right: (bit-shr 20 2) = 5" << '\n';
     }
 }
 
 int main() {
-    std::cout << "=== Compiler Basic Tests ===" << std::endl;
+    std::cout << "=== Compiler Basic Tests ===" << '\n';
 
     try {
         test_compile_number();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_compile_arithmetic();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_compile_comparison();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_compile_nested();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_compile_do();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_compile_bitwise();
 
-        std::cout << "\n✓ All compiler basic tests passed!" << std::endl;
+        std::cout << "\n✓ All compiler basic tests passed!" << '\n';
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "\n✗ Test failed: " << e.what() << std::endl;
+        std::cerr << "\n✗ Test failed: " << e.what() << '\n';
         return 1;
     }
 }

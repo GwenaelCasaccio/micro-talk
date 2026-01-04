@@ -3,28 +3,28 @@
 #include <iostream>
 
 void test_single_line_comment() {
-    std::cout << "Testing single line comments..." << std::endl;
+    std::cout << "Testing single line comments..." << '\n';
 
     LispParser parser1("; This is a comment\n42");
     auto node1 = parser1.parse();
     assert(node1->type == NodeType::NUMBER);
     assert(node1->as_number() == 42);
-    std::cout << "  ✓ Comment before expression" << std::endl;
+    std::cout << "  ✓ Comment before expression" << '\n';
 
     LispParser parser2("42 ; inline comment");
     auto node2 = parser2.parse();
     assert(node2->type == NodeType::NUMBER);
     assert(node2->as_number() == 42);
-    std::cout << "  ✓ Inline comment after expression" << std::endl;
+    std::cout << "  ✓ Inline comment after expression" << '\n';
 
     LispParser parser3("; comment1\n; comment2\n42");
     auto node3 = parser3.parse();
     assert(node3->as_number() == 42);
-    std::cout << "  ✓ Multiple consecutive comments" << std::endl;
+    std::cout << "  ✓ Multiple consecutive comments" << '\n';
 }
 
 void test_comments_in_lists() {
-    std::cout << "Testing comments in lists..." << std::endl;
+    std::cout << "Testing comments in lists..." << '\n';
 
     LispParser parser1("(+ ; add operator\n 1 2)");
     auto node1 = parser1.parse();
@@ -34,13 +34,13 @@ void test_comments_in_lists() {
     assert(items1[0]->as_symbol() == "+");
     assert(items1[1]->as_number() == 1);
     assert(items1[2]->as_number() == 2);
-    std::cout << "  ✓ Comment inside list" << std::endl;
+    std::cout << "  ✓ Comment inside list" << '\n';
 
     LispParser parser2("(\n; operator\n+\n; first arg\n1\n; second arg\n2\n)");
     auto node2 = parser2.parse();
     const auto& items2 = node2->as_list();
     assert(items2.size() == 3);
-    std::cout << "  ✓ Comments between all elements" << std::endl;
+    std::cout << "  ✓ Comments between all elements" << '\n';
 
     LispParser parser3("(do\n  ; Step 1\n  (define-var x 10)\n  ; Step 2\n  (define-var y 20)\n  ; "
                        "Result\n  (+ x y))");
@@ -48,11 +48,11 @@ void test_comments_in_lists() {
     const auto& items3 = node3->as_list();
     assert(items3[0]->as_symbol() == "do");
     assert(items3.size() == 4);
-    std::cout << "  ✓ Comments in do block" << std::endl;
+    std::cout << "  ✓ Comments in do block" << '\n';
 }
 
 void test_comments_with_multiple_expressions() {
-    std::cout << "Testing comments with multiple expressions..." << std::endl;
+    std::cout << "Testing comments with multiple expressions..." << '\n';
 
     std::string code = R"(
         ; Define x
@@ -68,58 +68,58 @@ void test_comments_with_multiple_expressions() {
     LispParser parser(code);
     auto exprs = parser.parse_all();
     assert(exprs.size() == 3);
-    std::cout << "  ✓ Comments between multiple expressions" << std::endl;
+    std::cout << "  ✓ Comments between multiple expressions" << '\n';
 }
 
 void test_comment_edge_cases() {
-    std::cout << "Testing comment edge cases..." << std::endl;
+    std::cout << "Testing comment edge cases..." << '\n';
 
     LispParser parser1(";");
     auto exprs1 = parser1.parse_all();
-    assert(exprs1.size() == 0);
-    std::cout << "  ✓ Comment only (no content)" << std::endl;
+    assert(exprs1.empty());
+    std::cout << "  ✓ Comment only (no content)" << '\n';
 
     LispParser parser2(";\n42");
     auto node2 = parser2.parse();
     assert(node2->as_number() == 42);
-    std::cout << "  ✓ Empty comment line" << std::endl;
+    std::cout << "  ✓ Empty comment line" << '\n';
 
     LispParser parser3("; comment at end\n");
     auto exprs3 = parser3.parse_all();
-    assert(exprs3.size() == 0);
-    std::cout << "  ✓ Comment at end of file" << std::endl;
+    assert(exprs3.empty());
+    std::cout << "  ✓ Comment at end of file" << '\n';
 
     LispParser parser4("42 ;comment");
     auto node4 = parser4.parse();
     // Semicolon starts a comment even without newline at end
     assert(node4->type == NodeType::NUMBER);
     assert(node4->as_number() == 42);
-    std::cout << "  ✓ Comment without newline at end works" << std::endl;
+    std::cout << "  ✓ Comment without newline at end works" << '\n';
 
     LispParser parser5("42 ;");
     auto node5 = parser5.parse();
     assert(node5->as_number() == 42);
-    std::cout << "  ✓ Comment with no text after semicolon" << std::endl;
+    std::cout << "  ✓ Comment with no text after semicolon" << '\n';
 }
 
 void test_comments_dont_affect_strings() {
-    std::cout << "Testing comments don't affect strings..." << std::endl;
+    std::cout << "Testing comments don't affect strings..." << '\n';
 
     LispParser parser1("\"this ; is not a comment\"");
     auto node1 = parser1.parse();
     assert(node1->type == NodeType::STRING);
     assert(node1->as_string() == "this ; is not a comment");
-    std::cout << "  ✓ Semicolon inside string is not a comment" << std::endl;
+    std::cout << "  ✓ Semicolon inside string is not a comment" << '\n';
 
     LispParser parser2("(print \"value: ; still a string\")");
     auto node2 = parser2.parse();
     const auto& items = node2->as_list();
     assert(items[1]->as_string() == "value: ; still a string");
-    std::cout << "  ✓ Semicolon in string within list" << std::endl;
+    std::cout << "  ✓ Semicolon in string within list" << '\n';
 }
 
 void test_nested_with_comments() {
-    std::cout << "Testing deeply nested structures with comments..." << std::endl;
+    std::cout << "Testing deeply nested structures with comments..." << '\n';
 
     std::string code = R"(
         (if ; condition check
@@ -143,34 +143,34 @@ void test_nested_with_comments() {
     const auto& items = node->as_list();
     assert(items[0]->as_symbol() == "if");
     assert(items.size() == 4);
-    std::cout << "  ✓ Comments in deeply nested if expression" << std::endl;
+    std::cout << "  ✓ Comments in deeply nested if expression" << '\n';
 }
 
 int main() {
-    std::cout << "=== Parser Comment Tests ===" << std::endl;
+    std::cout << "=== Parser Comment Tests ===" << '\n';
 
     try {
         test_single_line_comment();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_comments_in_lists();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_comments_with_multiple_expressions();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_comment_edge_cases();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_comments_dont_affect_strings();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_nested_with_comments();
 
-        std::cout << "\n✓ All parser comment tests passed!" << std::endl;
+        std::cout << "\n✓ All parser comment tests passed!" << '\n';
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "\n✗ Test failed: " << e.what() << std::endl;
+        std::cerr << "\n✗ Test failed: " << e.what() << '\n';
         return 1;
     }
 }

@@ -1,7 +1,7 @@
 #include "lisp_parser.hpp"
 #include "lisp_to_cpp.hpp"
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 std::string read_file(const std::string& filename) {
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
             output_file = argv[2];
         }
 
-        std::cout << "Transpiling " << input_file << " -> " << output_file << std::endl;
+        std::cout << "Transpiling " << input_file << " -> " << output_file << '\n';
 
         // Read Lisp source
         std::string lisp_code = read_file(input_file);
@@ -50,15 +50,15 @@ int main(int argc, char** argv) {
         // Write output
         write_file(output_file, cpp_code);
 
-        std::cout << "✓ Transpilation successful!" << std::endl;
-        std::cout << "  C++ output: " << output_file << std::endl;
-        std::cout << "\nTo compile and run:" << std::endl;
-        std::cout << "  g++ -std=c++17 -o build/st_tokenizer " << output_file << std::endl;
-        std::cout << "  ./build/st_tokenizer" << std::endl;
+        std::cout << "✓ Transpilation successful!" << '\n';
+        std::cout << "  C++ output: " << output_file << '\n';
+        std::cout << "\nTo compile and run:" << '\n';
+        std::cout << "  g++ -std=c++17 -o build/st_tokenizer " << output_file << '\n';
+        std::cout << "  ./build/st_tokenizer" << '\n';
 
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << '\n';
         return 1;
     }
 }

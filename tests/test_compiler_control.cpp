@@ -5,7 +5,7 @@
 #include <iostream>
 
 void test_compile_if_then() {
-    std::cout << "Testing if (then branch)..." << std::endl;
+    std::cout << "Testing if (then branch)..." << '\n';
 
     LispParser parser("(if (< 5 10) 100 200)");
     auto ast = parser.parse();
@@ -17,11 +17,11 @@ void test_compile_if_then() {
     vm.execute();
 
     assert(vm.get_top() == 100);
-    std::cout << "  ✓ If (true condition): (if (< 5 10) 100 200) = 100" << std::endl;
+    std::cout << "  ✓ If (true condition): (if (< 5 10) 100 200) = 100" << '\n';
 }
 
 void test_compile_if_else() {
-    std::cout << "Testing if (else branch)..." << std::endl;
+    std::cout << "Testing if (else branch)..." << '\n';
 
     LispParser parser("(if (> 5 10) 100 200)");
     auto ast = parser.parse();
@@ -33,11 +33,11 @@ void test_compile_if_else() {
     vm.execute();
 
     assert(vm.get_top() == 200);
-    std::cout << "  ✓ If (false condition): (if (> 5 10) 100 200) = 200" << std::endl;
+    std::cout << "  ✓ If (false condition): (if (> 5 10) 100 200) = 200" << '\n';
 }
 
 void test_compile_nested_if() {
-    std::cout << "Testing nested if..." << std::endl;
+    std::cout << "Testing nested if..." << '\n';
 
     LispParser parser("(if (< 5 10) (if (= 3 3) 42 0) 99)");
     auto ast = parser.parse();
@@ -49,11 +49,11 @@ void test_compile_nested_if() {
     vm.execute();
 
     assert(vm.get_top() == 42);
-    std::cout << "  ✓ Nested if: (if (< 5 10) (if (= 3 3) 42 0) 99) = 42" << std::endl;
+    std::cout << "  ✓ Nested if: (if (< 5 10) (if (= 3 3) 42 0) 99) = 42" << '\n';
 }
 
 void test_compile_if_with_expressions() {
-    std::cout << "Testing if with complex expressions..." << std::endl;
+    std::cout << "Testing if with complex expressions..." << '\n';
 
     LispParser parser("(if (= (% 10 3) 1) (* 5 5) (+ 1 1))");
     auto ast = parser.parse();
@@ -65,11 +65,11 @@ void test_compile_if_with_expressions() {
     vm.execute();
 
     assert(vm.get_top() == 25);
-    std::cout << "  ✓ If with expressions: (if (= (% 10 3) 1) (* 5 5) (+ 1 1)) = 25" << std::endl;
+    std::cout << "  ✓ If with expressions: (if (= (% 10 3) 1) (* 5 5) (+ 1 1)) = 25" << '\n';
 }
 
 void test_compile_while() {
-    std::cout << "Testing while loop..." << std::endl;
+    std::cout << "Testing while loop..." << '\n';
 
     std::string code = R"(
         (do
@@ -93,11 +93,11 @@ void test_compile_while() {
 
     // sum = 0 + 1 + 2 + 3 + 4 = 10
     assert(vm.get_top() == 10);
-    std::cout << "  ✓ While loop: sum 0+1+2+3+4 = 10" << std::endl;
+    std::cout << "  ✓ While loop: sum 0+1+2+3+4 = 10" << '\n';
 }
 
 void test_compile_for() {
-    std::cout << "Testing for loop..." << std::endl;
+    std::cout << "Testing for loop..." << '\n';
 
     std::string code = R"(
         (do
@@ -118,11 +118,11 @@ void test_compile_for() {
 
     // total = 0 + 1 + 2 + 3 + 4 = 10
     assert(vm.get_top() == 10);
-    std::cout << "  ✓ For loop: sum 0+1+2+3+4 = 10" << std::endl;
+    std::cout << "  ✓ For loop: sum 0+1+2+3+4 = 10" << '\n';
 }
 
 void test_compile_for_nested() {
-    std::cout << "Testing nested for loops..." << std::endl;
+    std::cout << "Testing nested for loops..." << '\n';
 
     std::string code = R"(
         (do
@@ -144,11 +144,11 @@ void test_compile_for_nested() {
 
     // 3 iterations * 3 iterations = 9
     assert(vm.get_top() == 9);
-    std::cout << "  ✓ Nested for: 3x3 iterations = 9" << std::endl;
+    std::cout << "  ✓ Nested for: 3x3 iterations = 9" << '\n';
 }
 
 void test_compile_while_with_condition() {
-    std::cout << "Testing while with complex condition..." << std::endl;
+    std::cout << "Testing while with complex condition..." << '\n';
 
     std::string code = R"(
         (do
@@ -169,28 +169,28 @@ void test_compile_while_with_condition() {
 
     // 10, 8, 6, 4, 2, 0
     assert(vm.get_top() == 0);
-    std::cout << "  ✓ While countdown: 10->8->6->4->2->0" << std::endl;
+    std::cout << "  ✓ While countdown: 10->8->6->4->2->0" << '\n';
 }
 
 int main() {
-    std::cout << "=== Compiler Control Flow Tests ===" << std::endl;
+    std::cout << "=== Compiler Control Flow Tests ===" << '\n';
 
     try {
         test_compile_if_then();
         test_compile_if_else();
         test_compile_nested_if();
         test_compile_if_with_expressions();
-        std::cout << std::endl;
+        std::cout << '\n';
 
         test_compile_while();
         test_compile_for();
         test_compile_for_nested();
         test_compile_while_with_condition();
 
-        std::cout << "\n✓ All compiler control flow tests passed!" << std::endl;
+        std::cout << "\n✓ All compiler control flow tests passed!" << '\n';
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "\n✗ Test failed: " << e.what() << std::endl;
+        std::cerr << "\n✗ Test failed: " << e.what() << '\n';
         return 1;
     }
 }

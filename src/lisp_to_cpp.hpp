@@ -63,7 +63,7 @@ class LispToCppCompiler {
         return sanitize_name(struct_name) + "_" + std::to_string(struct_counter++);
     }
 
-    std::string struct_type_name(const std::string& struct_name) {
+    static std::string struct_type_name(const std::string& struct_name) {
         // Convert "token" -> "Token" (capitalize first letter)
         std::string result = struct_name;
         if (!result.empty()) {
@@ -72,41 +72,43 @@ class LispToCppCompiler {
         return result;
     }
 
-    std::string escape_string(const std::string& str) {
+    static std::string escape_string(const std::string& str) {
         std::string result;
         for (char c : str) {
-            if (c == '"')
+            if (c == '"') {
                 result += "\\\"";
-            else if (c == '\\')
+            } else if (c == '\\') {
                 result += "\\\\";
-            else if (c == '\n')
+            } else if (c == '\n') {
                 result += "\\n";
-            else if (c == '\t')
+            } else if (c == '\t') {
                 result += "\\t";
-            else
+            } else {
                 result += c;
+            }
         }
         return result;
     }
 
-    std::string sanitize_name(const std::string& name) {
+    static std::string sanitize_name(const std::string& name) {
         std::string result;
         for (char c : name) {
-            if (c == '-')
+            if (c == '-') {
                 result += '_';
-            else if (c == '?')
+            } else if (c == '?') {
                 result += "_p";
-            else if (c == '!')
+            } else if (c == '!') {
                 result += "_bang";
-            else if (std::isalnum(c))
+            } else if (std::isalnum(c) != 0) {
                 result += c;
-            else
+            } else {
                 result += '_';
+            }
         }
         return result;
     }
 
-    std::string sanitize_function_name(const std::string& name) {
+    static std::string sanitize_function_name(const std::string& name) {
         // Prefix function names with "fn_" to avoid conflicts with C++ keywords
         return "fn_" + sanitize_name(name);
     }
@@ -647,7 +649,7 @@ class LispToCppCompiler {
                 // Untyped parameter: just a symbol
                 std::string param = sig[i]->as_symbol();
                 param_names.push_back(param);
-                param_types.push_back("int64_t"); // default type
+                param_types.emplace_back("int64_t"); // default type
             } else if (sig[i]->type == NodeType::LIST) {
                 // Typed parameter: (name type)
                 const auto& param_def = sig[i]->as_list();
@@ -667,7 +669,7 @@ class LispToCppCompiler {
 
         // Determine return type and body position
         std::string return_type;
-        size_t body_index;
+        size_t body_index = 0;
 
         if (list.size() == 3) {
             // (define (name ...) body) - no explicit return type, infer it

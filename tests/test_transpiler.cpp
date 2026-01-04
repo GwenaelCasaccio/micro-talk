@@ -16,7 +16,7 @@ void save_cpp_file(const std::string& filename, const std::string& code) {
 
 std::string run_command(const std::string& cmd) {
     FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe) {
+    if (pipe == nullptr) {
         throw std::runtime_error("Failed to run command: " + cmd);
     }
 
@@ -37,7 +37,7 @@ std::string run_command(const std::string& cmd) {
 
 void test_transpile_and_run(const std::string& name, const std::string& lisp_code,
                             const std::string& expected_output) {
-    std::cout << "Testing " << name << "..." << std::endl;
+    std::cout << "Testing " << name << "..." << '\n';
 
     // Parse
     LispParser parser(lisp_code);
@@ -57,8 +57,8 @@ void test_transpile_and_run(const std::string& name, const std::string& lisp_cod
     try {
         run_command(compile_cmd);
     } catch (const std::exception& e) {
-        std::cerr << "Compilation failed for " << name << std::endl;
-        std::cerr << "C++ code:\n" << cpp_code << std::endl;
+        std::cerr << "Compilation failed for " << name << '\n';
+        std::cerr << "C++ code:\n" << cpp_code << '\n';
         throw;
     }
 
@@ -73,13 +73,13 @@ void test_transpile_and_run(const std::string& name, const std::string& lisp_cod
 
     // Verify
     if (output != expected_output) {
-        std::cerr << "Expected: " << expected_output << std::endl;
-        std::cerr << "Got: " << output << std::endl;
-        std::cerr << "C++ code:\n" << cpp_code << std::endl;
+        std::cerr << "Expected: " << expected_output << '\n';
+        std::cerr << "Got: " << output << '\n';
+        std::cerr << "C++ code:\n" << cpp_code << '\n';
         throw std::runtime_error("Output mismatch for " + name);
     }
 
-    std::cout << "  ✓ " << name << ": " << output << std::endl;
+    std::cout << "  ✓ " << name << ": " << output << '\n';
 }
 
 void test_simple_arithmetic() {
@@ -237,49 +237,49 @@ void test_structs() {
 }
 
 int main() {
-    std::cout << "=== Lisp to C++ Transpiler Tests ===" << std::endl;
+    std::cout << "=== Lisp to C++ Transpiler Tests ===" << '\n';
 
     try {
-        std::cout << "\n--- Simple Arithmetic ---" << std::endl;
+        std::cout << "\n--- Simple Arithmetic ---" << '\n';
         test_simple_arithmetic();
 
-        std::cout << "\n--- Multi-Argument Arithmetic ---" << std::endl;
+        std::cout << "\n--- Multi-Argument Arithmetic ---" << '\n';
         test_multi_arg_arithmetic();
 
-        std::cout << "\n--- Comparison ---" << std::endl;
+        std::cout << "\n--- Comparison ---" << '\n';
         test_comparison();
 
-        std::cout << "\n--- Nested Expressions ---" << std::endl;
+        std::cout << "\n--- Nested Expressions ---" << '\n';
         test_nested_expressions();
 
-        std::cout << "\n--- Variables ---" << std::endl;
+        std::cout << "\n--- Variables ---" << '\n';
         test_variables();
 
-        std::cout << "\n--- If Statement ---" << std::endl;
+        std::cout << "\n--- If Statement ---" << '\n';
         test_if_statement();
 
-        std::cout << "\n--- While Loop ---" << std::endl;
+        std::cout << "\n--- While Loop ---" << '\n';
         test_while_loop();
 
-        std::cout << "\n--- For Loop ---" << std::endl;
+        std::cout << "\n--- For Loop ---" << '\n';
         test_for_loop();
 
-        std::cout << "\n--- Functions ---" << std::endl;
+        std::cout << "\n--- Functions ---" << '\n';
         test_functions();
 
-        std::cout << "\n--- FFI (Native C++) ---" << std::endl;
+        std::cout << "\n--- FFI (Native C++) ---" << '\n';
         test_ffi();
 
-        std::cout << "\n--- Bitwise Operations ---" << std::endl;
+        std::cout << "\n--- Bitwise Operations ---" << '\n';
         test_bitwise();
 
-        std::cout << "\n--- Structs ---" << std::endl;
+        std::cout << "\n--- Structs ---" << '\n';
         test_structs();
 
-        std::cout << "\n✓ All transpiler tests passed!" << std::endl;
+        std::cout << "\n✓ All transpiler tests passed!" << '\n';
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "\n✗ Test failed: " << e.what() << std::endl;
+        std::cerr << "\n✗ Test failed: " << e.what() << '\n';
         return 1;
     }
 }
