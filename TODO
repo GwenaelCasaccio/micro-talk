@@ -1,3 +1,5 @@
+- ALU Stack OK
+
 - Scope (def-fn (a arg1) (....)
         (def-var arg1 123) erreur
 - smalltalk integer

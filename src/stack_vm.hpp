@@ -14,7 +14,6 @@ enum class Opcode : uint8_t {
     PUSH,  // Push immediate 64-bit value
     POP,   // Pop and discard
     DUP,   // Duplicate top
-    SWAP,  // Swap top two
     ADD,   // Pop two, push sum
     SUB,   // Pop two, push difference
     MUL,   // Pop two, push product
@@ -99,6 +98,7 @@ class StackVM {
         }
 
         memory = static_cast<uint64_t*>(ptr);
+        reset();
     }
 
     ~StackVM() {
@@ -119,13 +119,15 @@ class StackVM {
         memcpy(memory, program.data(), program.size() * sizeof(uint64_t));
     }
 
-    // Execute the loaded program
-    void execute() {
+    void reset() {
         ip = 0;
         sp = STACK_BASE;
         bp = STACK_BASE;
         running = true;
+    }
 
+    // Execute the loaded program
+    void execute() {
         while (running && ip < CODE_SIZE) {
             const uint64_t INSTRUCTION = memory[ip++];
             const auto OP = static_cast<Opcode>(INSTRUCTION & 0xFF);
@@ -148,14 +150,6 @@ class StackVM {
                 case Opcode::DUP:
                     push(peek());
                     break;
-
-                case Opcode::SWAP: {
-                    uint64_t a = pop();
-                    uint64_t b = pop();
-                    push(a);
-                    push(b);
-                    break;
-                }
 
                 case Opcode::ADD: {
                     uint64_t b = pop();
@@ -428,6 +422,8 @@ class StackVM {
                     throw std::runtime_error("Unknown opcode");
             }
         }
+
+        running = true;
     }
 
     // Debug accessors

@@ -72,15 +72,18 @@ TOKENIZER_TRANSPILER := $(BUILD_DIR)/transpile_tokenizer
 ST_TOKENIZER := $(BUILD_DIR)/st_tokenizer_file
 MINIMAL_VM := $(BUILD_DIR)/minimal_vm_test
 
-# All binaries
+# All binaries (excluding optional/generated ones like ST_TOKENIZER)
 ALL_BINS := $(TARGET) $(INTEGRATION_BINS) $(UNIT_TEST_BINS) \
-            $(TRANSPILER_DEMO) $(TOKENIZER_TRANSPILER) $(ST_TOKENIZER) $(MINIMAL_VM)
+            $(TRANSPILER_DEMO) $(TOKENIZER_TRANSPILER) $(MINIMAL_VM)
+
+# Optional binaries (require generated source files)
+OPTIONAL_BINS := $(ST_TOKENIZER)
 
 # ============================================================================
 # Main Targets
 # ============================================================================
 
-.PHONY: all clean help
+.PHONY: all all-with-optional clean help
 .DEFAULT_GOAL := all
 
 all: $(BUILD_DIR) $(ALL_BINS)
@@ -88,6 +91,9 @@ all: $(BUILD_DIR) $(ALL_BINS)
 	@echo "$(COLOR_GREEN)$(COLOR_BOLD)✓ Build complete!$(COLOR_RESET)"
 	@echo "  Main: $(TARGET)"
 	@echo "  Tests: $(words $(UNIT_TEST_BINS)) unit tests + $(words $(INTEGRATION_BINS)) integration tests"
+
+all-with-optional: all $(OPTIONAL_BINS)
+	@echo "$(COLOR_GREEN)✓ Optional binaries built$(COLOR_RESET)"
 
 help:
 	@echo "$(COLOR_BOLD)Micro-Talk VM Build System$(COLOR_RESET)"

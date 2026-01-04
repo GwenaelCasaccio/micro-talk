@@ -3,7 +3,21 @@
 #include <iostream>
 #include <vector>
 
-// Arithmetic operations
+void test_halt() {
+    std::cout << "Testing HALT..." << '\n';
+
+    StackVM vm;
+    std::vector<uint64_t> program = {static_cast<uint64_t>(Opcode::HALT)};
+
+    const uint64_t initial_sp = vm.get_sp();
+
+    vm.load_program(program);
+    vm.execute();
+
+    assert(vm.get_ip() == 1);
+    assert(vm.get_sp() == initial_sp);
+    std::cout << "  ✓ HALT" << '\n';
+}
 
 void test_add() {
     std::cout << "Testing ADD..." << '\n';
@@ -392,6 +406,8 @@ int main() {
     std::cout << "=== VM ALU Tests ===" << '\n';
 
     try {
+        test_halt();
+
         // Arithmetic
         test_add();
         test_sub();
