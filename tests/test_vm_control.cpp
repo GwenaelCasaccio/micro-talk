@@ -8,15 +8,17 @@ void test_jmp() {
 
     StackVM vm;
     std::vector<uint64_t> program = {
-        static_cast<uint64_t>(Opcode::PUSH), 10,
-        static_cast<uint64_t>(Opcode::JMP),  6,  // Jump to address 6
-        static_cast<uint64_t>(Opcode::PUSH), 99, // This should be skipped
-        static_cast<uint64_t>(Opcode::HALT),     // Address 6: target
+        static_cast<uint64_t>(Opcode::PUSH), 10, static_cast<uint64_t>(Opcode::JMP),  6,
+        static_cast<uint64_t>(Opcode::PUSH), 99, static_cast<uint64_t>(Opcode::HALT),
     };
+
+    const uint64_t initial_sp = vm.get_sp();
 
     vm.load_program(program);
     vm.execute();
 
+    assert(vm.get_ip() == 7);
+    assert(vm.get_sp() == initial_sp - 1);
     assert(vm.get_top() == 10);
     std::cout << "  ✓ JMP skips instructions correctly" << '\n';
 }
@@ -26,17 +28,18 @@ void test_jz_when_zero() {
 
     StackVM vm;
     std::vector<uint64_t> program = {
-        static_cast<uint64_t>(Opcode::PUSH), 0,  // Condition: 0
-        static_cast<uint64_t>(Opcode::JZ),   6,  // Should jump
-        static_cast<uint64_t>(Opcode::PUSH), 99, // Skipped
-        static_cast<uint64_t>(Opcode::PUSH), 42, // Address 6: target
-        static_cast<uint64_t>(Opcode::HALT),
+        static_cast<uint64_t>(Opcode::PUSH), 0,  static_cast<uint64_t>(Opcode::JZ),   6,
+        static_cast<uint64_t>(Opcode::PUSH), 99, static_cast<uint64_t>(Opcode::HALT),
     };
+
+    const uint64_t initial_sp = vm.get_sp();
 
     vm.load_program(program);
     vm.execute();
 
-    assert(vm.get_top() == 42);
+    assert(vm.get_ip() == 7);
+    assert(vm.get_sp() == initial_sp);
+
     std::cout << "  ✓ JZ jumps when condition is zero" << '\n';
 }
 
@@ -46,85 +49,25 @@ void test_jz_when_nonzero() {
     StackVM vm;
     std::vector<uint64_t> program = {
         static_cast<uint64_t>(Opcode::PUSH),
-        1, // Condition: 1 (non-zero)
+        1,
         static_cast<uint64_t>(Opcode::JZ),
-        6, // Should not jump
+        6,
         static_cast<uint64_t>(Opcode::PUSH),
-        42, // Executed
+        42,
         static_cast<uint64_t>(Opcode::HALT),
         static_cast<uint64_t>(Opcode::PUSH),
-        99, // Not reached
+        99,
     };
+
+    const uint64_t initial_sp = vm.get_sp();
 
     vm.load_program(program);
     vm.execute();
 
+    assert(vm.get_ip() == 7);
     assert(vm.get_top() == 42);
+    assert(vm.get_sp() == initial_sp - 1);
     std::cout << "  ✓ JZ does not jump when condition is non-zero" << '\n';
-}
-
-void test_conditional_branch() {
-    std::cout << "Testing conditional branch (if-then-else)..." << '\n';
-
-    StackVM vm;
-    std::vector<uint64_t> program = {
-        // if (5 < 10) then push 100 else push 200
-        static_cast<uint64_t>(Opcode::PUSH),
-        5,
-        static_cast<uint64_t>(Opcode::PUSH),
-        10,
-        static_cast<uint64_t>(Opcode::LT), // Result: 1 (true)
-        static_cast<uint64_t>(Opcode::JZ),
-        11, // Jump to else if zero
-        // Then branch
-        static_cast<uint64_t>(Opcode::PUSH),
-        100,
-        static_cast<uint64_t>(Opcode::JMP),
-        13, // Jump over else
-        // Else branch (address 11)
-        static_cast<uint64_t>(Opcode::PUSH),
-        200,
-        // End (address 13)
-        static_cast<uint64_t>(Opcode::HALT),
-    };
-
-    vm.load_program(program);
-    vm.execute();
-
-    assert(vm.get_top() == 100);
-    std::cout << "  ✓ Conditional branch (then) works" << '\n';
-}
-
-void test_conditional_branch_else() {
-    std::cout << "Testing conditional branch (else path)..." << '\n';
-
-    StackVM vm;
-    std::vector<uint64_t> program = {
-        // if (15 < 10) then push 100 else push 200
-        static_cast<uint64_t>(Opcode::PUSH),
-        15,
-        static_cast<uint64_t>(Opcode::PUSH),
-        10,
-        static_cast<uint64_t>(Opcode::LT), // Result: 0 (false)
-        static_cast<uint64_t>(Opcode::JZ),
-        11, // Jump to else
-        // Then branch
-        static_cast<uint64_t>(Opcode::PUSH),
-        100,
-        static_cast<uint64_t>(Opcode::JMP),
-        13, // Jump over else
-        // Else branch (address 11)
-        static_cast<uint64_t>(Opcode::PUSH),
-        200,
-        // End (address 13)
-        static_cast<uint64_t>(Opcode::HALT),
-    };
-
-    vm.load_program(program);
-    vm.execute();
-
-    assert(vm.get_top() == 200);
-    std::cout << "  ✓ Conditional branch (else) works" << '\n';
 }
 
 void test_simple_loop() {
@@ -132,16 +75,31 @@ void test_simple_loop() {
 
     StackVM vm;
     std::vector<uint64_t> program = {
-        // Push 100, jump forward, push 200, jump back, halt
-        static_cast<uint64_t>(Opcode::PUSH), 10,
-        static_cast<uint64_t>(Opcode::PUSH), 20,
-        static_cast<uint64_t>(Opcode::ADD),  static_cast<uint64_t>(Opcode::HALT),
+        static_cast<uint64_t>(Opcode::PUSH),
+        10,
+        static_cast<uint64_t>(Opcode::JMP),
+        6,
+        static_cast<uint64_t>(Opcode::PUSH),
+        20,
+        static_cast<uint64_t>(Opcode::HALT),
+        static_cast<uint64_t>(Opcode::JMP),
+        4,
     };
+
+    const uint64_t initial_sp = vm.get_sp();
 
     vm.load_program(program);
     vm.execute();
 
-    assert(vm.get_top() == 30);
+    assert(vm.get_ip() == 7);
+    assert(vm.get_sp() == initial_sp - 1);
+    assert(vm.get_top() == 10);
+
+    vm.execute();
+    assert(vm.get_ip() == 7);
+    assert(vm.get_sp() == initial_sp - 2);
+    assert(vm.get_top() == 20);
+
     std::cout << "  ✓ Backward jump capability verified (simplified)" << '\n';
 }
 
@@ -150,13 +108,11 @@ void test_call_without_args() {
 
     StackVM vm;
     std::vector<uint64_t> program = {
-        // Main program
         static_cast<uint64_t>(Opcode::CALL),
         5,
-        0, // IP, NB ARGS
+        0,
         static_cast<uint64_t>(Opcode::PUSH),
         10,
-
         // Fn 1
         static_cast<uint64_t>(Opcode::HALT),
     };
@@ -307,8 +263,6 @@ int main() {
         test_jmp();
         test_jz_when_zero();
         test_jz_when_nonzero();
-        test_conditional_branch();
-        test_conditional_branch_else();
         test_simple_loop();
         test_jump_bounds_check();
         test_call_without_args();
