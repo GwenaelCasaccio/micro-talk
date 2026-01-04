@@ -1,0 +1,17 @@
+# cppcheck configuration for micro-talk project
+#
+# This file documents suppressions for cppcheck static analysis
+# Inline suppressions can also be used in code with: // cppcheck-suppress <rule>
+
+# System includes are not in our control
+missingIncludeSystem
+
+# Unused functions are expected in this project (VM opcodes, test utilities)
+unusedFunction
+
+# Sometimes we need unmatched suppressions for conditional compilation
+unmatchedSuppression
+
+# VM-specific suppressions (add as needed)
+# Example: variableScope - for VM register variables
+# Example: cstyleCast - for pointer operations in VM

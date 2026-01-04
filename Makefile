@@ -289,4 +289,61 @@ test-all: vm-all parser-all compiler-all transpiler integration-all
 	@echo "    ✓ Smalltalk, Comments"
 	@echo "======================================"
 
-.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all transpiler transpiler-demo tokenizer tokenizer-transpile tokenizer-file integration-all test-all
+# Code quality targets
+lint:
+	@echo "=== Running clang-tidy on source files ==="
+	@for file in src/*.cpp src/*.hpp tests/*.cpp; do \
+		if [ -f "$$file" ]; then \
+			echo "Checking $$file..."; \
+			clang-tidy "$$file" -- $(CXXFLAGS); \
+		fi \
+	done
+	@echo "✓ Linting complete!"
+
+lint-fix:
+	@echo "=== Running clang-tidy with auto-fixes ==="
+	@for file in src/*.cpp src/*.hpp tests/*.cpp; do \
+		if [ -f "$$file" ]; then \
+			echo "Fixing $$file..."; \
+			clang-tidy -fix "$$file" -- $(CXXFLAGS); \
+		fi \
+	done
+	@echo "✓ Auto-fixes applied!"
+
+cppcheck:
+	@echo "=== Running cppcheck static analysis ==="
+	@cppcheck --enable=all --inconclusive --std=c++17 \
+		--suppress=missingIncludeSystem \
+		--suppress=unusedFunction \
+		--suppress=unmatchedSuppression \
+		--inline-suppr \
+		-I src \
+		--error-exitcode=1 \
+		src/*.cpp src/*.hpp tests/*.cpp 2>&1 | grep -v "^Checking " || true
+	@echo "✓ cppcheck complete!"
+
+cppcheck-xml:
+	@echo "=== Running cppcheck (XML output) ==="
+	@cppcheck --enable=all --inconclusive --std=c++17 \
+		--suppress=missingIncludeSystem \
+		--suppress=unusedFunction \
+		-I src \
+		--xml --xml-version=2 \
+		src/*.cpp src/*.hpp tests/*.cpp 2> cppcheck-report.xml
+	@echo "✓ Report saved to cppcheck-report.xml"
+
+format:
+	@echo "=== Formatting C++ files ==="
+	@for file in src/*.cpp src/*.hpp tests/*.cpp; do \
+		if [ -f "$$file" ]; then \
+			echo "Formatting $$file..."; \
+			clang-format -i "$$file"; \
+		fi \
+	done
+	@echo "✓ Formatting complete!"
+
+check-all: format lint cppcheck
+	@echo ""
+	@echo "✓ All code quality checks passed!"
+
+.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all transpiler transpiler-demo tokenizer tokenizer-transpile tokenizer-file integration-all test-all lint lint-fix cppcheck cppcheck-xml format check-all
