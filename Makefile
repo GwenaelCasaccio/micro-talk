@@ -1,233 +1,367 @@
-CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O0 -g
-TARGET = build/lisp_vm
-TEST_TAG = build/test_tagging
-SIMPLE_TAG = build/simple_tagging_test
-TEST_VARS = build/test_variables
-TEST_LAMBDA = build/test_lambda
-TEST_LOOPS = build/test_loops
-TEST_MICRO = build/test_microcode
-TEST_ADVANCED = build/test_advanced
-TEST_SMALLTALK = build/test_smalltalk
-TEST_COMMENTS = build/test_comments
-TEST_VM_STACK = build/test_vm_stack
-TEST_VM_ALU = build/test_vm_alu
-TEST_VM_MEMORY = build/test_vm_memory
-TEST_VM_CONTROL = build/test_vm_control
-TEST_PARSER_BASIC = build/test_parser_basic
-TEST_PARSER_COMMENTS = build/test_parser_comments
-TEST_PARSER_ERRORS = build/test_parser_errors
-TEST_COMPILER_BASIC = build/test_compiler_basic
-TEST_COMPILER_CONTROL = build/test_compiler_control
-TEST_COMPILER_VARIABLES = build/test_compiler_variables
-TEST_COMPILER_FUNCTIONS = build/test_compiler_functions
-TEST_TRANSPILER = build/test_transpiler
-TEST_TRANSPILER_EXT = build/test_transpiler_extended
-TRANSPILER_DEMO = build/transpiler_demo
-TOKENIZER_TRANSPILER = build/transpile_tokenizer
-ST_TOKENIZER = build/st_tokenizer_file
+# ============================================================================
+# Micro-Talk VM Build System
+# ============================================================================
 
-all: $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TEST_TRANSPILER_EXT) $(TRANSPILER_DEMO)
+# Compiler and flags
+CXX := g++
+CXXFLAGS := -std=c++17 -Wall -Wextra -O0 -g
+LDFLAGS :=
 
-$(TARGET): src/main.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TARGET) src/main.cpp
+# Directories
+SRC_DIR := src
+TEST_DIR := tests
+BUILD_DIR := build
+EXAMPLES_DIR := examples
+LISP_DIR := lisp
 
-$(TEST_TAG): tests/test_tagging.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_TAG) tests/test_tagging.cpp
+# Colors for output (optional, comment out if not supported)
+COLOR_RESET := \033[0m
+COLOR_BOLD := \033[1m
+COLOR_GREEN := \033[32m
+COLOR_BLUE := \033[34m
+COLOR_YELLOW := \033[33m
 
-$(SIMPLE_TAG): src/simple_tagging_test.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(SIMPLE_TAG) src/simple_tagging_test.cpp
+# ============================================================================
+# Core Dependencies
+# ============================================================================
 
-$(TEST_VARS): tests/test_variables.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_VARS) tests/test_variables.cpp
+VM_DEPS := $(SRC_DIR)/stack_vm.hpp
+PARSER_DEPS := $(SRC_DIR)/lisp_parser.hpp
+COMPILER_DEPS := $(VM_DEPS) $(PARSER_DEPS) $(SRC_DIR)/lisp_compiler.hpp
+MICROCODE_DEPS := $(COMPILER_DEPS) $(SRC_DIR)/microcode.hpp
+TRANSPILER_DEPS := $(PARSER_DEPS) $(SRC_DIR)/lisp_to_cpp.hpp
 
-$(TEST_LAMBDA): tests/test_lambda.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_LAMBDA) tests/test_lambda.cpp
+# ============================================================================
+# Binaries
+# ============================================================================
 
-$(TEST_LOOPS): tests/test_loops.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_LOOPS) tests/test_loops.cpp
+# Main executable
+TARGET := $(BUILD_DIR)/lisp_vm
 
-$(TEST_MICRO): tests/test_microcode.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp src/microcode.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_MICRO) tests/test_microcode.cpp
+# Integration test binaries (from src/)
+INTEGRATION_BINS := \
+	$(BUILD_DIR)/simple_tagging_test
 
-$(TEST_ADVANCED): tests/test_advanced.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp src/microcode.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_ADVANCED) tests/test_advanced.cpp
+# Unit test binaries (from tests/)
+UNIT_TEST_BINS := \
+	$(BUILD_DIR)/test_tagging \
+	$(BUILD_DIR)/test_variables \
+	$(BUILD_DIR)/test_lambda \
+	$(BUILD_DIR)/test_loops \
+	$(BUILD_DIR)/test_microcode \
+	$(BUILD_DIR)/test_advanced \
+	$(BUILD_DIR)/test_smalltalk \
+	$(BUILD_DIR)/test_comments \
+	$(BUILD_DIR)/test_vm_stack \
+	$(BUILD_DIR)/test_vm_alu \
+	$(BUILD_DIR)/test_vm_memory \
+	$(BUILD_DIR)/test_vm_control \
+	$(BUILD_DIR)/test_parser_basic \
+	$(BUILD_DIR)/test_parser_comments \
+	$(BUILD_DIR)/test_parser_errors \
+	$(BUILD_DIR)/test_compiler_basic \
+	$(BUILD_DIR)/test_compiler_control \
+	$(BUILD_DIR)/test_compiler_variables \
+	$(BUILD_DIR)/test_compiler_functions \
+	$(BUILD_DIR)/test_transpiler \
+	$(BUILD_DIR)/test_transpiler_extended
 
-$(TEST_SMALLTALK): tests/test_smalltalk.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp src/microcode.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_SMALLTALK) tests/test_smalltalk.cpp
+# Special binaries
+TRANSPILER_DEMO := $(BUILD_DIR)/transpiler_demo
+TOKENIZER_TRANSPILER := $(BUILD_DIR)/transpile_tokenizer
+ST_TOKENIZER := $(BUILD_DIR)/st_tokenizer_file
+MINIMAL_VM := $(BUILD_DIR)/minimal_vm_test
 
-$(TEST_COMMENTS): tests/test_comments.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_COMMENTS) tests/test_comments.cpp
+# All binaries
+ALL_BINS := $(TARGET) $(INTEGRATION_BINS) $(UNIT_TEST_BINS) \
+            $(TRANSPILER_DEMO) $(TOKENIZER_TRANSPILER) $(ST_TOKENIZER) $(MINIMAL_VM)
 
-$(TEST_VM_STACK): tests/test_vm_stack.cpp src/stack_vm.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_VM_STACK) tests/test_vm_stack.cpp
+# ============================================================================
+# Main Targets
+# ============================================================================
 
-$(TEST_VM_ALU): tests/test_vm_alu.cpp src/stack_vm.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_VM_ALU) tests/test_vm_alu.cpp
+.PHONY: all clean help
+.DEFAULT_GOAL := all
 
-$(TEST_VM_MEMORY): tests/test_vm_memory.cpp src/stack_vm.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_VM_MEMORY) tests/test_vm_memory.cpp
+all: $(BUILD_DIR) $(ALL_BINS)
+	@echo ""
+	@echo "$(COLOR_GREEN)$(COLOR_BOLD)✓ Build complete!$(COLOR_RESET)"
+	@echo "  Main: $(TARGET)"
+	@echo "  Tests: $(words $(UNIT_TEST_BINS)) unit tests + $(words $(INTEGRATION_BINS)) integration tests"
 
-$(TEST_VM_CONTROL): tests/test_vm_control.cpp src/stack_vm.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_VM_CONTROL) tests/test_vm_control.cpp
+help:
+	@echo "$(COLOR_BOLD)Micro-Talk VM Build System$(COLOR_RESET)"
+	@echo ""
+	@echo "$(COLOR_BOLD)Building:$(COLOR_RESET)"
+	@echo "  make              - Build all binaries"
+	@echo "  make clean        - Remove all build artifacts"
+	@echo "  make run          - Build and run main VM"
+	@echo ""
+	@echo "$(COLOR_BOLD)Testing:$(COLOR_RESET)"
+	@echo "  make test-all     - Run all tests (unit + integration)"
+	@echo "  make vm-all       - Run all VM tests"
+	@echo "  make parser-all   - Run all parser tests"
+	@echo "  make compiler-all - Run all compiler tests"
+	@echo "  make transpiler   - Run transpiler tests"
+	@echo ""
+	@echo "$(COLOR_BOLD)Code Quality:$(COLOR_RESET)"
+	@echo "  make format       - Format all C++ files"
+	@echo "  make lint         - Run clang-tidy"
+	@echo "  make lint-fix     - Auto-fix clang-tidy issues"
+	@echo "  make cppcheck     - Run static analysis"
+	@echo "  make check-all    - Run all quality checks"
+	@echo ""
+	@echo "$(COLOR_BOLD)Tools:$(COLOR_RESET)"
+	@echo "  make compile-db   - Generate compile_commands.json"
+	@echo "  make help         - Show this help"
 
-$(TEST_PARSER_BASIC): tests/test_parser_basic.cpp src/lisp_parser.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_PARSER_BASIC) tests/test_parser_basic.cpp
-
-$(TEST_PARSER_COMMENTS): tests/test_parser_comments.cpp src/lisp_parser.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_PARSER_COMMENTS) tests/test_parser_comments.cpp
-
-$(TEST_PARSER_ERRORS): tests/test_parser_errors.cpp src/lisp_parser.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_PARSER_ERRORS) tests/test_parser_errors.cpp
-
-$(TEST_COMPILER_BASIC): tests/test_compiler_basic.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_COMPILER_BASIC) tests/test_compiler_basic.cpp
-
-$(TEST_COMPILER_CONTROL): tests/test_compiler_control.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_COMPILER_CONTROL) tests/test_compiler_control.cpp
-
-$(TEST_COMPILER_VARIABLES): tests/test_compiler_variables.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_COMPILER_VARIABLES) tests/test_compiler_variables.cpp
-
-$(TEST_COMPILER_FUNCTIONS): tests/test_compiler_functions.cpp src/stack_vm.hpp src/lisp_parser.hpp src/lisp_compiler.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_COMPILER_FUNCTIONS) tests/test_compiler_functions.cpp
-
-$(TEST_TRANSPILER): tests/test_transpiler.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_TRANSPILER) tests/test_transpiler.cpp
-
-$(TEST_TRANSPILER_EXT): tests/test_transpiler_extended.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
-	$(CXX) $(CXXFLAGS) -o $(TEST_TRANSPILER_EXT) tests/test_transpiler_extended.cpp
-
-$(TRANSPILER_DEMO): examples/transpiler_demo.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
-	$(CXX) $(CXXFLAGS) -o $(TRANSPILER_DEMO) examples/transpiler_demo.cpp
-
-$(TOKENIZER_TRANSPILER): src/transpile_tokenizer.cpp src/lisp_parser.hpp src/lisp_to_cpp.hpp
-	$(CXX) $(CXXFLAGS) -o $(TOKENIZER_TRANSPILER) src/transpile_tokenizer.cpp
-
-$(ST_TOKENIZER): src/tokenizer_main.cpp src/lisp_parser.hpp
-	$(CXX) $(CXXFLAGS) -o $(ST_TOKENIZER) src/tokenizer_main.cpp
-
+# Create build directory
+$(BUILD_DIR):
+	@mkdir -p $(BUILD_DIR)
 
 clean:
-	rm -f $(TARGET) $(TEST_TAG) $(SIMPLE_TAG) $(TEST_VARS) $(TEST_LAMBDA) $(TEST_LOOPS) $(TEST_MICRO) $(TEST_ADVANCED) $(TEST_SMALLTALK) $(TEST_COMMENTS) $(TEST_VM_STACK) $(TEST_VM_ALU) $(TEST_VM_MEMORY) $(TEST_VM_CONTROL) $(TEST_PARSER_BASIC) $(TEST_PARSER_COMMENTS) $(TEST_PARSER_ERRORS) $(TEST_COMPILER_BASIC) $(TEST_COMPILER_CONTROL) $(TEST_COMPILER_VARIABLES) $(TEST_COMPILER_FUNCTIONS) $(TEST_TRANSPILER) $(TEST_TRANSPILER_EXT) $(TRANSPILER_DEMO)
-	rm -f build/test_*.cpp build/test_add build/test_sub build/test_mul build/test_div build/test_mod build/test_multi_* build/test_eq_* build/test_lt_* build/test_gt_* build/test_nested* build/test_define_* build/test_multiple_* build/test_set_* build/test_if_* build/test_while_* build/test_for_* build/test_simple_* build/test_two_* build/test_function_* build/test_ffi_* build/test_bitwise_*
-	rm -f build/test_ext_* build/example_*.cpp build/example_loop
+	@echo "$(COLOR_YELLOW)Cleaning build artifacts...$(COLOR_RESET)"
+	@rm -rf $(BUILD_DIR)
+	@rm -f compile_commands.json cppcheck-report.xml
+	@echo "$(COLOR_GREEN)✓ Clean complete$(COLOR_RESET)"
+
+# ============================================================================
+# Compilation Rules
+# ============================================================================
+
+# Main executable
+$(TARGET): $(SRC_DIR)/main.cpp $(COMPILER_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# Minimal VM test
+$(BUILD_DIR)/minimal_vm_test: $(SRC_DIR)/minimal_vm_test.cpp $(VM_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# Integration tests from src/
+$(BUILD_DIR)/simple_tagging_test: $(SRC_DIR)/simple_tagging_test.cpp $(COMPILER_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# Transpiler tools
+$(TRANSPILER_DEMO): $(EXAMPLES_DIR)/transpiler_demo.cpp $(TRANSPILER_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+$(TOKENIZER_TRANSPILER): $(SRC_DIR)/transpile_tokenizer.cpp $(TRANSPILER_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+$(ST_TOKENIZER): $(SRC_DIR)/tokenizer_main.cpp $(PARSER_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# ============================================================================
+# Pattern Rules for Tests
+# ============================================================================
+
+# VM tests (only need VM headers)
+$(BUILD_DIR)/test_vm_%: $(TEST_DIR)/test_vm_%.cpp $(VM_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# Parser tests (only need parser headers)
+$(BUILD_DIR)/test_parser_%: $(TEST_DIR)/test_parser_%.cpp $(PARSER_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# Compiler tests (need all compiler deps)
+$(BUILD_DIR)/test_compiler_%: $(TEST_DIR)/test_compiler_%.cpp $(COMPILER_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# Transpiler tests
+$(BUILD_DIR)/test_transpiler%: $(TEST_DIR)/test_transpiler%.cpp $(TRANSPILER_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# Special tests with microcode dependencies
+$(BUILD_DIR)/test_microcode: $(TEST_DIR)/test_microcode.cpp $(MICROCODE_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+$(BUILD_DIR)/test_advanced: $(TEST_DIR)/test_advanced.cpp $(MICROCODE_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+$(BUILD_DIR)/test_smalltalk: $(TEST_DIR)/test_smalltalk.cpp $(MICROCODE_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# Generic fallback for other tests
+$(BUILD_DIR)/test_%: $(TEST_DIR)/test_%.cpp $(COMPILER_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# ============================================================================
+# Test Execution Targets
+# ============================================================================
+
+.PHONY: run test simple vars lambda loops micro advanced smalltalk comments
 
 run: $(TARGET)
-	./$(TARGET)
+	@./$(TARGET)
 
-test: $(TEST_TAG)
-	./$(TEST_TAG)
+# Individual integration tests
+test: $(BUILD_DIR)/test_tagging
+	@./$(BUILD_DIR)/test_tagging
 
-simple: $(SIMPLE_TAG)
-	./$(SIMPLE_TAG)
+simple: $(BUILD_DIR)/simple_tagging_test
+	@./$(BUILD_DIR)/simple_tagging_test
 
-vars: $(TEST_VARS)
-	./$(TEST_VARS)
+vars: $(BUILD_DIR)/test_variables
+	@./$(BUILD_DIR)/test_variables
 
-lambda: $(TEST_LAMBDA)
-	./$(TEST_LAMBDA)
+lambda: $(BUILD_DIR)/test_lambda
+	@./$(BUILD_DIR)/test_lambda
 
-loops: $(TEST_LOOPS)
-	./$(TEST_LOOPS)
+loops: $(BUILD_DIR)/test_loops
+	@./$(BUILD_DIR)/test_loops
 
-micro: $(TEST_MICRO)
-	./$(TEST_MICRO)
+micro: $(BUILD_DIR)/test_microcode
+	@./$(BUILD_DIR)/test_microcode
 
-advanced: $(TEST_ADVANCED)
-	./$(TEST_ADVANCED)
+advanced: $(BUILD_DIR)/test_advanced
+	@./$(BUILD_DIR)/test_advanced
 
-smalltalk: $(TEST_SMALLTALK)
-	./$(TEST_SMALLTALK)
+smalltalk: $(BUILD_DIR)/test_smalltalk
+	@./$(BUILD_DIR)/test_smalltalk
 
-comments: $(TEST_COMMENTS)
-	./$(TEST_COMMENTS)
+comments: $(BUILD_DIR)/test_comments
+	@./$(BUILD_DIR)/test_comments
 
-vm-stack: $(TEST_VM_STACK)
-	./$(TEST_VM_STACK)
+# ============================================================================
+# Unit Test Suites
+# ============================================================================
 
-vm-alu: $(TEST_VM_ALU)
-	./$(TEST_VM_ALU)
+.PHONY: vm-stack vm-alu vm-memory vm-control vm-all
+.PHONY: parser-basic parser-comments parser-errors parser-all
+.PHONY: compiler-basic compiler-control compiler-variables compiler-functions compiler-all
+.PHONY: transpiler transpiler-demo integration-all test-all
 
-vm-memory: $(TEST_VM_MEMORY)
-	./$(TEST_VM_MEMORY)
+# VM tests
+vm-stack: $(BUILD_DIR)/test_vm_stack
+	@./$(BUILD_DIR)/test_vm_stack
 
-vm-control: $(TEST_VM_CONTROL)
-	./$(TEST_VM_CONTROL)
+vm-alu: $(BUILD_DIR)/test_vm_alu
+	@./$(BUILD_DIR)/test_vm_alu
+
+vm-memory: $(BUILD_DIR)/test_vm_memory
+	@./$(BUILD_DIR)/test_vm_memory
+
+vm-control: $(BUILD_DIR)/test_vm_control
+	@./$(BUILD_DIR)/test_vm_control
 
 vm-all: vm-stack vm-alu vm-memory vm-control
 	@echo ""
-	@echo "✓ All VM tests passed!"
+	@echo "$(COLOR_GREEN)✓ All VM tests passed!$(COLOR_RESET)"
 
-parser-basic: $(TEST_PARSER_BASIC)
-	./$(TEST_PARSER_BASIC)
+# Parser tests
+parser-basic: $(BUILD_DIR)/test_parser_basic
+	@./$(BUILD_DIR)/test_parser_basic
 
-parser-comments: $(TEST_PARSER_COMMENTS)
-	./$(TEST_PARSER_COMMENTS)
+parser-comments: $(BUILD_DIR)/test_parser_comments
+	@./$(BUILD_DIR)/test_parser_comments
 
-parser-errors: $(TEST_PARSER_ERRORS)
-	./$(TEST_PARSER_ERRORS)
+parser-errors: $(BUILD_DIR)/test_parser_errors
+	@./$(BUILD_DIR)/test_parser_errors
 
 parser-all: parser-basic parser-comments parser-errors
 	@echo ""
-	@echo "✓ All parser tests passed!"
+	@echo "$(COLOR_GREEN)✓ All parser tests passed!$(COLOR_RESET)"
 
-compiler-basic: $(TEST_COMPILER_BASIC)
-	./$(TEST_COMPILER_BASIC)
+# Compiler tests
+compiler-basic: $(BUILD_DIR)/test_compiler_basic
+	@./$(BUILD_DIR)/test_compiler_basic
 
-compiler-control: $(TEST_COMPILER_CONTROL)
-	./$(TEST_COMPILER_CONTROL)
+compiler-control: $(BUILD_DIR)/test_compiler_control
+	@./$(BUILD_DIR)/test_compiler_control
 
-compiler-variables: $(TEST_COMPILER_VARIABLES)
-	./$(TEST_COMPILER_VARIABLES)
+compiler-variables: $(BUILD_DIR)/test_compiler_variables
+	@./$(BUILD_DIR)/test_compiler_variables
 
-compiler-functions: $(TEST_COMPILER_FUNCTIONS)
-	./$(TEST_COMPILER_FUNCTIONS)
+compiler-functions: $(BUILD_DIR)/test_compiler_functions
+	@./$(BUILD_DIR)/test_compiler_functions
 
 compiler-all: compiler-basic compiler-control compiler-variables compiler-functions
 	@echo ""
-	@echo "✓ All compiler tests passed!"
+	@echo "$(COLOR_GREEN)✓ All compiler tests passed!$(COLOR_RESET)"
 
-transpiler: $(TEST_TRANSPILER) $(TEST_TRANSPILER_EXT)
-	./$(TEST_TRANSPILER)
+# Transpiler tests
+transpiler: $(BUILD_DIR)/test_transpiler $(BUILD_DIR)/test_transpiler_extended
+	@./$(BUILD_DIR)/test_transpiler
 	@echo ""
-	./$(TEST_TRANSPILER_EXT)
+	@./$(BUILD_DIR)/test_transpiler_extended
 
 transpiler-demo: $(TRANSPILER_DEMO)
-	./$(TRANSPILER_DEMO)
+	@./$(TRANSPILER_DEMO)
+
+# Integration tests
+integration-all: test simple vars lambda loops micro advanced smalltalk comments
+	@echo ""
+	@echo "$(COLOR_GREEN)✓ All integration tests passed!$(COLOR_RESET)"
+
+# All tests
+test-all: vm-all parser-all compiler-all transpiler integration-all
+	@echo ""
+	@echo "$(COLOR_GREEN)$(COLOR_BOLD)======================================"
+	@echo "✓ ALL TESTS PASSED!"
+	@echo "======================================$(COLOR_RESET)"
+	@echo "  $(COLOR_BOLD)Unit Tests:$(COLOR_RESET)"
+	@echo "    ✓ VM tests (43 tests)"
+	@echo "    ✓ Parser tests (58 tests)"
+	@echo "    ✓ Compiler tests (44 tests)"
+	@echo "    ✓ Transpiler tests (35 tests)"
+	@echo "  $(COLOR_BOLD)Integration Tests:$(COLOR_RESET)"
+	@echo "    ✓ Tagging, Variables, Lambda"
+	@echo "    ✓ Loops, Microcode, Advanced"
+	@echo "    ✓ Smalltalk, Comments"
+	@echo "$(COLOR_GREEN)$(COLOR_BOLD)======================================$(COLOR_RESET)"
+
+# ============================================================================
+# Transpiler Workflows
+# ============================================================================
+
+.PHONY: tokenizer tokenizer-transpile tokenizer-file parser typed-functions parser-typed
 
 tokenizer: $(TOKENIZER_TRANSPILER)
-	@echo "=== Transpiling Smalltalk Tokenizer ==="
-	./$(TOKENIZER_TRANSPILER)
+	@echo "$(COLOR_BLUE)=== Transpiling Smalltalk Tokenizer ===$(COLOR_RESET)"
+	@./$(TOKENIZER_TRANSPILER)
 	@echo ""
-	@echo "=== Compiling Generated C++ ==="
-	g++ -std=c++17 -o build/st_tokenizer build/smalltalk_tokenizer.cpp
+	@echo "$(COLOR_BLUE)=== Compiling Generated C++ ===$(COLOR_RESET)"
+	@$(CXX) -std=c++17 -o $(BUILD_DIR)/st_tokenizer $(BUILD_DIR)/smalltalk_tokenizer.cpp
 	@echo ""
-	@echo "=== Running Tokenizer ==="
-	./build/st_tokenizer
+	@echo "$(COLOR_BLUE)=== Running Tokenizer ===$(COLOR_RESET)"
+	@./$(BUILD_DIR)/st_tokenizer
 
 tokenizer-transpile: $(TOKENIZER_TRANSPILER)
-	@echo "=== Regenerating tokenizer_main.cpp from Lisp source ==="
-	./$(TOKENIZER_TRANSPILER) lisp/smalltalk_tokenizer_ffi.lisp build/tokenizer_main_tmp.cpp
+	@echo "$(COLOR_BLUE)=== Regenerating tokenizer_main.cpp from Lisp source ===$(COLOR_RESET)"
+	@./$(TOKENIZER_TRANSPILER) $(LISP_DIR)/smalltalk_tokenizer_ffi.lisp $(BUILD_DIR)/tokenizer_main_tmp.cpp
 	@echo ""
 	@echo "Adding header comments..."
-	@echo "// AUTO-GENERATED CODE - DO NOT EDIT MANUALLY" > src/tokenizer_main.cpp
-	@echo "// This file was transpiled from: lisp/smalltalk_tokenizer_ffi.lisp" >> src/tokenizer_main.cpp
-	@echo "// To regenerate, run: make tokenizer-transpile" >> src/tokenizer_main.cpp
-	@echo "//" >> src/tokenizer_main.cpp
-	@echo "// Smalltalk Tokenizer with FFI for file I/O" >> src/tokenizer_main.cpp
-	@echo "// Demonstrates the Lisp-to-C++ transpiler with FFI capabilities" >> src/tokenizer_main.cpp
-	@echo "" >> src/tokenizer_main.cpp
-	@tail -n +2 build/tokenizer_main_tmp.cpp >> src/tokenizer_main.cpp
-	@rm build/tokenizer_main_tmp.cpp
-	@echo "✓ tokenizer_main.cpp regenerated successfully!"
+	@echo "// AUTO-GENERATED CODE - DO NOT EDIT MANUALLY" > $(SRC_DIR)/tokenizer_main.cpp
+	@echo "// This file was transpiled from: lisp/smalltalk_tokenizer_ffi.lisp" >> $(SRC_DIR)/tokenizer_main.cpp
+	@echo "// To regenerate, run: make tokenizer-transpile" >> $(SRC_DIR)/tokenizer_main.cpp
+	@echo "//" >> $(SRC_DIR)/tokenizer_main.cpp
+	@echo "// Smalltalk Tokenizer with FFI for file I/O" >> $(SRC_DIR)/tokenizer_main.cpp
+	@echo "// Demonstrates the Lisp-to-C++ transpiler with FFI capabilities" >> $(SRC_DIR)/tokenizer_main.cpp
+	@echo "" >> $(SRC_DIR)/tokenizer_main.cpp
+	@tail -n +2 $(BUILD_DIR)/tokenizer_main_tmp.cpp >> $(SRC_DIR)/tokenizer_main.cpp
+	@rm $(BUILD_DIR)/tokenizer_main_tmp.cpp
+	@echo "$(COLOR_GREEN)✓ tokenizer_main.cpp regenerated successfully!$(COLOR_RESET)"
 
 tokenizer-file: $(ST_TOKENIZER)
-	@echo "=== Smalltalk Tokenizer with File I/O ==="
+	@echo "$(COLOR_BLUE)=== Smalltalk Tokenizer with File I/O ===$(COLOR_RESET)"
 	@echo ""
-	@if [ -f examples/test.st ]; then \
+	@if [ -f $(EXAMPLES_DIR)/test.st ]; then \
 		echo "Testing on examples/test.st:"; \
-		./$(ST_TOKENIZER) examples/test.st; \
+		./$(ST_TOKENIZER) $(EXAMPLES_DIR)/test.st; \
 		echo ""; \
 	fi
 	@if [ -f /tmp/smalltalk_syntax.txt ]; then \
@@ -240,110 +374,130 @@ tokenizer-file: $(ST_TOKENIZER)
 	fi
 
 parser: $(TOKENIZER_TRANSPILER)
-	@echo "=== Transpiling Smalltalk Parser ==="
-	./$(TOKENIZER_TRANSPILER) lisp/smalltalk_parser.lisp build/smalltalk_parser.cpp
+	@echo "$(COLOR_BLUE)=== Transpiling Smalltalk Parser ===$(COLOR_RESET)"
+	@./$(TOKENIZER_TRANSPILER) $(LISP_DIR)/smalltalk_parser.lisp $(BUILD_DIR)/smalltalk_parser.cpp
 	@echo ""
-	@echo "=== Compiling Generated C++ ==="
-	g++ -std=c++17 -o build/st_parser build/smalltalk_parser.cpp
+	@echo "$(COLOR_BLUE)=== Compiling Generated C++ ===$(COLOR_RESET)"
+	@$(CXX) -std=c++17 -o $(BUILD_DIR)/st_parser $(BUILD_DIR)/smalltalk_parser.cpp
 	@echo ""
-	@echo "=== Running Parser ==="
-	./build/st_parser
+	@echo "$(COLOR_BLUE)=== Running Parser ===$(COLOR_RESET)"
+	@./$(BUILD_DIR)/st_parser
 
 typed-functions: $(TOKENIZER_TRANSPILER)
-	@echo "=== Transpiling Typed Functions Test ==="
-	./$(TOKENIZER_TRANSPILER) lisp/test_typed_functions.lisp build/test_typed_functions.cpp
+	@echo "$(COLOR_BLUE)=== Transpiling Typed Functions Test ===$(COLOR_RESET)"
+	@./$(TOKENIZER_TRANSPILER) $(LISP_DIR)/test_typed_functions.lisp $(BUILD_DIR)/test_typed_functions.cpp
 	@echo ""
-	@echo "=== Compiling Generated C++ ==="
-	g++ -std=c++17 -o build/test_typed_functions build/test_typed_functions.cpp
+	@echo "$(COLOR_BLUE)=== Compiling Generated C++ ===$(COLOR_RESET)"
+	@$(CXX) -std=c++17 -o $(BUILD_DIR)/test_typed_functions $(BUILD_DIR)/test_typed_functions.cpp
 	@echo ""
-	@echo "=== Running Typed Functions Test ==="
-	./build/test_typed_functions
+	@echo "$(COLOR_BLUE)=== Running Typed Functions Test ===$(COLOR_RESET)"
+	@./$(BUILD_DIR)/test_typed_functions
 
 parser-typed: $(TOKENIZER_TRANSPILER)
-	@echo "=== Transpiling Smalltalk Parser (Typed Strings) ==="
-	./$(TOKENIZER_TRANSPILER) lisp/smalltalk_parser_typed.lisp build/smalltalk_parser_typed.cpp
+	@echo "$(COLOR_BLUE)=== Transpiling Smalltalk Parser (Typed Strings) ===$(COLOR_RESET)"
+	@./$(TOKENIZER_TRANSPILER) $(LISP_DIR)/smalltalk_parser_typed.lisp $(BUILD_DIR)/smalltalk_parser_typed.cpp
 	@echo ""
-	@echo "=== Compiling Generated C++ ==="
-	g++ -std=c++17 -o build/st_parser_typed build/smalltalk_parser_typed.cpp
+	@echo "$(COLOR_BLUE)=== Compiling Generated C++ ===$(COLOR_RESET)"
+	@$(CXX) -std=c++17 -o $(BUILD_DIR)/st_parser_typed $(BUILD_DIR)/smalltalk_parser_typed.cpp
 	@echo ""
-	@echo "=== Running Smalltalk Parser ==="
-	./build/st_parser_typed
+	@echo "$(COLOR_BLUE)=== Running Smalltalk Parser ===$(COLOR_RESET)"
+	@./$(BUILD_DIR)/st_parser_typed
 
-integration-all: test simple vars lambda loops micro advanced smalltalk comments
-	@echo ""
-	@echo "✓ All integration tests passed!"
+# ============================================================================
+# Code Quality
+# ============================================================================
 
-test-all: vm-all parser-all compiler-all transpiler integration-all
-	@echo ""
-	@echo "======================================"
-	@echo "✓ ALL TESTS PASSED!"
-	@echo "======================================"
-	@echo "  Unit Tests:"
-	@echo "    ✓ VM tests (43 tests)"
-	@echo "    ✓ Parser tests (58 tests)"
-	@echo "    ✓ Compiler tests (44 tests)"
-	@echo "    ✓ Transpiler tests (35 tests)"
-	@echo "  Integration Tests:"
-	@echo "    ✓ Tagging, Variables, Lambda"
-	@echo "    ✓ Loops, Microcode, Advanced"
-	@echo "    ✓ Smalltalk, Comments"
-	@echo "======================================"
-
-# Code quality targets
-lint:
-	@echo "=== Running clang-tidy on source files ==="
-	@for file in src/*.cpp src/*.hpp tests/*.cpp; do \
-		if [ -f "$$file" ]; then \
-			echo "Checking $$file..."; \
-			clang-tidy "$$file" -- $(CXXFLAGS); \
-		fi \
-	done
-	@echo "✓ Linting complete!"
-
-lint-fix:
-	@echo "=== Running clang-tidy with auto-fixes ==="
-	@for file in src/*.cpp src/*.hpp tests/*.cpp; do \
-		if [ -f "$$file" ]; then \
-			echo "Fixing $$file..."; \
-			clang-tidy -fix "$$file" -- $(CXXFLAGS); \
-		fi \
-	done
-	@echo "✓ Auto-fixes applied!"
-
-cppcheck:
-	@echo "=== Running cppcheck static analysis ==="
-	@cppcheck --enable=all --inconclusive --std=c++17 \
-		--suppress=missingIncludeSystem \
-		--suppress=unusedFunction \
-		--suppress=unmatchedSuppression \
-		--inline-suppr \
-		-I src \
-		--error-exitcode=1 \
-		src/*.cpp src/*.hpp tests/*.cpp 2>&1 | grep -v "^Checking " || true
-	@echo "✓ cppcheck complete!"
-
-cppcheck-xml:
-	@echo "=== Running cppcheck (XML output) ==="
-	@cppcheck --enable=all --inconclusive --std=c++17 \
-		--suppress=missingIncludeSystem \
-		--suppress=unusedFunction \
-		-I src \
-		--xml --xml-version=2 \
-		src/*.cpp src/*.hpp tests/*.cpp 2> cppcheck-report.xml
-	@echo "✓ Report saved to cppcheck-report.xml"
+.PHONY: format lint lint-fix cppcheck cppcheck-xml check-all compile-db
 
 format:
-	@echo "=== Formatting C++ files ==="
-	@for file in src/*.cpp src/*.hpp tests/*.cpp; do \
+	@echo "$(COLOR_BLUE)=== Formatting C++ files ===$(COLOR_RESET)"
+	@for file in $(SRC_DIR)/*.cpp $(SRC_DIR)/*.hpp $(TEST_DIR)/*.cpp; do \
 		if [ -f "$$file" ]; then \
 			echo "Formatting $$file..."; \
 			clang-format -i "$$file"; \
 		fi \
 	done
-	@echo "✓ Formatting complete!"
+	@echo "$(COLOR_GREEN)✓ Formatting complete!$(COLOR_RESET)"
+
+lint:
+	@echo "$(COLOR_BLUE)=== Running clang-tidy ===$(COLOR_RESET)"
+	@for file in $(SRC_DIR)/*.cpp $(SRC_DIR)/*.hpp $(TEST_DIR)/*.cpp; do \
+		if [ -f "$$file" ]; then \
+			echo "Checking $$file..."; \
+			clang-tidy "$$file" -- $(CXXFLAGS); \
+		fi \
+	done
+	@echo "$(COLOR_GREEN)✓ Linting complete!$(COLOR_RESET)"
+
+lint-fix:
+	@echo "$(COLOR_BLUE)=== Running clang-tidy with auto-fixes ===$(COLOR_RESET)"
+	@for file in $(SRC_DIR)/*.cpp $(SRC_DIR)/*.hpp $(TEST_DIR)/*.cpp; do \
+		if [ -f "$$file" ]; then \
+			echo "Fixing $$file..."; \
+			clang-tidy -fix "$$file" -- $(CXXFLAGS); \
+		fi \
+	done
+	@echo "$(COLOR_GREEN)✓ Auto-fixes applied!$(COLOR_RESET)"
+
+cppcheck:
+	@echo "$(COLOR_BLUE)=== Running cppcheck static analysis ===$(COLOR_RESET)"
+	@cppcheck --enable=all --inconclusive --std=c++17 \
+		--suppress=missingIncludeSystem \
+		--suppress=unusedFunction \
+		--suppress=unmatchedSuppression \
+		--inline-suppr \
+		-I $(SRC_DIR) \
+		--error-exitcode=1 \
+		$(SRC_DIR)/*.cpp $(SRC_DIR)/*.hpp $(TEST_DIR)/*.cpp 2>&1 | grep -v "^Checking " || true
+	@echo "$(COLOR_GREEN)✓ cppcheck complete!$(COLOR_RESET)"
+
+cppcheck-xml:
+	@echo "$(COLOR_BLUE)=== Running cppcheck (XML output) ===$(COLOR_RESET)"
+	@cppcheck --enable=all --inconclusive --std=c++17 \
+		--suppress=missingIncludeSystem \
+		--suppress=unusedFunction \
+		-I $(SRC_DIR) \
+		--xml --xml-version=2 \
+		$(SRC_DIR)/*.cpp $(SRC_DIR)/*.hpp $(TEST_DIR)/*.cpp 2> cppcheck-report.xml
+	@echo "$(COLOR_GREEN)✓ Report saved to cppcheck-report.xml$(COLOR_RESET)"
 
 check-all: format lint cppcheck
 	@echo ""
-	@echo "✓ All code quality checks passed!"
+	@echo "$(COLOR_GREEN)$(COLOR_BOLD)✓ All code quality checks passed!$(COLOR_RESET)"
 
-.PHONY: all clean run test simple vars lambda loops micro advanced smalltalk comments vm-stack vm-alu vm-memory vm-control vm-all parser-basic parser-comments parser-errors parser-all compiler-basic compiler-control compiler-variables compiler-functions compiler-all transpiler transpiler-demo tokenizer tokenizer-transpile tokenizer-file integration-all test-all lint lint-fix cppcheck cppcheck-xml format check-all
+# Generate compilation database for clang tools
+compile-db:
+	@echo "$(COLOR_BLUE)=== Generating compile_commands.json ===$(COLOR_RESET)"
+	@echo '[' > compile_commands.json
+	@first=true; \
+	for src in $(SRC_DIR)/*.cpp $(TEST_DIR)/*.cpp; do \
+		if [ -f "$$src" ]; then \
+			[ "$$first" = false ] && echo ',' >> compile_commands.json; \
+			echo '  {' >> compile_commands.json; \
+			echo '    "directory": "$(shell pwd)",' >> compile_commands.json; \
+			echo '    "command": "$(CXX) $(CXXFLAGS) -c $$src",' >> compile_commands.json; \
+			echo '    "file": "'$$src'"' >> compile_commands.json; \
+			echo -n '  }' >> compile_commands.json; \
+			first=false; \
+		fi \
+	done
+	@echo '' >> compile_commands.json
+	@echo ']' >> compile_commands.json
+	@echo "$(COLOR_GREEN)✓ compile_commands.json generated$(COLOR_RESET)"
+
+# ============================================================================
+# Special Targets
+# ============================================================================
+
+.PHONY: list-tests list-bins
+
+list-tests:
+	@echo "$(COLOR_BOLD)Unit Tests:$(COLOR_RESET)"
+	@echo "$(UNIT_TEST_BINS)" | tr ' ' '\n' | sed 's|$(BUILD_DIR)/||'
+	@echo ""
+	@echo "$(COLOR_BOLD)Integration Tests:$(COLOR_RESET)"
+	@echo "$(INTEGRATION_BINS)" | tr ' ' '\n' | sed 's|$(BUILD_DIR)/||'
+
+list-bins:
+	@echo "$(COLOR_BOLD)All Binaries:$(COLOR_RESET)"
+	@echo "$(ALL_BINS)" | tr ' ' '\n'
