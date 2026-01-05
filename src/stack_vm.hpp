@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <vector>
 
+#include "interrupt.hpp"
+
 // Opcodes for the stack VM
 enum class Opcode : uint8_t {
     HALT = 0,
@@ -28,6 +30,7 @@ enum class Opcode : uint8_t {
     LEAVE, // Restore BP from the stack
     CALL,  // Call function at address
     RET,   // Return from function
+    IRET,  // Return from interruption
     LOAD,  // Load from memory address on stack
     STORE, // Store value to memory address
     BP_LOAD,
@@ -40,10 +43,17 @@ enum class Opcode : uint8_t {
     SHL,       // Shift left
     SHR,       // Shift right (logical)
     ASHR,      // Arithmetic shift right
+    CLI,
+    STI,
+    SIGNAL_REG,
 };
 
 class StackVM {
   private:
+    InterruptHandling interruptHandling;
+    bool interrupt_flag{true};
+    std::array<uint64_t, 31> signal_handlers{0};
+
     uint64_t* memory; // Flat linear mmap'd memory (64-bit words)
     uint64_t ip{0};   // Instruction pointer
     uint64_t sp;      // Stack pointer
@@ -124,11 +134,24 @@ class StackVM {
         sp = STACK_BASE;
         bp = STACK_BASE;
         running = true;
+        interruptHandling.clear();
     }
 
     // Execute the loaded program
     void execute() {
         while (running && ip < CODE_SIZE) {
+            if (interrupt_flag && interruptHandling.has_event()) {
+                for (int sig = 1; sig <= 31; sig++) {
+                    if (interruptHandling.get_count(sig) > 0 && signal_handlers[sig - 1] != 0) {
+                        interrupt_flag = false;
+                        push(ip);
+                        ip = signal_handlers[sig - 1];
+                        interruptHandling.consumme(sig);
+                        break;
+                    }
+                }
+            }
+
             const uint64_t INSTRUCTION = memory[ip++];
             const auto OP = static_cast<Opcode>(INSTRUCTION & 0xFF);
 
@@ -305,9 +328,21 @@ class StackVM {
 
                     ip = RET_ADDR; // Return to caller
 
-                    if (ip >= CODE_SIZE && ip != CODE_SIZE) {
+                    if (ip >= CODE_SIZE) {
                         throw std::runtime_error("Return address out of code segment");
                     }
+
+                    break;
+                }
+
+                case Opcode::IRET: {
+                    ip = pop();
+
+                    if (ip >= CODE_SIZE) {
+                        throw std::runtime_error("Return address out of code segment");
+                    }
+
+                    interrupt_flag = true;
 
                     break;
                 }
@@ -418,6 +453,32 @@ class StackVM {
                     break;
                 }
 
+                case Opcode::CLI: {
+                    interrupt_flag = false;
+                    break;
+                }
+
+                case Opcode::STI: {
+                    interrupt_flag = true;
+                    break;
+                }
+
+                case Opcode::SIGNAL_REG: {
+                    const uint64_t signal = pop();
+                    const size_t code_ptr = pop();
+
+                    if (signal < 1 || signal > 31)
+                        throw std::runtime_error("Bad signal ID");
+
+                    if (code_ptr >= CODE_SIZE) {
+                        throw std::runtime_error("Interrupt pointer out of bounds");
+                    }
+
+                    signal_handlers[signal - 1] = code_ptr;
+
+                    break;
+                }
+
                 default:
                     throw std::runtime_error("Unknown opcode");
             }
@@ -442,6 +503,18 @@ class StackVM {
     [[nodiscard]] uint64_t get_bp() const {
         return bp;
     }
+    InterruptHandling& get_interrupt_handling() {
+        return interruptHandling;
+    }
+    bool interrupts_enabled() {
+        return interrupt_flag;
+    }
+    uint64_t get_signal_handler(int signal) {
+        if (signal < 1 || signal > 31)
+            throw std::runtime_error("Invalid signal");
+        return signal_handlers[signal - 1];
+    }
+
     [[nodiscard]] uint64_t read_memory(uint64_t addr) const {
         check_memory_bounds(addr);
         return memory[addr];

@@ -25,7 +25,7 @@ COLOR_YELLOW := \033[33m
 # Core Dependencies
 # ============================================================================
 
-VM_DEPS := $(SRC_DIR)/stack_vm.hpp
+VM_DEPS := $(SRC_DIR)/stack_vm.hpp $(SRC_DIR)/interrupt.hpp
 PARSER_DEPS := $(SRC_DIR)/lisp_parser.hpp
 COMPILER_DEPS := $(VM_DEPS) $(PARSER_DEPS) $(SRC_DIR)/lisp_compiler.hpp
 MICROCODE_DEPS := $(COMPILER_DEPS) $(SRC_DIR)/microcode.hpp
@@ -53,6 +53,7 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_smalltalk \
 	$(BUILD_DIR)/test_comments \
 	$(BUILD_DIR)/test_vm_stack \
+	$(BUILD_DIR)/test_vm_interrupt \
 	$(BUILD_DIR)/test_vm_alu \
 	$(BUILD_DIR)/test_vm_memory \
 	$(BUILD_DIR)/test_vm_control \
@@ -254,6 +255,10 @@ comments: $(BUILD_DIR)/test_comments
 # VM tests
 vm-stack: $(BUILD_DIR)/test_vm_stack
 	@./$(BUILD_DIR)/test_vm_stack
+
+vm-interrupt: $(BUILD_DIR)/test_vm_interrupt
+	@./$(BUILD_DIR)/test_vm_interrupt
+
 
 vm-alu: $(BUILD_DIR)/test_vm_alu
 	@./$(BUILD_DIR)/test_vm_alu
