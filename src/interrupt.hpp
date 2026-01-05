@@ -64,7 +64,7 @@ class InterruptHandling {
         if (sig < 1 || sig > 31)
             throw std::runtime_error("Invalid signal");
 
-        const int expected = signal_count[sig - 1].load(std::memory_order_acquire);
+        int expected = signal_count[sig - 1].load(std::memory_order_acquire);
         while (expected > 0) {
             if (signal_count[sig - 1].compare_exchange_weak(
                     expected, expected - 1, std::memory_order_acq_rel, std::memory_order_acquire)) {

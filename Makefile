@@ -64,6 +64,7 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_compiler_control \
 	$(BUILD_DIR)/test_compiler_variables \
 	$(BUILD_DIR)/test_compiler_functions \
+	$(BUILD_DIR)/test_compiler_interrupts \
 	$(BUILD_DIR)/test_transpiler \
 	$(BUILD_DIR)/test_transpiler_extended
 
@@ -249,7 +250,7 @@ comments: $(BUILD_DIR)/test_comments
 
 .PHONY: vm-stack vm-alu vm-memory vm-control vm-all
 .PHONY: parser-basic parser-comments parser-errors parser-all
-.PHONY: compiler-basic compiler-control compiler-variables compiler-functions compiler-all
+.PHONY: compiler-basic compiler-control compiler-variables compiler-functions compiler-interrupts compiler-all
 .PHONY: transpiler transpiler-demo integration-all test-all
 
 # VM tests
@@ -300,7 +301,10 @@ compiler-variables: $(BUILD_DIR)/test_compiler_variables
 compiler-functions: $(BUILD_DIR)/test_compiler_functions
 	@./$(BUILD_DIR)/test_compiler_functions
 
-compiler-all: compiler-basic compiler-control compiler-variables compiler-functions
+compiler-interrupts: $(BUILD_DIR)/test_compiler_interrupts
+	@./$(BUILD_DIR)/test_compiler_interrupts
+
+compiler-all: compiler-basic compiler-control compiler-variables compiler-functions compiler-interrupts
 	@echo ""
 	@echo "$(COLOR_GREEN)✓ All compiler tests passed!$(COLOR_RESET)"
 

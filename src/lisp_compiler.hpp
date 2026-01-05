@@ -37,6 +37,14 @@ class LispCompiler {
     };
     std::map<std::string, Function> functions;
 
+    // Interrupt handler definitions
+    struct Interrupt {
+        uint64_t signal_number;
+        ASTNodePtr body;
+        uint64_t code_address{};
+    };
+    std::map<uint64_t, Interrupt> interrupts;
+
     static constexpr uint64_t VAR_START = 16384;
 
     void emit(uint64_t value) {
@@ -181,6 +189,8 @@ class LispCompiler {
                 // Variable binding forms
                 if (op == "define-func") {
                     compile_define_function(items);
+                } else if (op == "define-int") {
+                    compile_define_interrupt(items);
                 } else if (op == "define-var") {
                     compile_define_variable(items);
                 } else if (op == "set") {
@@ -394,6 +404,35 @@ class LispCompiler {
         emit(0);
 
         is_in_function = false;
+    }
+
+    // (define-int NUMBER body) - Define interrupt handler
+    void compile_define_interrupt(const std::vector<ASTNodePtr>& items) {
+        if (items.size() != 3) {
+            throw std::runtime_error(
+                "define-int requires exactly 2 arguments: signal number and body");
+        }
+
+        // Get signal number
+        if (items[1]->type != NodeType::NUMBER) {
+            throw std::runtime_error("define-int: signal number must be a number (1-31)");
+        }
+
+        uint64_t signal_num = items[1]->as_number();
+        if (signal_num < 1 || signal_num > 31) {
+            throw std::runtime_error("define-int: signal number must be between 1 and 31");
+        }
+
+        // Store interrupt handler
+        Interrupt intr;
+        intr.signal_number = signal_num;
+        intr.body = items[2];
+        intr.code_address = 0; // Will be set during compilation
+        interrupts[signal_num] = intr;
+
+        // Emit placeholder (no value pushed)
+        emit_opcode(Opcode::PUSH);
+        emit(0);
     }
 
     // (define var value) - Define variable in current scope
@@ -811,6 +850,9 @@ class LispCompiler {
         // Compile functions
         compile_all_functions();
 
+        // Compile interrupt handlers
+        compile_all_interrupts();
+
         // Patch function calls
         patch_function_calls();
 
@@ -834,6 +876,9 @@ class LispCompiler {
         // Compile functions
         compile_all_functions();
 
+        // Compile interrupt handlers
+        compile_all_interrupts();
+
         // Patch function calls
         patch_function_calls();
 
@@ -849,6 +894,7 @@ class LispCompiler {
         function_temporary_var_index = 0;
         is_in_function = false;
         functions.clear();
+        interrupts.clear();
     }
 
   private:
@@ -888,6 +934,32 @@ class LispCompiler {
 
             function_local_var_index = 0;
             function_temporary_var_index = 0;
+        }
+    }
+
+    // Compile all interrupt handler definitions
+    void compile_all_interrupts() {
+        for (auto& [signal_num, intr] : interrupts) {
+            // Record interrupt handler start address
+            intr.code_address = current_address();
+
+            push_scope();
+
+            // Compile interrupt handler body
+            compile_expr(intr.body);
+
+            pop_scope();
+
+            // Return from interrupt (re-enables interrupts)
+            emit_opcode(Opcode::IRET);
+
+            // Register the interrupt handler
+            // SIGNAL_REG expects: signal_number, code_address on stack
+            emit_opcode(Opcode::PUSH);
+            emit(intr.code_address);
+            emit_opcode(Opcode::PUSH);
+            emit(signal_num);
+            emit_opcode(Opcode::SIGNAL_REG);
         }
     }
 
