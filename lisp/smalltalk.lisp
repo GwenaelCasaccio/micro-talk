@@ -397,6 +397,87 @@
 
       tokens))
 
+  ; ===== Parser =====
+
+  ; Parser state
+  (define-var parse-tokens NULL)
+  (define-var parse-pos 0)
+  (define-var parse-length 0)
+
+  ; Parser navigation
+  (define-func (parse-peek)
+    ; Get current token
+    (if (< parse-pos parse-length)
+        (array-at parse-tokens parse-pos)
+        (new-token TOK_EOF NULL 0 0)))
+
+  (define-func (parse-advance)
+    ; Move to next token
+    (set parse-pos (+ parse-pos 1)))
+
+  (define-func (parse-token-type)
+    ; Get type of current token
+    (token-type (parse-peek)))
+
+  (define-func (parse-token-value)
+    ; Get value of current token
+    (token-value (parse-peek)))
+
+  ; parse-primary: parse numbers and identifiers
+  (define-func (parse-primary)
+    (do
+      (define-var type (parse-token-type))
+      (define-var value NULL)
+      (if (= type TOK_NUMBER)
+          (do
+            (set value (parse-token-value))
+            (parse-advance)
+            (new-ast-node AST_NUMBER value 0))
+      (if (= type TOK_IDENTIFIER)
+          (do
+            (set value (parse-token-value))
+            (parse-advance)
+            (new-ast-node AST_IDENTIFIER value 0))
+          (abort "Unexpected token in parse-primary")))))
+
+  ; parse-binary-message: parse binary operators
+  (define-func (parse-binary-message)
+    (do
+      (define-var left (parse-primary))
+      ; Check for binary operator
+      (while (= (parse-token-type) TOK_BINARY_OP)
+        (do
+          (define-var op (parse-token-value))
+          (parse-advance)
+          (define-var right (parse-primary))
+
+          ; Create binary message AST node
+          (define-var node (new-ast-node AST_BINARY_MSG op 2))
+          (ast-child-put node 0 left)
+          (ast-child-put node 1 right)
+          (set left node)))
+      left))
+
+  ; parse-expression: top-level entry point
+  (define-func (parse-expression)
+    (parse-binary-message))
+
+  ; parse: main entry point
+  (define-func (parse source-string)
+    ; Tokenize, then parse
+    (do
+      (define-var token-array (tokenize source-string))
+      (set parse-tokens token-array)
+      (set parse-pos 0)
+
+      ; Count non-EOF tokens for length
+      (define-var len 0)
+      (while (< (token-type (array-at token-array len)) TOK_EOF)
+        (set len (+ len 1)))
+      (set parse-length len)
+
+      (parse-expression)))
+
   (define-func (bootstrap-smalltalk)
     (do
       (print-string "=== Smalltalk Bootstrap ===")
@@ -735,6 +816,30 @@
       (print-string "  PASSED")
       (print-string "")
 
+      (print-string "=== Testing Parser ===")
+      (print-string "")
+
+      ; Test 19: Parse "3 + 4" into AST
+      (print-string "Test 19: Parse '3 + 4' into AST")
+
+      (define-var ast (parse test-source))
+
+      ; AST should be: BINARY_MSG(+, NUMBER(3), NUMBER(4))
+      (assert-equal (ast-type ast) AST_BINARY_MSG "Root should be BINARY_MSG")
+      (assert-equal (untag-int (ast-value ast)) 43 "Operator should be + (43)")
+
+      (define-var left-child (ast-child ast 0))
+      (define-var right-child (ast-child ast 1))
+
+      (assert-equal (ast-type left-child) AST_NUMBER "Left child should be NUMBER")
+      (assert-equal (untag-int (ast-value left-child)) 3 "Left value should be 3")
+
+      (assert-equal (ast-type right-child) AST_NUMBER "Right child should be NUMBER")
+      (assert-equal (untag-int (ast-value right-child)) 4 "Right value should be 4")
+
+      (print-string "  PASSED")
+      (print-string "")
+
       (print-string "=== All Tests Passed! ===")
       (print-string "")
       (print-string "Bootstrap complete!")
@@ -747,7 +852,8 @@
       (print-string "  String operations working!")
       (print-string "  AST node system working!")
       (print-string "  Tokenizer working!")
-      (print-string "  Ready for Smalltalk parser!")
+      (print-string "  Parser working!")
+      (print-string "  Ready for Smalltalk compiler!")
 
       0))
   
