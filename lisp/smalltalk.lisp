@@ -21,6 +21,7 @@
 
   ; AST node class (created in bootstrap after Object)
   (define-var ASTNode-class NULL)
+  (define-var Array NULL)
 
   (define-func (tag-int v) (bit-or (bit-shl v 1) 1))
   (define-func (untag-int t) (bit-ashr t 1))
@@ -276,6 +277,126 @@
   (define-func (ast-child node idx) (array-at node idx))
   (define-func (ast-child-put node idx child) (array-at-put node idx child))
 
+  ; ===== Tokenizer =====
+
+  ; Token types
+  (define-var TOK_NUMBER 1)
+  (define-var TOK_IDENTIFIER 2)
+  (define-var TOK_KEYWORD 3)
+  (define-var TOK_STRING 4)
+  (define-var TOK_BINARY_OP 5)
+  (define-var TOK_SPECIAL 6)
+  (define-var TOK_EOF 99)
+
+  ; Token class (created in bootstrap)
+  (define-var Token-class NULL)
+
+  ; Tokenizer state
+  (define-var tok-source NULL)
+  (define-var tok-pos 0)
+  (define-var tok-length 0)
+
+  ; Token factory: (type, value, start, end)
+  (define-func (new-token type value start end)
+    (do
+      (define-var tok (new-instance Token-class 4 0))
+      (slot-at-put tok 0 (tag-int type))
+      (slot-at-put tok 1 value)
+      (slot-at-put tok 2 (tag-int start))
+      (slot-at-put tok 3 (tag-int end))
+      tok))
+
+  ; Token accessors
+  (define-func (token-type tok) (untag-int (slot-at tok 0)))
+  (define-func (token-value tok) (slot-at tok 1))
+  (define-func (token-start tok) (untag-int (slot-at tok 2)))
+  (define-func (token-end tok) (untag-int (slot-at tok 3)))
+
+  ; Tokenizer helpers
+  (define-func (tok-peek)
+    ; Get current char without advancing
+    (if (< tok-pos tok-length)
+        (string-char-at tok-source tok-pos)
+        0))
+
+  (define-func (tok-advance)
+    ; Move to next char
+    (set tok-pos (+ tok-pos 1)))
+
+  (define-func (tok-skip-whitespace)
+    (while (is-whitespace (tok-peek))
+      (tok-advance)))
+
+  (define-func (tok-read-number)
+    ; Read consecutive digits, return tagged int value
+    (do
+      (define-var num 0)
+      (while (is-digit (tok-peek))
+        (do
+          (define-var digit (- (tok-peek) 48))
+          (set num (+ (* num 10) digit))
+          (tok-advance)))
+      (tag-int num)))
+
+  (define-func (is-binary-op char)
+    ; Check if char is a binary operator: + - * / < > =
+    (if (= char 43) 1  ; +
+    (if (= char 45) 1  ; -
+    (if (= char 42) 1  ; *
+    (if (= char 47) 1  ; /
+    (if (= char 60) 1  ; <
+    (if (= char 62) 1  ; >
+    (if (= char 61) 1  ; =
+        0))))))))
+
+  (define-func (tok-next-token)
+    ; Return next token
+    (do
+      (tok-skip-whitespace)
+      (define-var start tok-pos)
+      (define-var c (tok-peek))
+
+      (if (= c 0)
+          ; EOF
+          (new-token TOK_EOF NULL start start)
+      (if (is-digit c)
+          ; Number
+          (do
+            (define-var value (tok-read-number))
+            (new-token TOK_NUMBER value start tok-pos))
+      (if (is-binary-op c)
+          ; Binary operator
+          (do
+            (tok-advance)
+            (new-token TOK_BINARY_OP (tag-int c) start tok-pos))
+          ; Unknown - return EOF for now
+          (new-token TOK_EOF NULL start start))))))
+
+  (define-func (tokenize source)
+    ; Tokenize entire source, return array of tokens
+    (do
+      (set tok-source source)
+      (set tok-pos 0)
+      (set tok-length (string-length source))
+
+      ; Allocate max possible tokens (length + 1 for EOF)
+      (define-var max-tokens (+ tok-length 1))
+      (define-var tokens (new-instance Array 0 max-tokens))
+
+      ; Collect tokens until EOF
+      (define-var count 0)
+      (define-var tok (tok-next-token))
+      (while (< (token-type tok) TOK_EOF)
+        (do
+          (array-at-put tokens count tok)
+          (set count (+ count 1))
+          (set tok (tok-next-token))))
+
+      ; Add final EOF token
+      (array-at-put tokens count tok)
+
+      tokens))
+
   (define-func (bootstrap-smalltalk)
     (do
       (print-string "=== Smalltalk Bootstrap ===")
@@ -297,9 +418,10 @@
       (class-set-methods Object obj-methods)
       (print-string "  Object: ==, ~=, yourself")
 
-      ; Create ASTNode class for parser
+      ; Create ASTNode and Token classes for parser
       (set ASTNode-class (new-class (tag-int 100) Object))
-      
+      (set Token-class (new-class (tag-int 101) Object))
+
       (define-var Magnitude (new-class (tag-int 3) Object))
       (define-var mag-methods (new-method-dict 10))
       (method-dict-add mag-methods (tag-int 30) (tag-int 30000))
@@ -335,7 +457,7 @@
       (class-set-methods Collection coll-methods)
       (print-string "  Collection: size, isEmpty")
       
-      (define-var Array (new-class (tag-int 7) Collection))
+      (set Array (new-class (tag-int 7) Collection))
       (define-var arr-methods (new-method-dict 10))
       (method-dict-add arr-methods (tag-int 70) (tag-int 70000))
       (method-dict-add arr-methods (tag-int 71) (tag-int 71000))
@@ -579,6 +701,40 @@
       (print-string "  PASSED")
       (print-string "")
 
+      (print-string "=== Testing Tokenizer ===")
+      (print-string "")
+
+      ; Test 18: Tokenize "3 + 4"
+      (print-string "Test 18: Tokenize '3 + 4'")
+
+      ; Create test string "3 + 4" manually
+      (define-var test-source (malloc 2))
+      (poke test-source 5)  ; length = 5
+      (define-var w0 (+ 51 (bit-shl 32 8) (bit-shl 43 16) (bit-shl 32 24) (bit-shl 52 32)))
+      (poke (+ test-source 1) w0)  ; "3 + 4" (51=3, 32=space, 43=+, 32=space, 52=4)
+
+      (define-var tokens (tokenize test-source))
+
+      ; Should have 4 tokens: NUMBER(3), BINARY_OP(+), NUMBER(4), EOF
+      (define-var tok0 (array-at tokens 0))
+      (define-var tok1 (array-at tokens 1))
+      (define-var tok2 (array-at tokens 2))
+      (define-var tok3 (array-at tokens 3))
+
+      (assert-equal (token-type tok0) TOK_NUMBER "First token should be NUMBER")
+      (assert-equal (untag-int (token-value tok0)) 3 "First token value should be 3")
+
+      (assert-equal (token-type tok1) TOK_BINARY_OP "Second token should be BINARY_OP")
+      (assert-equal (untag-int (token-value tok1)) 43 "Second token value should be + (43)")
+
+      (assert-equal (token-type tok2) TOK_NUMBER "Third token should be NUMBER")
+      (assert-equal (untag-int (token-value tok2)) 4 "Third token value should be 4")
+
+      (assert-equal (token-type tok3) TOK_EOF "Fourth token should be EOF")
+
+      (print-string "  PASSED")
+      (print-string "")
+
       (print-string "=== All Tests Passed! ===")
       (print-string "")
       (print-string "Bootstrap complete!")
@@ -590,7 +746,8 @@
       (print-string "  Message send/return working!")
       (print-string "  String operations working!")
       (print-string "  AST node system working!")
-      (print-string "  Ready for Smalltalk parser/compiler!")
+      (print-string "  Tokenizer working!")
+      (print-string "  Ready for Smalltalk parser!")
 
       0))
   
