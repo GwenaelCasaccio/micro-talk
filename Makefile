@@ -38,9 +38,7 @@ TRANSPILER_DEPS := $(PARSER_DEPS) $(SRC_DIR)/lisp_to_cpp.hpp
 # Main executable
 TARGET := $(BUILD_DIR)/lisp_vm
 
-# Integration test binaries (from src/)
-INTEGRATION_BINS := \
-	$(BUILD_DIR)/simple_tagging_test
+SMALLTALK := $(BUILD_DIR)/smalltalk
 
 # Unit test binaries (from tests/)
 UNIT_TEST_BINS := \
@@ -73,10 +71,12 @@ TRANSPILER_DEMO := $(BUILD_DIR)/transpiler_demo
 TOKENIZER_TRANSPILER := $(BUILD_DIR)/transpile_tokenizer
 ST_TOKENIZER := $(BUILD_DIR)/st_tokenizer_file
 MINIMAL_VM := $(BUILD_DIR)/minimal_vm_test
+DISASSEMBLER_TEST := $(BUILD_DIR)/test_disassembler
 
 # All binaries (excluding optional/generated ones like ST_TOKENIZER)
-ALL_BINS := $(TARGET) $(INTEGRATION_BINS) $(UNIT_TEST_BINS) \
-            $(TRANSPILER_DEMO) $(TOKENIZER_TRANSPILER) $(MINIMAL_VM)
+ALL_BINS := $(TARGET) $(UNIT_TEST_BINS) $(SMALLTALK) \
+            $(TRANSPILER_DEMO) $(TOKENIZER_TRANSPILER) $(MINIMAL_VM) \
+            $(DISASSEMBLER_TEST)
 
 # Optional binaries (require generated source files)
 OPTIONAL_BINS := $(ST_TOKENIZER)
@@ -92,7 +92,7 @@ all: $(BUILD_DIR) $(ALL_BINS)
 	@echo ""
 	@echo "$(COLOR_GREEN)$(COLOR_BOLD)✓ Build complete!$(COLOR_RESET)"
 	@echo "  Main: $(TARGET)"
-	@echo "  Tests: $(words $(UNIT_TEST_BINS)) unit tests + $(words $(INTEGRATION_BINS)) integration tests"
+	@echo "  Tests: $(words $(UNIT_TEST_BINS)) unit tests"
 
 all-with-optional: all $(OPTIONAL_BINS)
 	@echo "$(COLOR_GREEN)✓ Optional binaries built$(COLOR_RESET)"
@@ -142,13 +142,18 @@ $(TARGET): $(SRC_DIR)/main.cpp $(COMPILER_DEPS) | $(BUILD_DIR)
 	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
 	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
-# Minimal VM test
-$(BUILD_DIR)/minimal_vm_test: $(SRC_DIR)/minimal_vm_test.cpp $(VM_DEPS) | $(BUILD_DIR)
+# Smalltalk executable
+$(SMALLTALK): $(SRC_DIR)/smalltalk.cpp $(COMPILER_DEPS) | $(BUILD_DIR)
 	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
 	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
-# Integration tests from src/
-$(BUILD_DIR)/simple_tagging_test: $(SRC_DIR)/simple_tagging_test.cpp $(COMPILER_DEPS) | $(BUILD_DIR)
+# Disassembler test
+$(DISASSEMBLER_TEST): $(SRC_DIR)/test_disassembler.cpp $(COMPILER_DEPS) $(SRC_DIR)/disassembler.hpp | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
+# Minimal VM test
+$(BUILD_DIR)/minimal_vm_test: $(SRC_DIR)/minimal_vm_test.cpp $(VM_DEPS) | $(BUILD_DIR)
 	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
 	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
@@ -211,7 +216,7 @@ $(BUILD_DIR)/test_%: $(TEST_DIR)/test_%.cpp $(COMPILER_DEPS) | $(BUILD_DIR)
 # Test Execution Targets
 # ============================================================================
 
-.PHONY: run test simple vars lambda loops micro advanced smalltalk comments
+.PHONY: run test simple vars lambda loops micro advanced smalltalk comments disasm
 
 run: $(TARGET)
 	@./$(TARGET)
@@ -243,6 +248,9 @@ smalltalk: $(BUILD_DIR)/test_smalltalk
 
 comments: $(BUILD_DIR)/test_comments
 	@./$(BUILD_DIR)/test_comments
+
+disasm: $(DISASSEMBLER_TEST)
+	@./$(DISASSEMBLER_TEST)
 
 # ============================================================================
 # Unit Test Suites
@@ -510,8 +518,6 @@ list-tests:
 	@echo "$(COLOR_BOLD)Unit Tests:$(COLOR_RESET)"
 	@echo "$(UNIT_TEST_BINS)" | tr ' ' '\n' | sed 's|$(BUILD_DIR)/||'
 	@echo ""
-	@echo "$(COLOR_BOLD)Integration Tests:$(COLOR_RESET)"
-	@echo "$(INTEGRATION_BINS)" | tr ' ' '\n' | sed 's|$(BUILD_DIR)/||'
 
 list-bins:
 	@echo "$(COLOR_BOLD)All Binaries:$(COLOR_RESET)"

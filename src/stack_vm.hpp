@@ -298,8 +298,8 @@ class StackVM {
                     push(ip);    // Save return address (now past the operand)
                     ip = TARGET; // Jump to function
 
-                    for (uint64_t i = 0; i < NB_ARGS; i++) {
-                        push(memory[BASE + NB_ARGS - 1 - i]);
+                    for (uint64_t i = NB_ARGS; i > 0; i--) {
+                        push(memory[BASE + NB_ARGS - i]);
                     }
 
                     if (ip >= CODE_SIZE)

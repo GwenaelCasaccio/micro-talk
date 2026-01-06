@@ -1,8 +1,6 @@
 - ret
 - enter leave a tester
 
-- Scope (def-fn (a arg1) (....)
-        (def-var arg1 123) erreur
 - smalltalk integer
 - smalltalk string
 - smalltalk symbol

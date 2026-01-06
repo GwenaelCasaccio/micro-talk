@@ -154,9 +154,9 @@ void test_call_with_args() {
     vm.execute();
 
     assert(vm.get_sp() == STARTING_SP - 7);
-    assert(vm.stack_pop() == 16);
-    assert(vm.stack_pop() == 15);
     assert(vm.stack_pop() == 14);
+    assert(vm.stack_pop() == 15);
+    assert(vm.stack_pop() == 16);
     assert(vm.stack_pop() == 9); // IP In FN 1
     assert(vm.stack_pop() == 16);
     assert(vm.stack_pop() == 15);
