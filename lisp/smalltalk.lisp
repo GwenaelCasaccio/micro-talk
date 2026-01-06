@@ -19,6 +19,9 @@
   ; Global current context
   (define-var current-context NULL)
 
+  ; AST node class (created in bootstrap after Object)
+  (define-var ASTNode-class NULL)
+
   (define-func (tag-int v) (bit-or (bit-shl v 1) 1))
   (define-func (untag-int t) (bit-ashr t 1))
   (define-func (is-int obj) (= (bit-and obj 1) 1))
@@ -188,6 +191,91 @@
             (set current-context sender)
             return-value))))
 
+  ; ===== String Operations =====
+  ; Strings are stored as: [length][packed chars (8 per word)]
+
+  (define-func (string-length str)
+    ; Return length from word 0
+    (peek str))
+
+  (define-func (string-char-at str idx)
+    ; Get character at index
+    ; word_idx = 1 + idx / 8
+    ; byte_idx = idx % 8
+    (do
+      (define-var word-idx (+ 1 (/ idx 8)))
+      (define-var byte-idx (% idx 8))
+      (define-var word (peek (+ str word-idx)))
+      (bit-and (bit-shr word (* byte-idx 8)) 255)))
+
+  (define-func (string-equal str1 str2)
+    ; Compare two strings for equality
+    (do
+      (define-var len1 (string-length str1))
+      (define-var len2 (string-length str2))
+      (if (= len1 len2)
+          (do
+            (define-var equal 1)
+            (for (i 0 len1)
+              (if (= (string-char-at str1 i) (string-char-at str2 i))
+                  0
+                  (set equal 0)))
+            equal)
+          0)))
+
+  ; ===== Character Classification =====
+
+  (define-func (is-digit char)
+    ; Check if char is '0'-'9' (48-57)
+    (if (>= char 48)
+        (if (<= char 57) 1 0)
+        0))
+
+  (define-func (is-letter char)
+    ; Check if char is a-z (97-122) or A-Z (65-90)
+    (if (>= char 65)
+        (if (<= char 90)
+            1  ; uppercase
+            (if (>= char 97)
+                (if (<= char 122) 1 0)  ; lowercase
+                0))
+        0))
+
+  (define-func (is-whitespace char)
+    ; space=32, tab=9, newline=10, return=13
+    (if (= char 32) 1
+    (if (= char 9) 1
+    (if (= char 10) 1
+    (if (= char 13) 1 0)))))
+
+  ; ===== AST Node System =====
+
+  ; AST Node types as constants
+  (define-var AST_NUMBER 1)
+  (define-var AST_IDENTIFIER 2)
+  (define-var AST_STRING 3)
+  (define-var AST_UNARY_MSG 4)
+  (define-var AST_BINARY_MSG 5)
+  (define-var AST_KEYWORD_MSG 6)
+  (define-var AST_BLOCK 7)
+  (define-var AST_ASSIGNMENT 8)
+  (define-var AST_CASCADE 9)
+  (define-var AST_RETURN 10)
+
+  ; Factory function to create AST nodes
+  (define-func (new-ast-node type value child-count)
+    (do
+      (define-var node (new-instance ASTNode-class 2 child-count))
+      (slot-at-put node 0 (tag-int type))     ; node type
+      (slot-at-put node 1 value)              ; value (for literals/selectors)
+      node))
+
+  ; AST node accessors
+  (define-func (ast-type node) (untag-int (slot-at node 0)))
+  (define-func (ast-value node) (slot-at node 1))
+  (define-func (ast-child node idx) (array-at node idx))
+  (define-func (ast-child-put node idx child) (array-at-put node idx child))
+
   (define-func (bootstrap-smalltalk)
     (do
       (print-string "=== Smalltalk Bootstrap ===")
@@ -208,6 +296,9 @@
       (method-dict-add obj-methods (tag-int 22) (tag-int 22000))
       (class-set-methods Object obj-methods)
       (print-string "  Object: ==, ~=, yourself")
+
+      ; Create ASTNode class for parser
+      (set ASTNode-class (new-class (tag-int 100) Object))
       
       (define-var Magnitude (new-class (tag-int 3) Object))
       (define-var mag-methods (new-method-dict 10))
@@ -444,6 +535,50 @@
       (print-string "  PASSED")
       (print-string "")
 
+      (print-string "=== Testing String Operations ===")
+      (print-string "")
+
+      ; Test 15: String operations with manual string
+      (print-string "Test 15: String operations")
+
+      ; Create test string "Hi" manually (H=72, i=105)
+      (define-var test-str (malloc 2))
+      (poke test-str 2)  ; length = 2
+      (define-var word (+ 72 (bit-shl 105 8)))  ; Pack 'H' and 'i'
+      (poke (+ test-str 1) word)
+
+      (assert-equal (string-length test-str) 2 "String length should be 2")
+      (assert-equal (string-char-at test-str 0) 72 "First char should be 'H'=72")
+      (assert-equal (string-char-at test-str 1) 105 "Second char should be 'i'=105")
+      (print-string "  PASSED")
+
+      ; Test 16: Character classification
+      (print-string "Test 16: Character classification")
+      (assert-equal (is-digit 48) 1 "'0'=48 is digit")
+      (assert-equal (is-digit 53) 1 "'5'=53 is digit")
+      (assert-equal (is-digit 65) 0 "'A'=65 is not digit")
+      (assert-equal (is-letter 65) 1 "'A'=65 is letter")
+      (assert-equal (is-letter 122) 1 "'z'=122 is letter")
+      (assert-equal (is-letter 48) 0 "'0'=48 is not letter")
+      (assert-equal (is-whitespace 32) 1 "Space=32 is whitespace")
+      (assert-equal (is-whitespace 10) 1 "Newline=10 is whitespace")
+      (assert-equal (is-whitespace 65) 0 "'A'=65 is not whitespace")
+      (print-string "  PASSED")
+
+      ; Test 17: AST node creation
+      (print-string "Test 17: AST node creation")
+      (define-var ast-num (new-ast-node AST_NUMBER (tag-int 42) 0))
+      (assert-equal (ast-type ast-num) AST_NUMBER "AST type should be NUMBER")
+      (assert-equal (untag-int (ast-value ast-num)) 42 "AST value should be 42")
+
+      (define-var ast-binop (new-ast-node AST_BINARY_MSG (tag-int 43) 2))
+      (ast-child-put ast-binop 0 ast-num)
+      (ast-child-put ast-binop 1 ast-num)
+      (assert-equal (ast-type ast-binop) AST_BINARY_MSG "AST type should be BINARY_MSG")
+      (assert-equal (ast-child ast-binop 0) ast-num "First child should be ast-num")
+      (print-string "  PASSED")
+      (print-string "")
+
       (print-string "=== All Tests Passed! ===")
       (print-string "")
       (print-string "Bootstrap complete!")
@@ -453,7 +588,9 @@
       (print-string "  Method override working")
       (print-string "  Context management working!")
       (print-string "  Message send/return working!")
-      (print-string "  Ready for full Smalltalk execution!")
+      (print-string "  String operations working!")
+      (print-string "  AST node system working!")
+      (print-string "  Ready for Smalltalk parser/compiler!")
 
       0))
   

@@ -269,6 +269,18 @@ class LispCompiler {
                     compile_expr(items[1]);
                     compile_expr(items[2]);
                     emit_opcode(Opcode::GT);
+                } else if (op == "<=") {
+                    if (items.size() != 3)
+                        throw std::runtime_error("<= requires exactly 2 arguments");
+                    compile_expr(items[1]);
+                    compile_expr(items[2]);
+                    emit_opcode(Opcode::LTE);
+                } else if (op == ">=") {
+                    if (items.size() != 3)
+                        throw std::runtime_error(">= requires exactly 2 arguments");
+                    compile_expr(items[1]);
+                    compile_expr(items[2]);
+                    emit_opcode(Opcode::GTE);
                 }
                 // Control flow
                 else if (op == "if") {

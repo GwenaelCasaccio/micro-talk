@@ -24,6 +24,8 @@ enum class Opcode : uint8_t {
     EQ,    // Pop two, push 1 if equal, 0 otherwise
     LT,    // Pop two, push 1 if less than, 0 otherwise
     GT,    // Pop two, push 1 if greater than, 0 otherwise
+    LTE,   // Pop two, push 1 if less than or equal, 0 otherwise
+    GTE,   // Pop two, push 1 if greater than or equal, 0 otherwise
     JMP,   // Unconditional jump to address
     JZ,    // Jump if top of stack is zero
     ENTER, // Save previous BP to the stack set it to SP
@@ -232,6 +234,20 @@ class StackVM {
                     uint64_t b = pop();
                     uint64_t a = pop();
                     push(a > b ? 1 : 0);
+                    break;
+                }
+
+                case Opcode::LTE: {
+                    uint64_t b = pop();
+                    uint64_t a = pop();
+                    push(a <= b ? 1 : 0);
+                    break;
+                }
+
+                case Opcode::GTE: {
+                    uint64_t b = pop();
+                    uint64_t a = pop();
+                    push(a >= b ? 1 : 0);
                     break;
                 }
 
