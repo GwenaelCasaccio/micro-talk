@@ -314,6 +314,11 @@ class LispCompiler {
                         throw std::runtime_error("print-string requires exactly 1 argument");
                     compile_expr(items[1]);
                     emit_opcode(Opcode::PRINT_STR);
+                } else if (op == "abort") {
+                    if (items.size() != 2)
+                        throw std::runtime_error("abort requires exactly 1 argument");
+                    compile_expr(items[1]);
+                    emit_opcode(Opcode::ABORT);
                 }
                 // Bitwise operations
                 else if (op == "bit-and") {

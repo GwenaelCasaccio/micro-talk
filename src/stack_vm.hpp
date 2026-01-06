@@ -46,6 +46,7 @@ enum class Opcode : uint8_t {
     CLI,
     STI,
     SIGNAL_REG,
+    ABORT, // Abort with error message (address on stack)
 };
 
 class StackVM {
@@ -476,6 +477,29 @@ class StackVM {
 
                     signal_handlers[signal - 1] = code_ptr;
 
+                    break;
+                }
+
+                case Opcode::ABORT: {
+                    const uint64_t addr = pop();
+                    if (addr >= MEMORY_SIZE) {
+                        std::cerr << "ABORT: Invalid string address " << addr << std::endl;
+                        running = false;
+                        break;
+                    }
+
+                    // Read string: length followed by packed characters
+                    const uint64_t length = memory[addr];
+                    std::cout << "ABORT: ";
+                    for (size_t i = 0; i < length; i++) {
+                        const size_t word_idx = addr + 1 + i / 8;
+                        const size_t byte_idx = i % 8;
+                        const char c =
+                            static_cast<char>((memory[word_idx] >> (byte_idx * 8)) & 0xFF);
+                        std::cout << c;
+                    }
+                    std::cout << std::endl;
+                    running = false;
                     break;
                 }
 

@@ -8,6 +8,17 @@
   (define-var OBJECT_HEADER_NAMED_SLOTS 1)
   (define-var OBJECT_HEADER_INDEXED_SLOTS 2)
 
+  ; Context object named slots
+  (define-var CONTEXT_SENDER 0)
+  (define-var CONTEXT_RECEIVER 1)
+  (define-var CONTEXT_METHOD 2)
+  (define-var CONTEXT_PC 3)
+  (define-var CONTEXT_SP 4)
+  (define-var CONTEXT_NAMED_SLOTS 5)
+
+  ; Global current context
+  (define-var current-context NULL)
+
   (define-func (tag-int v) (bit-or (bit-shl v 1) 1))
   (define-func (untag-int t) (bit-ashr t 1))
   (define-func (is-int obj) (= (bit-and obj 1) 1))
@@ -63,7 +74,7 @@
               (do
                 (define-var entry (+ 1 (* i 2)))
                 (if (= (array-at dict entry) selector)
-                    (set found (peek (+ entry 1)))
+                    (set found (array-at dict (+ entry 1)))
                     0)))
             found))))
   
@@ -108,7 +119,75 @@
               (set current-class NULL))))
       
       found))
-  
+
+  ; Context management functions
+  (define-func (new-context sender receiver method temp-count)
+    (do
+      (define-var ctx (new-instance (tag-int 999) CONTEXT_NAMED_SLOTS temp-count))
+      (slot-at-put ctx CONTEXT_SENDER sender)
+      (slot-at-put ctx CONTEXT_RECEIVER receiver)
+      (slot-at-put ctx CONTEXT_METHOD method)
+      (slot-at-put ctx CONTEXT_PC (tag-int 0))
+      (slot-at-put ctx CONTEXT_SP (tag-int 0))
+      ctx))
+
+  (define-func (context-get-sender ctx) (slot-at ctx CONTEXT_SENDER))
+  (define-func (context-get-receiver ctx) (slot-at ctx CONTEXT_RECEIVER))
+  (define-func (context-get-method ctx) (slot-at ctx CONTEXT_METHOD))
+  (define-func (context-get-pc ctx) (untag-int (slot-at ctx CONTEXT_PC)))
+  (define-func (context-get-sp ctx) (untag-int (slot-at ctx CONTEXT_SP)))
+
+  (define-func (context-set-pc ctx value) (slot-at-put ctx CONTEXT_PC (tag-int value)))
+  (define-func (context-set-sp ctx value) (slot-at-put ctx CONTEXT_SP (tag-int value)))
+
+  (define-func (context-temp-at ctx idx) (array-at ctx idx))
+  (define-func (context-temp-at-put ctx idx value) (array-at-put ctx idx value))
+
+  ; Mini test framework
+  (define-func (assert-equal actual expected msg)
+    (if (= actual expected)
+        1
+        (abort msg)))
+
+  (define-func (assert-true cond msg)
+    (if cond
+        1
+        (abort msg)))
+
+  ; Message send: create new context and activate it
+  (define-func (message-send receiver selector args temp-count)
+    (do
+      (define-var method (lookup-method receiver selector))
+      (if (= method NULL)
+          (do
+            (print-string "ERROR: Method not found")
+            (print-int (untag-int selector))
+            NULL)
+          (do
+            (define-var new-ctx (new-context current-context receiver method temp-count))
+
+            ; Store arguments in context temporaries
+            (define-var arg-count (untag-int args))
+            (for (i 0 arg-count)
+              (context-temp-at-put new-ctx i (peek (+ args 1 i))))
+
+            ; Switch to new context
+            (set current-context new-ctx)
+
+            new-ctx))))
+
+  ; Method return: restore sender context and return value
+  (define-func (method-return return-value)
+    (do
+      (if (= current-context NULL)
+          (do
+            (print-string "ERROR: Cannot return, no active context")
+            NULL)
+          (do
+            (define-var sender (context-get-sender current-context))
+            (set current-context sender)
+            return-value))))
+
   (define-func (bootstrap-smalltalk)
     (do
       (print-string "=== Smalltalk Bootstrap ===")
@@ -304,6 +383,67 @@
       (print-int (untag-int l5))
       
       (print-string "")
+      (print-string "=== Testing Context Management ===")
+      (print-string "")
+
+      ; Test 9: Create context
+      (print-string "Test 9: Create context")
+      (assert-equal current-context NULL "Initial context should be NULL")
+      (define-var test-ctx (new-context NULL (tag-int 42) (tag-int 50000) 3))
+      (assert-equal (untag-int (context-get-receiver test-ctx)) 42 "Context receiver should be 42")
+      (assert-equal (untag-int (context-get-method test-ctx)) 50000 "Context method should be 50000")
+      (print-string "  PASSED")
+
+      ; Test 10: Context temporaries
+      (print-string "Test 10: Context temporaries")
+      (context-temp-at-put test-ctx 0 (tag-int 10))
+      (context-temp-at-put test-ctx 1 (tag-int 20))
+      (context-temp-at-put test-ctx 2 (tag-int 30))
+      (assert-equal (untag-int (context-temp-at test-ctx 0)) 10 "Temp 0 should be 10")
+      (assert-equal (untag-int (context-temp-at test-ctx 1)) 20 "Temp 1 should be 20")
+      (assert-equal (untag-int (context-temp-at test-ctx 2)) 30 "Temp 2 should be 30")
+      (print-string "  PASSED")
+
+      ; Test 11: Message send (context switching)
+      (print-string "Test 11: Message send (context switching)")
+      (define-var args-addr (malloc 3))
+      (poke args-addr (tag-int 2))
+      (poke (+ args-addr 1) (tag-int 100))
+      (poke (+ args-addr 2) (tag-int 200))
+      (define-var msg-ctx (message-send (tag-int 42) (tag-int 40) args-addr 2))
+      (assert-equal current-context msg-ctx "Current context should be new context")
+      (assert-equal (untag-int (context-get-receiver msg-ctx)) 42 "Message receiver should be 42")
+      (assert-equal (untag-int (context-get-method msg-ctx)) 50000 "Should find SmallInteger + method")
+      (assert-equal (untag-int (context-temp-at msg-ctx 0)) 100 "First arg should be 100")
+      (assert-equal (untag-int (context-temp-at msg-ctx 1)) 200 "Second arg should be 200")
+      (print-string "  PASSED")
+
+      ; Test 12: Nested message sends
+      (print-string "Test 12: Nested message sends")
+      (define-var outer-ctx current-context)
+      (define-var args2-addr (malloc 2))
+      (poke args2-addr (tag-int 1))
+      (poke (+ args2-addr 1) (tag-int 5))
+      (define-var inner-ctx (message-send (tag-int 10) (tag-int 41) args2-addr 1))
+      (assert-equal (context-get-sender inner-ctx) outer-ctx "Inner sender should be outer context")
+      (assert-equal current-context inner-ctx "Current should be inner context")
+      (print-string "  PASSED")
+
+      ; Test 13: Method return
+      (print-string "Test 13: Method return")
+      (define-var return-val (method-return (tag-int 999)))
+      (assert-equal (untag-int return-val) 999 "Return value should be 999")
+      (assert-equal current-context outer-ctx "Should restore outer context")
+      (print-string "  PASSED")
+
+      ; Test 14: Return to NULL (end of chain)
+      (print-string "Test 14: Return to NULL (end of chain)")
+      (define-var final-return (method-return (tag-int 777)))
+      (assert-equal (untag-int final-return) 777 "Final return value should be 777")
+      (assert-equal current-context NULL "Should restore to NULL context")
+      (print-string "  PASSED")
+      (print-string "")
+
       (print-string "=== All Tests Passed! ===")
       (print-string "")
       (print-string "Bootstrap complete!")
@@ -311,8 +451,10 @@
       (print-string "  SmallInteger support working")
       (print-string "  5-level inheritance chain working")
       (print-string "  Method override working")
-      (print-string "  Ready for message sending!")
-      
+      (print-string "  Context management working!")
+      (print-string "  Message send/return working!")
+      (print-string "  Ready for full Smalltalk execution!")
+
       0))
   
   (bootstrap-smalltalk))
