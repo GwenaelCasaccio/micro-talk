@@ -142,7 +142,7 @@ class StackVM {
 
     // Execute the loaded program
     void execute() {
-        while (running && ip < CODE_SIZE) {
+        while (running && ip < MEMORY_SIZE) {
             if (interrupt_flag && interruptHandling.has_event()) {
                 for (int sig = 1; sig <= 31; sig++) {
                     if (interruptHandling.get_count(sig) > 0 && signal_handlers[sig - 1] != 0) {
@@ -164,7 +164,7 @@ class StackVM {
                     break;
 
                 case Opcode::PUSH:
-                    if (ip >= CODE_SIZE)
+                    if (ip >= MEMORY_SIZE)
                         throw std::runtime_error("IP out of bounds");
                     push(memory[ip++]);
                     break;
@@ -252,28 +252,28 @@ class StackVM {
                 }
 
                 case Opcode::JMP:
-                    if (ip >= CODE_SIZE)
+                    if (ip >= MEMORY_SIZE)
                         throw std::runtime_error("IP out of bounds");
                     ip = memory[ip];
-                    if (ip >= CODE_SIZE)
-                        throw std::runtime_error("Jump target out of code segment");
+                    if (ip >= MEMORY_SIZE)
+                        throw std::runtime_error("Jump target out of bounds");
                     break;
 
                 case Opcode::JZ: {
-                    if (ip >= CODE_SIZE)
+                    if (ip >= MEMORY_SIZE)
                         throw std::runtime_error("IP out of bounds");
                     uint64_t cond = pop();
                     uint64_t addr = memory[ip++];
                     if (cond == 0) {
                         ip = addr;
-                        if (ip >= CODE_SIZE)
-                            throw std::runtime_error("Jump target out of code segment");
+                        if (ip >= MEMORY_SIZE)
+                            throw std::runtime_error("Jump target out of bounds");
                     }
                     break;
                 }
 
                 case Opcode::ENTER: {
-                    if (ip >= CODE_SIZE)
+                    if (ip >= MEMORY_SIZE)
                         throw std::runtime_error("IP out of bounds");
                     const size_t TEMP_SIZE = memory[ip++];
 
@@ -287,7 +287,7 @@ class StackVM {
                 }
 
                 case Opcode::LEAVE: {
-                    if (ip >= CODE_SIZE)
+                    if (ip >= MEMORY_SIZE)
                         throw std::runtime_error("IP out of bounds");
                     const size_t TEMP_SIZE = memory[ip++];
                     const uint64_t RESULT = pop();
@@ -303,10 +303,10 @@ class StackVM {
                 }
 
                 case Opcode::CALL: {
-                    if (ip >= CODE_SIZE)
+                    if (ip >= MEMORY_SIZE)
                         throw std::runtime_error("IP out of bounds");
                     const uint64_t TARGET = memory[ip++]; // Read target and advance IP
-                    if (ip >= CODE_SIZE)
+                    if (ip >= MEMORY_SIZE)
                         throw std::runtime_error("IP out of bounds");
                     const uint64_t NB_ARGS = memory[ip++]; // Arguments
 
@@ -319,13 +319,13 @@ class StackVM {
                         push(memory[BASE + NB_ARGS - i]);
                     }
 
-                    if (ip >= CODE_SIZE)
-                        throw std::runtime_error("Call target out of code segment");
+                    if (ip >= MEMORY_SIZE)
+                        throw std::runtime_error("Call target out of bounds");
                     break;
                 }
 
                 case Opcode::RET: {
-                    if (ip >= CODE_SIZE)
+                    if (ip >= MEMORY_SIZE)
                         throw std::runtime_error("IP out of bounds");
                     const size_t NB_ARGS = memory[ip++];
 
@@ -345,8 +345,8 @@ class StackVM {
 
                     ip = RET_ADDR; // Return to caller
 
-                    if (ip >= CODE_SIZE) {
-                        throw std::runtime_error("Return address out of code segment");
+                    if (ip >= MEMORY_SIZE) {
+                        throw std::runtime_error("Return address out of bounds");
                     }
 
                     break;
@@ -355,8 +355,8 @@ class StackVM {
                 case Opcode::IRET: {
                     ip = pop();
 
-                    if (ip >= CODE_SIZE) {
-                        throw std::runtime_error("Return address out of code segment");
+                    if (ip >= MEMORY_SIZE) {
+                        throw std::runtime_error("Return address out of bounds");
                     }
 
                     interrupt_flag = true;
@@ -487,7 +487,7 @@ class StackVM {
                     if (signal < 1 || signal > 31)
                         throw std::runtime_error("Bad signal ID");
 
-                    if (code_ptr >= CODE_SIZE) {
+                    if (code_ptr >= MEMORY_SIZE) {
                         throw std::runtime_error("Interrupt pointer out of bounds");
                     }
 

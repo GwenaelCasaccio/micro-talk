@@ -236,7 +236,7 @@ void test_jump_bounds_check() {
     StackVM vm;
     std::vector<uint64_t> program = {
         static_cast<uint64_t>(Opcode::JMP),
-        20000, // Out of code segment
+        70000, // Out of bounds (> MEMORY_SIZE = 65536)
         static_cast<uint64_t>(Opcode::HALT),
     };
 
@@ -248,8 +248,7 @@ void test_jump_bounds_check() {
     } catch (const std::runtime_error& e) {
         caught = true;
         std::string msg(e.what());
-        assert(msg.find("code segment") != std::string::npos ||
-               msg.find("out of") != std::string::npos);
+        assert(msg.find("out of") != std::string::npos || msg.find("bounds") != std::string::npos);
     }
 
     assert(caught);
