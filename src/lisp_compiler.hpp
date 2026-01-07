@@ -757,14 +757,16 @@ class LispCompiler {
         // Compile value expression
         compile_expr(items[2]);
 
+        // DUP the value so we can return it (avoids double evaluation)
+        emit_opcode(Opcode::DUP);
+
         // Compile address expression
         compile_expr(items[1]);
 
-        // STORE value to address
+        // STORE value to address (pops address and value)
         emit_opcode(Opcode::STORE);
 
-        // Return the value (for consistency)
-        compile_expr(items[2]);
+        // The DUP'd value remains on stack as return value
     }
 
     // Compile string literal into memory at runtime

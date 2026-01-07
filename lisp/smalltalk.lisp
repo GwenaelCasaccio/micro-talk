@@ -522,8 +522,7 @@
                 (parse-advance)  ; Skip the keyword token
 
                 ; Parse argument (binary message level)
-                (define-var arg-result (parse-binary-message))
-                (poke (+ args-temp arg-count) arg-result)
+                (poke (+ args-temp arg-count) (parse-binary-message))
                 (set arg-count (+ arg-count 1))
 
                 ; Update check-keyword for next iteration
