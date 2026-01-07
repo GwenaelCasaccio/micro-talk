@@ -48,7 +48,8 @@ enum class Opcode : uint8_t {
     CLI,
     STI,
     SIGNAL_REG,
-    ABORT, // Abort with error message (address on stack)
+    ABORT,   // Abort with error message (address on stack)
+    FUNCALL, // Call function at address on stack (address, arg_count on stack)
 };
 
 class StackVM {
@@ -516,6 +517,27 @@ class StackVM {
                     }
                     std::cout << std::endl;
                     running = false;
+                    break;
+                }
+
+                case Opcode::FUNCALL: {
+                    // Stack: [arg1] [arg2] ... [argN] [arg_count] [target_address]
+                    const uint64_t TARGET = pop();
+                    const uint64_t NB_ARGS = pop();
+
+                    if (TARGET >= MEMORY_SIZE)
+                        throw std::runtime_error("FUNCALL target out of bounds");
+
+                    const uint64_t BASE = sp;
+
+                    push(ip);    // Save return address
+                    ip = TARGET; // Jump to function
+
+                    // Push arguments to new frame
+                    for (uint64_t i = NB_ARGS; i > 0; i--) {
+                        push(memory[BASE + NB_ARGS - i]);
+                    }
+
                     break;
                 }
 
