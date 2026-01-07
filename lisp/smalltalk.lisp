@@ -37,7 +37,9 @@
   (define-func (malloc size)
     (do
       (define-var result heap-pointer)
-      (set heap-pointer (+ heap-pointer size))
+      ; Round size up to even number to keep addresses even (avoid tagging conflicts)
+      (define-var aligned-size (if (= (% size 2) 0) size (+ size 1)))
+      (set heap-pointer (+ heap-pointer aligned-size))
       result))
 
   (define-func (new-instance behavior named indexed)
@@ -276,6 +278,7 @@
   (define-func (ast-value node) (slot-at node 1))
   (define-func (ast-child node idx) (array-at node idx))
   (define-func (ast-child-put node idx child) (array-at-put node idx child))
+  (define-func (ast-child-count node) (peek (+ node OBJECT_HEADER_INDEXED_SLOTS)))
 
   ; ===== Tokenizer =====
 
@@ -568,17 +571,34 @@
   (define-var OP_MUL 6)
   (define-var OP_DIV 7)
   (define-var OP_MOD 8)
-  (define-var OP_AND 9)
-  (define-var OP_OR 10)
-  (define-var OP_XOR 11)
-  (define-var OP_SHL 12)
-  (define-var OP_SHR 13)
-  (define-var OP_ASHR 14)
-  (define-var OP_EQ 15)
-  (define-var OP_LT 16)
-  (define-var OP_GT 17)
-  (define-var OP_LTE 18)
-  (define-var OP_GTE 19)
+  (define-var OP_EQ 9)
+  (define-var OP_LT 10)
+  (define-var OP_GT 11)
+  (define-var OP_LTE 12)
+  (define-var OP_GTE 13)
+  (define-var OP_JMP 14)
+  (define-var OP_JZ 15)
+  (define-var OP_ENTER 16)
+  (define-var OP_LEAVE 17)
+  (define-var OP_CALL 18)
+  (define-var OP_RET 19)
+  (define-var OP_IRET 20)
+  (define-var OP_LOAD 21)
+  (define-var OP_STORE 22)
+  (define-var OP_BP_LOAD 23)
+  (define-var OP_BP_STORE 24)
+  (define-var OP_PRINT 25)
+  (define-var OP_PRINT_STR 26)
+  (define-var OP_AND 27)
+  (define-var OP_OR 28)
+  (define-var OP_XOR 29)
+  (define-var OP_SHL 30)
+  (define-var OP_SHR 31)
+  (define-var OP_ASHR 32)
+  (define-var OP_CLI 33)
+  (define-var OP_STI 34)
+  (define-var OP_SIGNAL_REG 35)
+  (define-var OP_ABORT 36)
 
   ; Bytecode buffer state
   (define-var bytecode-buffer NULL)
@@ -608,18 +628,36 @@
             (emit OP_PUSH)
             (emit (ast-value ast)))
       (if (= type AST_IDENTIFIER)
-          ; Identifier: for now, just push 0 (placeholder)
+          ; Identifier: for now, just push 0 (placeholder - should load variable)
           (do
             (emit OP_PUSH)
             (emit (tag-int 0)))
       (if (= type AST_UNARY_MSG)
-          ; Unary message: compile receiver, then emit message send
-          ; For now: just compile receiver (no actual message send yet)
-          (compile-st-expr (ast-child ast 0))
+          ; Unary message: receiver selector
+          ; Stack: [receiver] -> [result]
+          ; For now: compile receiver and push result
+          ; TODO: emit actual method lookup and CALL
+          (do
+            (compile-st-expr (ast-child ast 0))
+            ; Selector is in ast-value, but we need method lookup
+            ; For now: just keep receiver on stack
+            0)
       (if (= type AST_KEYWORD_MSG)
-          ; Keyword message: compile receiver and all args
-          ; For now: just compile receiver (no actual message send yet)
-          (compile-st-expr (ast-child ast 0))
+          ; Keyword message: receiver selector: arg1 keyword2: arg2 ...
+          ; Stack: [receiver arg1 arg2 ...] -> [result]
+          ; For now: compile receiver and all arguments
+          ; TODO: emit actual method lookup and CALL
+          (do
+            ; Compile receiver
+            (compile-st-expr (ast-child ast 0))
+            ; Compile all arguments
+            (define-var num-args (- (ast-child-count ast) 1))
+            (for (i 0 num-args)
+              (compile-st-expr (ast-child ast (+ i 1))))
+            ; For now: pop args and keep receiver
+            (for (i 0 num-args)
+              (emit OP_POP))
+            0)
       (if (= type AST_BINARY_MSG)
           ; Binary message: compile left, compile right, emit operator
           (do
@@ -656,6 +694,51 @@
 
       ; Return start address of compiled code
       bytecode-buffer))
+
+  ; Compile a method body to bytecode
+  ; For now: takes expression, compiles it, adds RET
+  ; Returns bytecode address
+  (define-func (compile-method source-string arg-count)
+    (do
+      ; Initialize bytecode buffer (allocate 1000 words max)
+      (init-bytecode 1000)
+
+      ; Parse source into AST
+      (define-var ast (parse source-string))
+
+      ; Compile AST to bytecode
+      (compile-st-expr ast)
+
+      ; Emit RET with argument count
+      (emit OP_RET)
+      (emit arg-count)
+
+      ; Return start address of compiled code
+      bytecode-buffer))
+
+  ; Install a compiled method into a class
+  ; class: the class to add the method to
+  ; selector: tagged int identifier for the method
+  ; source: method body source code
+  ; arg-count: number of arguments the method takes
+  (define-func (install-method class selector source arg-count)
+    (do
+      ; Compile the method
+      (define-var method-addr (compile-method source arg-count))
+
+      ; Get or create method dictionary for class
+      (define-var methods (get-methods class))
+      (if (= methods NULL)
+          (do
+            (define-var new-dict (new-method-dict 10))
+            (class-set-methods class new-dict)
+            (set methods new-dict))
+          0)
+
+      ; Add method to dictionary
+      (method-dict-add methods selector method-addr)
+
+      method-addr))
 
   (define-func (bootstrap-smalltalk)
     (do
@@ -1266,6 +1349,43 @@
       (print-string "  PASSED")
       (print-string "")
 
+      (print-string "=== Testing Method Compilation (Step 5) ===")
+      (print-string "")
+
+      ; Test 29: Compile a simple method
+      (print-string "Test 29: Compile method '3 + 4'")
+      (define-var method1-addr (compile-method "3 + 4" 0))
+      (assert-true (> method1-addr 0) "Method address should be non-zero")
+      (print-string "  Method compiled at address: ")
+      (print method1-addr)
+
+      ; Check that bytecode was emitted
+      (define-var m0 (peek method1-addr))
+      (define-var m1 (peek (+ method1-addr 1)))
+      (assert-equal m0 OP_PUSH "First opcode should be PUSH")
+      (assert-equal (untag-int m1) 3 "First value should be 3")
+      (print-string "  PASSED")
+
+      ; Test 30: Install method into a class
+      (print-string "Test 30: Install method into class")
+      (define-var TestClass (new-class (tag-int 999) Object))
+      (define-var test-selector (tag-int 100))
+      (define-var installed-addr (install-method TestClass test-selector "5 + 3" 0))
+      (assert-true (> installed-addr 0) "Installed method address should be non-zero")
+
+      ; Verify method is in class's method dictionary
+      (define-var test-instance (new-instance TestClass 0 0))
+      (define-var found-method (lookup-method test-instance test-selector))
+      (assert-equal found-method installed-addr "Lookup should find installed method")
+      (print-string "  PASSED")
+
+      ; Test 31: Compile method with binary operations
+      (print-string "Test 31: Compile '10 * 2 + 5'")
+      (define-var method2-addr (compile-method "10 * 2 + 5" 0))
+      (assert-true (> method2-addr 0) "Method address should be non-zero")
+      (print-string "  PASSED")
+      (print-string "")
+
       (print-string "=== All Tests Passed! ===")
       (print-string "")
       (print-string "Bootstrap complete!")
@@ -1280,13 +1400,16 @@
       (print-string "  Tokenizer working! (numbers, identifiers, keywords, binary ops)")
       (print-string "  Parser working! (unary, binary, keyword messages)")
       (print-string "  Smalltalk->VM bytecode compiler working!")
+      (print-string "  Method compilation and installation working!")
       (print-string "")
-      (print-string "Smalltalk implementation (Step 4 complete)!")
+      (print-string "Smalltalk implementation (Step 5 partial)!")
       (print-string "  Binary messages: 3 + 4")
       (print-string "  Unary messages: Point new")
       (print-string "  Keyword messages: Point x: 3 y: 4")
       (print-string "  All message types parse correctly!")
       (print-string "  Bytecode compilation working for arithmetic")
+      (print-string "  Method compilation: parse -> bytecode with RET")
+      (print-string "  Method installation: compile and add to class")
 
       0))
   
