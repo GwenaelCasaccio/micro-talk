@@ -70,8 +70,8 @@ class StackVM {
     // [CODE_SIZE ... STACK_BASE)  : Heap (grows upward from CODE_SIZE)
     // [STACK_BASE ... MEMORY_SIZE): Stack (grows downward from STACK_BASE)
 
-    static constexpr size_t MEMORY_SIZE = 65536;      // 64K words (512KB total)
-    static constexpr size_t CODE_SIZE = 16384;        // 16K words for code
+    static constexpr size_t MEMORY_SIZE = 131072; // 128K words (1MB total)
+    static constexpr size_t CODE_SIZE = 65536;    // 64K words for code (increased for Smalltalk)
     static constexpr size_t STACK_BASE = MEMORY_SIZE; // Stack grows down from end
 
     void push(uint64_t value) {
@@ -377,7 +377,7 @@ class StackVM {
                     uint64_t value = pop();
                     check_memory_bounds(addr);
                     if (addr < CODE_SIZE) {
-                        throw std::runtime_error("Cannot write to code segment");
+                        throw std::runtime_error("STORE Cannot write to code segment");
                     }
                     memory[addr] = value;
                     break;
@@ -401,7 +401,7 @@ class StackVM {
                         throw std::runtime_error("At least return");
                     }
                     if (ADR < CODE_SIZE) {
-                        throw std::runtime_error("Cannot write to code segment");
+                        throw std::runtime_error("BP_STORE Cannot write to code segment");
                     }
                     memory[ADR] = VALUE;
                     break;

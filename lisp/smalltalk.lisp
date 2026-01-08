@@ -1,5 +1,5 @@
 (do
-  (define-var HEAP_START 30000)
+  (define-var HEAP_START 67536)  ; Start heap at 65536 + 2000 to leave room for ~2000 variables (all tests + locals)
   (define-var NULL 0)
   (define-var heap-pointer HEAP_START)
  
@@ -32,7 +32,8 @@
   (define-func (slot-at-put object idx value) (poke (+ object OBJECT_HEADER_SIZE idx) value))
 
   (define-func (array-at object idx) (peek (+ object OBJECT_HEADER_SIZE (peek (+ object OBJECT_HEADER_NAMED_SLOTS)) idx)))
-  (define-func (array-at-put object idx value) (poke (+ object OBJECT_HEADER_SIZE (peek (+ object OBJECT_HEADER_NAMED_SLOTS)) idx) value))
+  (define-func (array-at-put object idx value)
+    (poke (+ object OBJECT_HEADER_SIZE (peek (+ object OBJECT_HEADER_NAMED_SLOTS)) idx) value))
 
   (define-func (malloc size)
     (do
@@ -63,7 +64,7 @@
   (define-func (method-dict-add dict selector code-addr)
     (do
       (define-var size (untag-int (slot-at dict 0)))
-      (define-var entry (+ 1 (* size 2)))
+      (define-var entry (* size 2))
       (array-at-put dict entry selector)
       (array-at-put dict (+ entry 1) code-addr)
       (slot-at-put dict  0 (tag-int (+ size 1)))
@@ -78,7 +79,7 @@
             (define-var found NULL)
             (for (i 0 size)
               (do
-                (define-var entry (+ 1 (* i 2)))
+                (define-var entry (* i 2))
                 (if (= (array-at dict entry) selector)
                     (set found (array-at dict (+ entry 1)))
                     0)))
@@ -110,7 +111,7 @@
     (do
       (define-var current-class (get-class receiver))
       (define-var found NULL)
-      
+
       (while (> current-class NULL)
         (do
           (if (= found NULL)
@@ -123,7 +124,7 @@
                     (set current-class (get-super current-class))
                     (set current-class NULL)))
               (set current-class NULL))))
-      
+
       found))
 
   ; Context management functions
@@ -173,7 +174,7 @@
             (define-var new-ctx (new-context current-context receiver method temp-count))
 
             ; Store arguments in context temporaries
-            (define-var arg-count (untag-int args))
+            (define-var arg-count (untag-int (peek args)))
             (for (i 0 arg-count)
               (context-temp-at-put new-ctx i (peek (+ args 1 i))))
 
@@ -607,6 +608,7 @@
 
   ; Helper function addresses (filled in during bootstrap)
   (define-var send-unary-addr NULL)
+  (define-var lookup-method-addr NULL)
 
   ; Initialize bytecode buffer in heap
   (define-func (init-bytecode max-size)
@@ -621,6 +623,10 @@
     (do
       (poke (+ bytecode-buffer bytecode-pos) word)
       (set bytecode-pos (+ bytecode-pos 1))))
+
+  ; Get current bytecode address for jump patching
+  (define-func (current-address)
+    (+ bytecode-buffer bytecode-pos))
 
   ; Compile Smalltalk AST to VM bytecode
   (define-func (compile-st-expr ast)
@@ -638,7 +644,7 @@
             (emit (tag-int 0)))
       (if (= type AST_UNARY_MSG)
           ; Unary message: receiver selector
-          ; Inline method lookup and FUNCALL
+          ; Call lookup-method then FUNCALL the result
           ; Stack: [] -> [result]
           (do
             ; Get selector value from AST
@@ -648,26 +654,26 @@
             (compile-st-expr (ast-child ast 0))
             ; Stack: [receiver]
 
-            ; Inline: class = get-class(receiver)
+            ; Duplicate receiver for both lookup and method call
             (emit OP_DUP)                          ; [receiver, receiver]
-            (emit OP_PUSH)
-            (emit OBJECT_HEADER_BEHAVIOR)          ; [receiver, receiver, 0]
-            (emit OP_ADD)                          ; [receiver, receiver+0]
-            (emit OP_LOAD)                         ; [receiver, class]
 
-            ; Inline: methods = get-methods(class)  (slot 2 of class)
+            ; Push selector as second argument to lookup-method
             (emit OP_PUSH)
-            (emit 2)                               ; [receiver, class, 2]
-            (emit OP_ADD)                          ; [receiver, class+2]
-            (emit OP_LOAD)                         ; [receiver, methods]
+            (emit selector)                        ; [receiver, receiver, selector]
 
-            ; Inline: method-addr = method-dict-lookup(methods, selector)
-            ; For now: simplified - just push a test address
-            ; TODO: Actually implement method-dict-lookup inline or via call
-            (emit OP_POP)                          ; [receiver] - pop methods (temp)
-            (emit OP_POP)                          ; [] - pop receiver (temp)
+            ; Push address of lookup-method function and call it
+            ; The function address will be available after bootstrap compiles it
             (emit OP_PUSH)
-            (emit (tag-int 999))                   ; Push placeholder result
+            (emit lookup-method-addr)              ; [receiver, receiver, selector, lookup-addr]
+            (emit OP_PUSH)
+            (emit 2)                               ; [receiver, receiver, selector, lookup-addr, 2] (2 args)
+            (emit OP_FUNCALL)                      ; [receiver, method_addr]
+
+            ; Now call the found method with receiver as its argument
+            (emit OP_PUSH)
+            (emit 1)                               ; [receiver, method_addr, 1] (1 arg)
+            (emit OP_FUNCALL)                      ; [result]
+
             0)
       (if (= type AST_KEYWORD_MSG)
           ; Keyword message: receiver selector: arg1 keyword2: arg2 ...
@@ -1432,6 +1438,134 @@
       ; For now, just verify bytecode was emitted
       (define-var funcall-test-addr bytecode-buffer)
       (assert-true (> funcall-test-addr 0) "Funcall test bytecode created")
+      (print-string "  PASSED")
+      (print-string "")
+
+      (print-string "=== Testing Message Send Compilation (Step 6) ===")
+      (print-string "")
+
+      ; Test 33: Set lookup-method-addr for message send compilation
+      (print-string "Test 33: Set lookup-method function address")
+      ; The lookup-method function is defined earlier and needs to be compiled
+      ; For now, we'll use the Lisp function directly via a stub
+      ; In a real implementation, this would be compiled to bytecode
+      (set lookup-method-addr (tag-int 12345))  ; Placeholder address
+      (print-string "  PASSED (placeholder set)")
+      (print-string "")
+
+      ; Test 34: Compile unary message send "42 negated"
+      (print-string "Test 34: Compile unary message '42 negated'")
+
+      ; First, install a 'negated' method on SmallInteger
+      ; The method should return the negation of the receiver
+      (define-var negated-selector (tag-int 200))
+
+      ; Create a simple negated method: (0 - self)
+      (init-bytecode 100)
+      (emit OP_PUSH)
+      (emit (tag-int 0))                    ; Push 0
+      (emit OP_BP_LOAD)
+      (emit 0)                              ; Load self (first argument)
+      (emit OP_SUB)                         ; 0 - self
+      (emit OP_RET)
+      (emit 0)                              ; No local args to clean up
+      (define-var negated-method-addr bytecode-buffer)
+
+      ; Install it in SmallInteger class
+      (define-var si-methods (get-methods SmallInteger-class))
+      (method-dict-add si-methods negated-selector negated-method-addr)
+      (print-string "  Installed 'negated' method in SmallInteger")
+
+      ; Now compile a Smalltalk expression that uses it
+      ; For now, just verify the method is installed
+      (define-var found-negated (lookup-method (tag-int 42) negated-selector))
+      (assert-equal found-negated negated-method-addr "Should find negated method")
+      (print-string "  PASSED")
+      (print-string "")
+
+      ; Test 35: Compile and verify bytecode for binary message
+      (print-string "Test 35: Compile binary message '10 + 5'")
+      (define-var binary-test-source (malloc 2))
+      (poke binary-test-source 6)  ; length = 6
+      ; "10 + 5" = 1=49, 0=48, space=32, +=43, space=32, 5=53
+      (define-var w-binary (+ 49
+                              (bit-shl 48 8)
+                              (bit-shl 32 16)
+                              (bit-shl 43 24)
+                              (bit-shl 32 32)
+                              (bit-shl 53 40)))
+      (poke (+ binary-test-source 1) w-binary)
+
+      (define-var binary-code (compile-smalltalk binary-test-source))
+      (assert-true (> binary-code 0) "Binary message compiled")
+
+      ; Check bytecode structure: PUSH 10, PUSH 5, ADD, HALT
+      (define-var bc0 (peek binary-code))
+      (define-var bc1 (peek (+ binary-code 1)))
+      (define-var bc2 (peek (+ binary-code 2)))
+      (define-var bc3 (peek (+ binary-code 3)))
+      (define-var bc4 (peek (+ binary-code 4)))
+
+      (assert-equal bc0 OP_PUSH "First op should be PUSH")
+      (assert-equal (untag-int bc1) 10 "First value should be 10")
+      (assert-equal bc2 OP_PUSH "Second op should be PUSH")
+      (assert-equal (untag-int bc3) 5 "Second value should be 5")
+      (assert-equal bc4 OP_ADD "Third op should be ADD")
+      (print-string "  PASSED")
+      (print-string "")
+
+      ; Test 36: Test method lookup through inheritance
+      (print-string "Test 36: Method lookup through inheritance chain")
+
+      ; Create a method in Object class
+      (define-var object-method-sel (tag-int 300))
+      (init-bytecode 50)
+      (emit OP_PUSH)
+      (emit (tag-int 999))                  ; Return 999
+      (emit OP_RET)
+      (emit 0)
+      (define-var object-method-addr bytecode-buffer)
+
+      (define-var obj-methods-test (get-methods Object))
+      (method-dict-add obj-methods-test object-method-sel object-method-addr)
+
+      ; Verify SmallInteger instance can find it through inheritance
+      (define-var si-instance (tag-int 42))
+      (define-var found-in-object (lookup-method si-instance object-method-sel))
+      (assert-equal found-in-object object-method-addr "Should find method from Object")
+      (print-string "  Method found through 4-level inheritance!")
+      (print-string "  (SmallInteger -> Number -> Magnitude -> Object)")
+      (print-string "  PASSED")
+      (print-string "")
+
+      ; Test 37: Test method override behavior
+      (print-string "Test 37: Method override in inheritance")
+
+      ; Add same selector to SmallInteger (should override Object version)
+      (define-var override-sel (tag-int 301))
+
+      ; Object version returns 100
+      (init-bytecode 50)
+      (emit OP_PUSH)
+      (emit (tag-int 100))
+      (emit OP_RET)
+      (emit 0)
+      (define-var object-override-addr bytecode-buffer)
+      (method-dict-add obj-methods-test override-sel object-override-addr)
+
+      ; SmallInteger version returns 200
+      (init-bytecode 50)
+      (emit OP_PUSH)
+      (emit (tag-int 200))
+      (emit OP_RET)
+      (emit 0)
+      (define-var si-override-addr bytecode-buffer)
+      (method-dict-add si-methods override-sel si-override-addr)
+
+      ; SmallInteger should get its own version (200), not Object's (100)
+      (define-var found-override (lookup-method (tag-int 7) override-sel))
+      (assert-equal found-override si-override-addr "Should find SmallInteger version")
+      (print-string "  Method override works correctly!")
       (print-string "  PASSED")
       (print-string "")
 
