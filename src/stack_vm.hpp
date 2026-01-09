@@ -33,6 +33,7 @@ enum class Opcode : uint8_t {
     PUSH,  // Push immediate 64-bit value
     POP,   // Pop and discard
     DUP,   // Duplicate top
+    SWAP,  // Swap top two elements
     ADD,   // Pop two, push sum
     SUB,   // Pop two, push difference
     MUL,   // Pop two, push product
@@ -215,6 +216,14 @@ class StackVM {
                 case Opcode::DUP:
                     push(peek());
                     break;
+
+                case Opcode::SWAP: {
+                    uint64_t a = pop();
+                    uint64_t b = pop();
+                    push(a);
+                    push(b);
+                    break;
+                }
 
                 case Opcode::ADD: {
                     uint64_t b = pop();
