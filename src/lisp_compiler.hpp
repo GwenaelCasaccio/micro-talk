@@ -45,7 +45,7 @@ class LispCompiler {
     };
     std::map<uint64_t, Interrupt> interrupts;
 
-    static constexpr uint64_t VAR_START = 65536; // Match CODE_SIZE
+    static constexpr uint64_t VAR_START = 134217728; // Match GLOBALS_START (1GB offset)
 
     void emit(uint64_t value) {
         bytecode.push_back(value);

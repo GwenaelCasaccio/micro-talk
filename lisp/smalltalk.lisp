@@ -1,5 +1,5 @@
 (do
-  (define-var HEAP_START 67536)  ; Start heap at 65536 + 2000 to leave room for ~2000 variables (all tests + locals)
+  (define-var HEAP_START 268435456)  ; 2GB offset - heap region (globals in 1GB region, heap in 2GB region)
   (define-var NULL 0)
   (define-var heap-pointer HEAP_START)
  
@@ -862,115 +862,74 @@
       
       (print-string "=== Testing Method Lookup ===")
       (print-string "")
-      
+
       (print-string "Test 1: SmallInteger method lookup")
       (define-var int-val (tag-int 42))
-      (print-string "  42 is tagged int?")
-      (print-int (is-int int-val))
-      
-      (print-string "  42 class:")
+      (assert-equal (is-int int-val) 1 "42 should be tagged int")
       (define-var int-class (get-class int-val))
-      (print-string "    class addr:")
-      (print-int int-class)
-      (print-string "    class name:")
-      (print-int (untag-int (get-name int-class)))
-      
-      (print-string "  Lookup: 42 + (sel:40)")
+      (assert-equal int-class SmallInteger-class "42 class should be SmallInteger")
+      (assert-equal (untag-int (get-name int-class)) 5 "SmallInteger class name should be 5")
       (define-var add-method (lookup-method int-val (tag-int 40)))
-      (print-string "    Found:")
-      (print-int (untag-int add-method))
-      (print-string "    Expected: 50000 (SmallInteger override)")
+      (assert-equal (untag-int add-method) 50000 "Should find SmallInteger + override")
+      (print-string "  PASSED")
       (print-string "")
-      
+
       (print-string "Test 2: SmallInteger inherited method")
-      (print-string "  Lookup: 42 < (sel:30)")
       (define-var lt-method (lookup-method int-val (tag-int 30)))
-      (print-string "    Found:")
-      (print-int (untag-int lt-method))
-      (print-string "    Expected: 30000 (from Magnitude)")
+      (assert-equal (untag-int lt-method) 30000 "Should find < from Magnitude")
+      (print-string "  PASSED")
       (print-string "")
-      
+
       (print-string "Test 3: SmallInteger from Object")
-      (print-string "  Lookup: 42 == (sel:20)")
       (define-var eq-method (lookup-method int-val (tag-int 20)))
-      (print-string "    Found:")
-      (print-int (untag-int eq-method))
-      (print-string "    Expected: 20000 (from Object)")
+      (assert-equal (untag-int eq-method) 20000 "Should find == from Object")
+      (print-string "  PASSED")
       (print-string "")
-      
+
       (print-string "Test 4: SmallInteger from ProtoObject")
-      (print-string "  Lookup: 42 class (sel:10)")
       (define-var class-method (lookup-method int-val (tag-int 10)))
-      (print-string "    Found:")
-      (print-int (untag-int class-method))
-      (print-string "    Expected: 10000 (from ProtoObject)")
+      (assert-equal (untag-int class-method) 10000 "Should find class from ProtoObject")
+      (print-string "  PASSED")
       (print-string "")
-      
+
       (print-string "Test 5: Point instance")
       (define-var p (new-instance Point 2 0))
-      (print-string "  Point instance:")
-      (print-int p)
-      (print-string "  is int?")
-      (print-int (is-int p))
-      (print-string "  is oop?")
-      (print-int (is-oop p))
-      
-      (print-string "  Lookup: p x (sel:80)")
+      (assert-true (> p 0) "Point instance should have valid address")
+      (assert-equal (is-int p) 0 "Point instance should not be tagged int")
+      (assert-equal (is-oop p) 1 "Point instance should be OOP")
       (define-var x-method (lookup-method p (tag-int 80)))
-      (print-string "    Found:")
-      (print-int (untag-int x-method))
-      (print-string "    Expected: 80000")
+      (assert-equal (untag-int x-method) 80000 "Should find x method from Point")
+      (print-string "  PASSED")
       (print-string "")
-      
+
       (print-string "Test 6: Point inherited from Object")
-      (print-string "  Lookup: p == (sel:20)")
       (define-var p-eq-method (lookup-method p (tag-int 20)))
-      (print-string "    Found:")
-      (print-int (untag-int p-eq-method))
-      (print-string "    Expected: 20000 (from Object)")
+      (assert-equal (untag-int p-eq-method) 20000 "Point should inherit == from Object")
+      (print-string "  PASSED")
       (print-string "")
-      
+
       (print-string "Test 7: Array instance")
       (define-var arr (new-instance Array 0 70))
-      (print-string "  Lookup: arr at: (sel:70)")
       (define-var at-method (lookup-method arr (tag-int 70)))
-      (print-string "    Found:")
-      (print-int (untag-int at-method))
-      (print-string "    Expected: 70000")
-      
-      (print-string "  Lookup: arr size (sel:60)")
+      (assert-equal (untag-int at-method) 70000 "Should find at: method from Array")
       (define-var size-method (lookup-method arr (tag-int 60)))
-      (print-string "    Found:")
-      (print-int (untag-int size-method))
-      (print-string "    Expected: 60000 (from Collection)")
+      (assert-equal (untag-int size-method) 60000 "Should find size from Collection")
+      (print-string "  PASSED")
       (print-string "")
-      
+
       (print-string "Test 8: Complete inheritance chain")
-      (print-string "  SmallInteger hierarchy depth: 5")
-      (print-string "    SmallInteger -> Number -> Magnitude -> Object -> ProtoObject")
-      (print-string "  Test all levels:")
-      
       (define-var si (tag-int 100))
-      (print-string "    Level 1 (SmallInteger): bitAnd: (sel:50)")
       (define-var l1 (lookup-method si (tag-int 50)))
-      (print-int (untag-int l1))
-      
-      (print-string "    Level 2 (Number): + (sel:40)")
+      (assert-equal (untag-int l1) 54000 "Level 1: SmallInteger bitAnd:")
       (define-var l2 (lookup-method si (tag-int 40)))
-      (print-int (untag-int l2))
-      
-      (print-string "    Level 3 (Magnitude): < (sel:30)")
+      (assert-equal (untag-int l2) 50000 "Level 2: Number +")
       (define-var l3 (lookup-method si (tag-int 30)))
-      (print-int (untag-int l3))
-      
-      (print-string "    Level 4 (Object): == (sel:20)")
+      (assert-equal (untag-int l3) 30000 "Level 3: Magnitude <")
       (define-var l4 (lookup-method si (tag-int 20)))
-      (print-int (untag-int l4))
-      
-      (print-string "    Level 5 (ProtoObject): class (sel:10)")
+      (assert-equal (untag-int l4) 20000 "Level 4: Object ==")
       (define-var l5 (lookup-method si (tag-int 10)))
-      (print-int (untag-int l5))
-      
+      (assert-equal (untag-int l5) 10000 "Level 5: ProtoObject class")
+      (print-string "  PASSED: 5-level inheritance chain working")
       (print-string "")
       (print-string "=== Testing Context Management ===")
       (print-string "")

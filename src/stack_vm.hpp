@@ -65,14 +65,23 @@ class StackVM {
     uint64_t hp;      // Heap pointer
     bool running{false};
 
-    // Memory layout (in 64-bit words):
-    // [0 ... CODE_SIZE)           : Code segment
-    // [CODE_SIZE ... STACK_BASE)  : Heap (grows upward from CODE_SIZE)
-    // [STACK_BASE ... MEMORY_SIZE): Stack (grows downward from STACK_BASE)
+    // Memory layout (in 64-bit words, each word = 8 bytes):
+    // Large, well-separated regions to avoid collisions
+    // Uses virtual memory - physical memory only allocated on access
+    //
+    // [0 ... CODE_SIZE)                    : Code segment (1GB)
+    // [GLOBALS_START ... HEAP_START)       : Global variables (1GB)
+    // [HEAP_START ... STACK_START)         : Heap (1GB, grows upward)
+    // [STACK_START ... MEMORY_SIZE)        : Stack (1GB, grows downward)
 
-    static constexpr size_t MEMORY_SIZE = 131072; // 128K words (1MB total)
-    static constexpr size_t CODE_SIZE = 65536;    // 64K words for code (increased for Smalltalk)
-    static constexpr size_t STACK_BASE = MEMORY_SIZE; // Stack grows down from end
+    static constexpr size_t GB_IN_WORDS = 134217728; // 1GB / 8 bytes = 128M words
+
+    static constexpr size_t CODE_SIZE = GB_IN_WORDS;       // 1GB for code
+    static constexpr size_t GLOBALS_START = CODE_SIZE;     // Starts after code
+    static constexpr size_t HEAP_START = 2 * GB_IN_WORDS;  // Starts after globals
+    static constexpr size_t STACK_START = 3 * GB_IN_WORDS; // Starts after heap
+    static constexpr size_t MEMORY_SIZE = 4 * GB_IN_WORDS; // 4GB total
+    static constexpr size_t STACK_BASE = STACK_START;      // Stack grows down from start
 
     void push(uint64_t value) {
         if (sp <= hp) {
@@ -102,7 +111,7 @@ class StackVM {
     }
 
   public:
-    StackVM() : sp(STACK_BASE), bp(STACK_BASE), hp(CODE_SIZE) {
+    StackVM() : sp(STACK_BASE), bp(STACK_BASE), hp(HEAP_START) {
         // Allocate memory using mmap
         void* ptr = mmap(nullptr, MEMORY_SIZE * sizeof(uint64_t), PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
