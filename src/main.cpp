@@ -24,6 +24,7 @@ void run_lisp(const std::string& source) {
         // Execute
         StackVM vm;
         vm.load_program(bytecode);
+        compiler.write_strings_to_memory(vm); // Write string literals to memory
         vm.execute();
 
         std::cout << "Result: " << vm.get_top() << '\n';
@@ -70,6 +71,7 @@ int main() {
 
         StackVM vm;
         vm.load_program(bytecode);
+        compiler.write_strings_to_memory(vm); // Write string literals to memory
         vm.execute();
 
         std::cout << "Result: " << vm.get_top() << '\n';

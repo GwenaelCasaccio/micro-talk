@@ -45,7 +45,19 @@ class LispCompiler {
     };
     std::map<uint64_t, Interrupt> interrupts;
 
-    static constexpr uint64_t VAR_START = 134217728; // Match GLOBALS_START (1GB offset)
+    // String literal table (for compile-time string allocation)
+    struct StringLiteral {
+        std::string content;
+        uint64_t address;
+    };
+    std::vector<StringLiteral> string_table;
+    std::map<std::string, uint64_t> string_dedup; // content -> address
+    uint64_t next_string_address;
+
+    static constexpr uint64_t GLOBALS_BASE = 134217728;          // Match GLOBALS_START (1GB offset)
+    static constexpr uint64_t STRING_TABLE_START = GLOBALS_BASE; // Strings at start of globals
+    static constexpr uint64_t VAR_START =
+        GLOBALS_BASE + 100000000; // Variables start 100M words after strings
 
     void emit(uint64_t value) {
         bytecode.push_back(value);
@@ -769,53 +781,33 @@ class LispCompiler {
         // The DUP'd value remains on stack as return value
     }
 
-    // Compile string literal into memory at runtime
-    void compile_string_literal(const std::string& str) {
-        // Generate code to:
-        // 1. Allocate memory for string
-        // 2. Write length
-        // 3. Write characters (packed 8 per word)
-        // 4. Return address
-
-        const size_t LEN = str.length();
-
-        // We need to call malloc at runtime
-        // For now, generate a compile-time allocated string in a global area
-        // This is a simplified approach - ideally we'd generate runtime allocation code
-
-        // Allocate a variable to hold the string address
-        std::string var_name = "__string_" + std::to_string(current_address()) + "__";
-        uint64_t str_addr = define_variable(var_name);
-
-        // Generate initialization code (needs to run once at startup)
-        // For simplicity, we'll store string data in consecutive variable slots
-
-        // Store length
-        emit_opcode(Opcode::PUSH);
-        emit(LEN);
-        emit_opcode(Opcode::PUSH);
-        emit(str_addr);
-        emit_opcode(Opcode::STORE);
-
-        // Pack and store characters
-        for (size_t word_idx = 0; word_idx < (LEN + 7) / 8; word_idx++) {
-            uint64_t word = 0;
-            for (size_t byte_idx = 0; byte_idx < 8 && (word_idx * 8 + byte_idx) < LEN; byte_idx++) {
-                uint8_t ch = str[(word_idx * 8) + byte_idx];
-                word |= (static_cast<uint64_t>(ch) << (byte_idx * 8));
-            }
-
-            uint64_t data_addr = define_variable(var_name + "_" + std::to_string(word_idx));
-            emit_opcode(Opcode::PUSH);
-            emit(word);
-            emit_opcode(Opcode::PUSH);
-            emit(data_addr);
-            emit_opcode(Opcode::STORE);
+    // Add string literal to table (or return existing address if duplicate)
+    uint64_t add_string_literal(const std::string& str) {
+        // Check if we've already seen this string (deduplication)
+        auto it = string_dedup.find(str);
+        if (it != string_dedup.end()) {
+            return it->second;
         }
 
-        // Push the string address (variable holding the string start)
+        // Calculate address for this string
+        uint64_t addr = next_string_address;
+
+        // Calculate space needed: 1 word for length + ceil(length/8) words for chars
+        size_t words_needed = 1 + (str.length() + 7) / 8;
+        next_string_address += words_needed;
+
+        // Add to table
+        string_table.push_back({str, addr});
+        string_dedup[str] = addr;
+
+        return addr;
+    }
+
+    // Compile string literal - just push its address
+    void compile_string_literal(const std::string& str) {
+        uint64_t addr = add_string_literal(str);
         emit_opcode(Opcode::PUSH);
-        emit(str_addr);
+        emit(addr);
     }
 
     // Compile function call
@@ -853,9 +845,11 @@ class LispCompiler {
     }
 
   public:
-    LispCompiler() : next_var_address(VAR_START) {
+    LispCompiler() : next_var_address(VAR_START), next_string_address(STRING_TABLE_START) {
         // Start with global scope
         push_scope();
+        // Variables will be allocated after strings in globals region
+        // We'll adjust VAR_START after strings are finalized
     }
 
     std::vector<uint64_t> compile(const ASTNodePtr& ast) {
@@ -909,11 +903,37 @@ class LispCompiler {
         scopes.clear();
         push_scope(); // Re-establish global scope
         next_var_address = VAR_START;
+        next_string_address = STRING_TABLE_START;
         function_local_var_index = 0;
         function_temporary_var_index = 0;
         is_in_function = false;
         functions.clear();
         interrupts.clear();
+        string_table.clear();
+        string_dedup.clear();
+    }
+
+    // Write string literals to VM memory
+    // Call this AFTER loading bytecode into the VM
+    void write_strings_to_memory(StackVM& vm) {
+        for (const auto& str_lit : string_table) {
+            const std::string& str = str_lit.content;
+            uint64_t addr = str_lit.address;
+
+            // Write length
+            vm.write_memory(addr, str.length());
+
+            // Pack and write characters (8 per word)
+            for (size_t word_idx = 0; word_idx < (str.length() + 7) / 8; word_idx++) {
+                uint64_t word = 0;
+                for (size_t byte_idx = 0; byte_idx < 8 && (word_idx * 8 + byte_idx) < str.length();
+                     byte_idx++) {
+                    uint8_t ch = str[(word_idx * 8) + byte_idx];
+                    word |= (static_cast<uint64_t>(ch) << (byte_idx * 8));
+                }
+                vm.write_memory(addr + 1 + word_idx, word);
+            }
+        }
     }
 
   private:
