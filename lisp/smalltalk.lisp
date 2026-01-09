@@ -1761,11 +1761,39 @@
       ; Replace the placeholder addresses with real implementations
       (define-var si-methods-real (get-methods SmallInteger-class))
 
-      ; Add real implementations (selectors: 40=+, 41=-, 42=*, 43=/)
-      (method-dict-add si-methods-real (tag-int 40) (function-address si-add-impl))
-      (method-dict-add si-methods-real (tag-int 41) (function-address si-sub-impl))
-      (method-dict-add si-methods-real (tag-int 42) (function-address si-mul-impl))
-      (method-dict-add si-methods-real (tag-int 43) (function-address si-div-impl))
+      ; Create selector strings and intern them
+      ; Selector: "+"
+      (define-var str-selector-plus (malloc 2))
+      (poke str-selector-plus 1)
+      (poke (+ str-selector-plus 1) 43)  ; + = ASCII 43
+      (define-var sel-plus-id (intern-selector str-selector-plus))
+
+      ; Selector: "-"
+      (define-var str-selector-minus (malloc 2))
+      (poke str-selector-minus 1)
+      (poke (+ str-selector-minus 1) 45)  ; - = ASCII 45
+      (define-var sel-minus-id (intern-selector str-selector-minus))
+
+      ; Selector: "*"
+      (define-var str-selector-mul (malloc 2))
+      (poke str-selector-mul 1)
+      (poke (+ str-selector-mul 1) 42)  ; * = ASCII 42
+      (define-var sel-mul-id (intern-selector str-selector-mul))
+
+      ; Selector: "/"
+      (define-var str-selector-div (malloc 2))
+      (poke str-selector-div 1)
+      (poke (+ str-selector-div 1) 47)  ; / = ASCII 47
+      (define-var sel-div-id (intern-selector str-selector-div))
+
+      ; Install methods with symbol table IDs
+      (method-dict-add si-methods-real sel-plus-id (function-address si-add-impl))
+      (method-dict-add si-methods-real sel-minus-id (function-address si-sub-impl))
+      (method-dict-add si-methods-real sel-mul-id (function-address si-mul-impl))
+      (method-dict-add si-methods-real sel-div-id (function-address si-div-impl))
+
+      (print-string "  Installed + with selector ID:")
+      (print-int (untag-int sel-plus-id))
 
       (print-string "  Installed real + method at:")
       (print-int (function-address si-add-impl))
@@ -1804,10 +1832,10 @@
       ; Simulate what message send does: lookup then call
       (define-var receiver-40 (tag-int 15))
       (define-var arg-40 (tag-int 8))
-      (define-var add-sel-40 (tag-int 40))
 
+      ; Use the selector ID from symbol table (already interned above)
       ; 1. Lookup the method
-      (define-var method-addr (lookup-method receiver-40 add-sel-40))
+      (define-var method-addr (lookup-method receiver-40 sel-plus-id))
       (assert-true (> method-addr 0) "Should find + method")
       (print-string "  Found method at:")
       (print-int method-addr)
@@ -1829,8 +1857,17 @@
           (define-var val (untag-int receiver))
           (tag-int (- 0 val))))
 
-      ; Install negated method (selector 200)
-      (define-var negated-sel (tag-int 200))
+      ; Create and intern "negated" selector
+      (define-var str-negated-sel (malloc 2))
+      (poke str-negated-sel 7)  ; "negated" = 7 chars
+      (define-var w-negated-sel (+ 110 (bit-shl 101 8) (bit-shl 103 16) (bit-shl 97 24)
+                                   (bit-shl 116 32) (bit-shl 101 40) (bit-shl 100 48)))
+      (poke (+ str-negated-sel 1) w-negated-sel)
+      (define-var negated-sel (intern-selector str-negated-sel))
+
+      (print-string "  Installed negated with selector ID:")
+      (print-int (untag-int negated-sel))
+
       (method-dict-add si-methods-real negated-sel (function-address si-negated-impl))
 
       ; Test it
@@ -1866,10 +1903,32 @@
           (define-var b (untag-int arg))
           (if (= a b) (tag-int 1) (tag-int 0))))
 
-      ; Install comparison methods (selectors: 30=<, 31=>, 20==)
-      (method-dict-add si-methods-real (tag-int 30) (function-address si-lt-impl))
-      (method-dict-add si-methods-real (tag-int 31) (function-address si-gt-impl))
-      (method-dict-add si-methods-real (tag-int 20) (function-address si-eq-impl))
+      ; Create and intern comparison selector strings
+      ; Selector: "<"
+      (define-var str-lt (malloc 2))
+      (poke str-lt 1)
+      (poke (+ str-lt 1) 60)  ; < = ASCII 60
+      (define-var sel-lt-id (intern-selector str-lt))
+
+      ; Selector: ">"
+      (define-var str-gt (malloc 2))
+      (poke str-gt 1)
+      (poke (+ str-gt 1) 62)  ; > = ASCII 62
+      (define-var sel-gt-id (intern-selector str-gt))
+
+      ; Selector: "=="
+      (define-var str-eq (malloc 2))
+      (poke str-eq 2)
+      (poke (+ str-eq 1) (+ 61 (bit-shl 61 8)))  ; == = ASCII 61, 61
+      (define-var sel-eq-id (intern-selector str-eq))
+
+      ; Install comparison methods with symbol table IDs
+      (method-dict-add si-methods-real sel-lt-id (function-address si-lt-impl))
+      (method-dict-add si-methods-real sel-gt-id (function-address si-gt-impl))
+      (method-dict-add si-methods-real sel-eq-id (function-address si-eq-impl))
+
+      (print-string "  Installed < with selector ID:")
+      (print-int (untag-int sel-lt-id))
 
       ; Test comparisons
       (define-var cmp1 (si-lt-impl (tag-int 3) (tag-int 5)))
@@ -1900,15 +1959,15 @@
       (print-int method-count)
       (assert-true (>= method-count 8) "Should have at least 8 methods")
 
-      ; Verify all critical methods are findable
-      (assert-true (> (lookup-method (tag-int 1) (tag-int 40)) 0) "+ not found")
-      (assert-true (> (lookup-method (tag-int 1) (tag-int 41)) 0) "- not found")
-      (assert-true (> (lookup-method (tag-int 1) (tag-int 42)) 0) "* not found")
-      (assert-true (> (lookup-method (tag-int 1) (tag-int 43)) 0) "/ not found")
-      (assert-true (> (lookup-method (tag-int 1) (tag-int 20)) 0) "== not found")
-      (assert-true (> (lookup-method (tag-int 1) (tag-int 30)) 0) "< not found")
-      (assert-true (> (lookup-method (tag-int 1) (tag-int 31)) 0) "> not found")
-      (assert-true (> (lookup-method (tag-int 1) (tag-int 200)) 0) "negated not found")
+      ; Verify all critical methods are findable using symbol table IDs
+      (assert-true (> (lookup-method (tag-int 1) sel-plus-id) 0) "+ not found")
+      (assert-true (> (lookup-method (tag-int 1) sel-minus-id) 0) "- not found")
+      (assert-true (> (lookup-method (tag-int 1) sel-mul-id) 0) "* not found")
+      (assert-true (> (lookup-method (tag-int 1) sel-div-id) 0) "/ not found")
+      (assert-true (> (lookup-method (tag-int 1) sel-eq-id) 0) "== not found")
+      (assert-true (> (lookup-method (tag-int 1) sel-lt-id) 0) "< not found")
+      (assert-true (> (lookup-method (tag-int 1) sel-gt-id) 0) "> not found")
+      (assert-true (> (lookup-method (tag-int 1) negated-sel) 0) "negated not found")
 
       (print-string "  All 8+ methods findable via lookup")
       (print-string "  PASSED")
@@ -2075,17 +2134,18 @@
       (print-string "  4. lookup-method call (FUNCALL)")
       (print-string "  5. Method invocation (FUNCALL)")
       (print-string "")
-      (print-string "IMPORTANT: Selector system")
-      (print-string "  Current: Parser creates selectors from identifier positions")
-      (print-string "  Issue: Installed methods use different selectors (tag-int 200)")
-      (print-string "  Solution needed: Consistent selector/symbol table")
+      (print-string "SUCCESS: Symbol table implemented!")
+      (print-string "  Methods now installed with symbol table IDs:")
+      (print-string "    + = 4, - = 5, * = 6, / = 7")
+      (print-string "    < = 8, > = 9, == = 10")
+      (print-string "    negated = 3")
       (print-string "")
-      (print-string "For actual execution to work:")
-      (print-string "  1. Install method with selector matching parser output")
-      (print-string "  2. OR: Implement proper symbol table for selectors")
-      (print-string "  3. OR: Use compile-time selector resolution")
+      (print-string "Next step: Update Smalltalk parser/compiler")
+      (print-string "  Parser must intern selectors at compile time")
+      (print-string "  Then compiled bytecode will use consistent IDs")
       (print-string "")
-      (print-string "Bytecode structure verified - ready for execution tests!")
+      (print-string "After parser update:")
+      (print-string "  Full message send execution will work end-to-end!")
 
       0))
 
