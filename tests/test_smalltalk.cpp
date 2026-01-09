@@ -6,8 +6,7 @@
 #include <sstream>
 
 int main() {
-    // std::ifstream file("smalltalk_demo_strings.lisp");
-    std::ifstream file("lisp/method_lookup_fixed.lisp");
+    std::ifstream file("lisp/smalltalk.lisp");
     std::stringstream buffer;
     buffer << file.rdbuf();
     std::string code = buffer.str();
@@ -20,12 +19,13 @@ int main() {
         auto ast = parser.parse();
 
         LispCompiler compiler;
-        auto bytecode = compiler.compile(ast);
+        auto program = compiler.compile(ast);
 
-        std::cout << "Bytecode: " << bytecode.size() << " words" << '\n' << '\n';
+        std::cout << "Bytecode: " << program.bytecode.size() << " words" << '\n';
+        std::cout << "Strings: " << program.strings.size() << " literals" << '\n' << '\n';
 
         StackVM vm;
-        vm.load_program(bytecode);
+        vm.load_program(program); // Automatically handles bytecode + strings
         vm.execute();
 
         std::cout << "\nTest complete!" << '\n';

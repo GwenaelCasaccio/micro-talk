@@ -10,6 +10,23 @@
 
 #include "interrupt.hpp"
 
+// Forward declaration for StackVM
+class StackVM;
+
+// Compiled program with bytecode and data
+struct CompiledProgram {
+    std::vector<uint64_t> bytecode;
+
+    struct StringLiteral {
+        std::string content;
+        uint64_t address;
+    };
+    std::vector<StringLiteral> strings;
+
+    // Write string data to VM memory
+    void write_strings(StackVM& vm) const;
+};
+
 // Opcodes for the stack VM
 enum class Opcode : uint8_t {
     HALT = 0,
@@ -140,6 +157,18 @@ class StackVM {
             throw std::runtime_error("Program too large for code segment");
         }
         memcpy(memory, program.data(), program.size() * sizeof(uint64_t));
+    }
+
+    // Load compiled program (bytecode + data)
+    void load_program(const CompiledProgram& program) {
+        // Load bytecode
+        if (program.bytecode.size() > CODE_SIZE) {
+            throw std::runtime_error("Program too large for code segment");
+        }
+        memcpy(memory, program.bytecode.data(), program.bytecode.size() * sizeof(uint64_t));
+
+        // Write string literals to memory
+        program.write_strings(*this);
     }
 
     void reset() {
@@ -598,3 +627,25 @@ class StackVM {
         memory[addr] = value;
     }
 };
+
+// Implement CompiledProgram::write_strings after StackVM is fully defined
+inline void CompiledProgram::write_strings(StackVM& vm) const {
+    for (const auto& str_lit : strings) {
+        const std::string& str = str_lit.content;
+        uint64_t addr = str_lit.address;
+
+        // Write length
+        vm.write_memory(addr, str.length());
+
+        // Pack and write characters (8 per word)
+        for (size_t word_idx = 0; word_idx < (str.length() + 7) / 8; word_idx++) {
+            uint64_t word = 0;
+            for (size_t byte_idx = 0; byte_idx < 8 && (word_idx * 8 + byte_idx) < str.length();
+                 byte_idx++) {
+                uint8_t ch = str[(word_idx * 8) + byte_idx];
+                word |= (static_cast<uint64_t>(ch) << (byte_idx * 8));
+            }
+            vm.write_memory(addr + 1 + word_idx, word);
+        }
+    }
+}

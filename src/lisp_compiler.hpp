@@ -381,6 +381,27 @@ class LispCompiler {
                     compile_expr(items[1]);
                     compile_expr(items[2]);
                     emit_opcode(Opcode::ASHR);
+                }
+                // Function address (get pointer to compiled function)
+                else if (op == "function-address") {
+                    if (items.size() != 2)
+                        throw std::runtime_error("function-address requires exactly 1 argument");
+
+                    if (items[1]->type != NodeType::SYMBOL) {
+                        throw std::runtime_error("function-address argument must be a symbol");
+                    }
+
+                    std::string func_name = items[1]->as_symbol();
+
+                    // Check that function exists (will be compiled later)
+                    if (functions.find(func_name) == functions.end()) {
+                        throw std::runtime_error("Unknown function: " + func_name);
+                    }
+
+                    // Emit PUSH with placeholder address, will be patched later
+                    emit_opcode(Opcode::PUSH);
+                    label_refs.emplace_back(current_address(), func_name);
+                    emit(0); // Placeholder
                 } else {
                     throw std::runtime_error("Unknown operator: " + op);
                 }
@@ -852,7 +873,7 @@ class LispCompiler {
         // We'll adjust VAR_START after strings are finalized
     }
 
-    std::vector<uint64_t> compile(const ASTNodePtr& ast) {
+    CompiledProgram compile(const ASTNodePtr& ast) {
         bytecode.clear();
         labels.clear();
         label_refs.clear();
@@ -869,10 +890,17 @@ class LispCompiler {
         // Patch function calls
         patch_function_calls();
 
-        return bytecode;
+        // Return program with bytecode and string data
+        CompiledProgram program;
+        program.bytecode = std::move(bytecode);
+        program.strings.reserve(string_table.size());
+        for (const auto& str_lit : string_table) {
+            program.strings.push_back({str_lit.content, str_lit.address});
+        }
+        return program;
     }
 
-    std::vector<uint64_t> compile_program(const std::vector<ASTNodePtr>& exprs) {
+    CompiledProgram compile_program(const std::vector<ASTNodePtr>& exprs) {
         bytecode.clear();
         labels.clear();
         label_refs.clear();
@@ -895,7 +923,14 @@ class LispCompiler {
         // Patch function calls
         patch_function_calls();
 
-        return bytecode;
+        // Return program with bytecode and string data
+        CompiledProgram program;
+        program.bytecode = std::move(bytecode);
+        program.strings.reserve(string_table.size());
+        for (const auto& str_lit : string_table) {
+            program.strings.push_back({str_lit.content, str_lit.address});
+        }
+        return program;
     }
 
     // Reset compiler state for new program

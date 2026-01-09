@@ -1403,13 +1403,13 @@
       (print-string "=== Testing Message Send Compilation (Step 6) ===")
       (print-string "")
 
-      ; Test 33: Set lookup-method-addr for message send compilation
-      (print-string "Test 33: Set lookup-method function address")
-      ; The lookup-method function is defined earlier and needs to be compiled
-      ; For now, we'll use the Lisp function directly via a stub
-      ; In a real implementation, this would be compiled to bytecode
-      (set lookup-method-addr (tag-int 12345))  ; Placeholder address
-      (print-string "  PASSED (placeholder set)")
+      ; Test 33: Get lookup-method function address for message send compilation
+      (print-string "Test 33: Get lookup-method function address")
+      ; Use function-address to get the compiled address of lookup-method
+      (set lookup-method-addr (function-address lookup-method))
+      (print-string "  lookup-method address:")
+      (print-int lookup-method-addr)
+      (print-string "  PASSED")
       (print-string "")
 
       ; Test 34: Compile unary message send "42 negated"
