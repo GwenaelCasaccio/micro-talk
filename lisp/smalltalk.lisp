@@ -1184,8 +1184,9 @@
       ; Create string "add" manually (a=97, d=100, d=100)
       (define-var str-add (malloc 2))
       (poke str-add 3)  ; length = 3
-      (define-var w-add "add")
-      (poke (+ str-add 1) w-add)
+      (define-var w-add "add")  ; String literal address
+      (define-var w-add-data (peek (+ w-add 1)))  ; Read packed chars
+      (poke (+ str-add 1) w-add-data)
 
       (define-var sel-add (intern-selector str-add))
       (assert-equal (untag-int sel-add) 1 "First selector should be ID 1")
@@ -1198,8 +1199,9 @@
       ; Create string "sub" manually (s=115, u=117, b=98)
       (define-var str-sub (malloc 2))
       (poke str-sub 3)  ; length = 3
-      (define-var w-sub "sub")
-      (poke (+ str-sub 1) w-sub)
+      (define-var w-sub "sub")  ; String literal address
+      (define-var w-sub-data (peek (+ w-sub 1)))  ; Read packed chars
+      (poke (+ str-sub 1) w-sub-data)
 
       (define-var sel-sub (intern-selector str-sub))
       (print-string "  Interned 'sub' as selector:")
@@ -1216,7 +1218,7 @@
       ; Create another "add" string
       (define-var str-add2 (malloc 2))
       (poke str-add2 3)
-      (poke (+ str-add2 1) w-add)
+      (poke (+ str-add2 1) w-add-data)  ; Use packed data, not address
 
       (define-var sel-add2 (intern-selector str-add2))
       (assert-equal (untag-int sel-add2) 1 "Should return existing ID 1")
@@ -1239,8 +1241,9 @@
       (define-var str-negated (malloc 2))
       (poke str-negated 7)  ; "negated" = 7 chars
       ; n=110, e=101, g=103, a=97, t=116, e=101, d=100
-      (define-var w-neg "negated")
-      (poke (+ str-negated 1) w-neg)
+      (define-var w-neg "negated")  ; String literal address
+      (define-var w-neg-data (peek (+ w-neg 1)))  ; Read packed chars
+      (poke (+ str-negated 1) w-neg-data)
 
       (define-var sel-negated (intern-selector str-negated))
       (print-string "  Interned 'negated' as selector:")
@@ -1266,8 +1269,9 @@
       ; Create test string "Hi" manually (H=72, i=105)
       (define-var test-str (malloc 2))
       (poke test-str 2)  ; length = 2
-      (define-var word "Hi")  ; Pack 'H' and 'i'
-      (poke (+ test-str 1) word)
+      (define-var word "Hi")  ; String literal address
+      (define-var word-data (peek (+ word 1)))  ; Read packed chars from string literal
+      (poke (+ test-str 1) word-data)  ; Store the packed chars
 
       (assert-equal (string-length test-str) 2 "String length should be 2")
       (assert-equal (string-char-at test-str 0) 72 "First char should be 'H'=72")
@@ -1310,8 +1314,9 @@
       ; Create test string "3 + 4" manually
       (define-var test-source (malloc 2))
       (poke test-source 5)  ; length = 5
-      (define-var w0 "3 + 4")
-      (poke (+ test-source 1) w0)  ; "3 + 4" (51=3, 32=space, 43=+, 32=space, 52=4)
+      (define-var w0 "3 + 4")  ; String literal address
+      (define-var w0-data (peek (+ w0 1)))  ; Read packed chars
+      (poke (+ test-source 1) w0-data)  ; "3 + 4" (51=3, 32=space, 43=+, 32=space, 52=4)
 
       (define-var tokens (tokenize test-source))
 
@@ -1405,9 +1410,10 @@
       (define-var test-unary (malloc 3))
       (poke test-unary 9)  ; length = 9
       ; "Point new" = P=80, o=111, i=105, n=110, t=116, space=32, n=110, e=101, w=119
-      (define-var w-unary0 "Point new")
+      (define-var w-unary0 "Point new")  ; String literal address
+      (define-var w-unary0-data (peek (+ w-unary0 1)))  ; Read first 8 chars
       (define-var w-unary1 119)  ; 'w'
-      (poke (+ test-unary 1) w-unary0)
+      (poke (+ test-unary 1) w-unary0-data)
       (poke (+ test-unary 2) w-unary1)
 
       (define-var tokens-unary (tokenize test-unary))
@@ -1438,9 +1444,10 @@
       (define-var test-keyword (malloc 3))
       (poke test-keyword 9)  ; length = 9
       ; "x: 3 y: 4" = x=120, :=58, space=32, 3=51, space=32, y=121, :=58, space=32, 4=52
-      (define-var w-kw0 "x: 3 y: 4")
+      (define-var w-kw0 "x: 3 y: 4")  ; String literal address
+      (define-var w-kw0-data (peek (+ w-kw0 1)))  ; Read first 8 chars
       (define-var w-kw1 52)  ; '4'
-      (poke (+ test-keyword 1) w-kw0)
+      (poke (+ test-keyword 1) w-kw0-data)
       (poke (+ test-keyword 2) w-kw1)
 
       (define-var tokens-kw (tokenize test-keyword))
@@ -1462,8 +1469,9 @@
       (define-var test-binary-tok (malloc 2))
       (poke test-binary-tok 5)  ; length = 5
       ; "5 + 3" = 5=53, space=32, +=43, space=32, 3=51
-      (define-var w-bin-tok "5 + 3")
-      (poke (+ test-binary-tok 1) w-bin-tok)
+      (define-var w-bin-tok "5 + 3")  ; String literal address
+      (define-var w-bin-tok-data (peek (+ w-bin-tok 1)))  ; Read packed chars
+      (poke (+ test-binary-tok 1) w-bin-tok-data)
 
       (define-var tokens-bin (tokenize test-binary-tok))
       (define-var tok-5 (array-at tokens-bin 0))
@@ -1504,11 +1512,13 @@
       (define-var test-point-kw (malloc 3))
       (poke test-point-kw 10)  ; length = 10
       ; "Point x: 3" = P=80, o=111, i=105, n=110, t=116, space=32, x=120, :=58
-      (define-var w-point-kw0 "Point x: 3")
+      (define-var w-point-kw0 "Point x: 3")  ; String literal address
+      (define-var w-point-kw0-data (peek (+ w-point-kw0 1)))  ; Read first 8 chars
       ; " 3" = space=32, 3=51
-      (define-var w-point-kw1 " 3")
-      (poke (+ test-point-kw 1) w-point-kw0)
-      (poke (+ test-point-kw 2) w-point-kw1)
+      (define-var w-point-kw1 " 3")  ; String literal address
+      (define-var w-point-kw1-data (peek (+ w-point-kw1 1)))  ; Read last 2 chars
+      (poke (+ test-point-kw 1) w-point-kw0-data)
+      (poke (+ test-point-kw 2) w-point-kw1-data)
 
       (define-var tokens-point-kw (tokenize test-point-kw))
 
@@ -1547,11 +1557,13 @@
       (define-var test-kw-full (malloc 3))
       (poke test-kw-full 10)  ; length = 10
       ; "Point x: 3" = P=80, o=111, i=105, n=110, t=116, space=32, x=120, :=58
-      (define-var w-kw-full0 "Point x: 3")
+      (define-var w-kw-full0 "Point x: 3")  ; String literal address
+      (define-var w-kw-full0-data (peek (+ w-kw-full0 1)))  ; Read first 8 chars
       ; " 3" = space=32, 3=51
-      (define-var w-kw-full1 " 3")
-      (poke (+ test-kw-full 1) w-kw-full0)
-      (poke (+ test-kw-full 2) w-kw-full1)
+      (define-var w-kw-full1 " 3")  ; String literal address
+      (define-var w-kw-full1-data (peek (+ w-kw-full1 1)))  ; Read last 2 chars
+      (poke (+ test-kw-full 1) w-kw-full0-data)
+      (poke (+ test-kw-full 2) w-kw-full1-data)
 
       (define-var ast-kw-full (parse test-kw-full))
 
@@ -1673,8 +1685,9 @@
       (define-var binary-test-source (malloc 2))
       (poke binary-test-source 6)  ; length = 6
       ; "10 + 5" = 1=49, 0=48, space=32, +=43, space=32, 5=53
-      (define-var w-binary "10 + 5")
-      (poke (+ binary-test-source 1) w-binary)
+      (define-var w-binary "10 + 5")  ; String literal address
+      (define-var w-binary-data (peek (+ w-binary 1)))  ; Read packed chars
+      (poke (+ binary-test-source 1) w-binary-data)
 
       (define-var binary-code (compile-smalltalk binary-test-source))
       (assert-true (> binary-code 0) "Binary message compiled")
@@ -1909,8 +1922,9 @@
       ; Create and intern "negated" selector
       (define-var str-negated-sel (malloc 2))
       (poke str-negated-sel 7)  ; "negated" = 7 chars
-      (define-var w-negated-sel "negated")
-      (poke (+ str-negated-sel 1) w-negated-sel)
+      (define-var w-negated-sel "negated")  ; String literal address
+      (define-var w-negated-sel-data (peek (+ w-negated-sel 1)))  ; Read packed chars
+      (poke (+ str-negated-sel 1) w-negated-sel-data)
       (define-var negated-sel (intern-selector str-negated-sel))
 
       (print-string "  Installed negated with selector ID:")
@@ -1967,7 +1981,9 @@
       ; Selector: "=="
       (define-var str-eq (malloc 2))
       (poke str-eq 2)
-      (poke (+ str-eq 1) "==")  ; == = ASCII 61, 61
+      (define-var w-eq "==")  ; String literal address
+      (define-var w-eq-data (peek (+ w-eq 1)))  ; Read packed chars
+      (poke (+ str-eq 1) w-eq-data)  ; == = ASCII 61, 61
       (define-var sel-eq-id (intern-selector str-eq))
 
       ; Install comparison methods with symbol table IDs
@@ -2045,11 +2061,13 @@
       ; String: "42 negated" (10 chars)
       (define-var st-source-1 (malloc 3))
       (poke st-source-1 10)  ; length
-      (define-var w-st-1 "42 negated")
+      (define-var w-st-1 "42 negated")  ; String literal address
+      (define-var w-st-1-data (peek (+ w-st-1 1)))  ; Read first 8 chars
       ; "ed" = e=101, d=100
-      (define-var w-st-2 "ed")
-      (poke (+ st-source-1 1) w-st-1)
-      (poke (+ st-source-1 2) w-st-2)
+      (define-var w-st-2 "ed")  ; String literal address
+      (define-var w-st-2-data (peek (+ w-st-2 1)))  ; Read last 2 chars
+      (poke (+ st-source-1 1) w-st-1-data)
+      (poke (+ st-source-1 2) w-st-2-data)
 
       ; Compile it to bytecode
       (define-var compiled-addr-1 (compile-smalltalk st-source-1))
@@ -2194,10 +2212,12 @@
       (define-var st-unary (malloc 3))
       (poke st-unary 10)
       ; "42 negated" = 4=52, 2=50, space=32, n=110, e=101, g=103, a=97, t=116
-      (define-var w-un-1 "42 negated")
-      (define-var w-un-2 "ed")  ; "ed"
-      (poke (+ st-unary 1) w-un-1)
-      (poke (+ st-unary 2) w-un-2)
+      (define-var w-un-1 "42 negated")  ; String literal address
+      (define-var w-un-1-data (peek (+ w-un-1 1)))  ; Read first 8 chars
+      (define-var w-un-2 "ed")  ; String literal address
+      (define-var w-un-2-data (peek (+ w-un-2 1)))  ; Read last 2 chars
+      (poke (+ st-unary 1) w-un-1-data)
+      (poke (+ st-unary 2) w-un-2-data)
 
       ; Compile "42 negated" with the updated parser
       (define-var method-addr-unary (compile-smalltalk st-unary))
@@ -2220,8 +2240,9 @@
       (define-var st-plus (malloc 2))
       (poke st-plus 5)
       ; "3 + 4" = 3=51, space=32, +=43, space=32, 4=52
-      (define-var w-plus "3 + 4")
-      (poke (+ st-plus 1) w-plus)
+      (define-var w-plus "3 + 4")  ; String literal address
+      (define-var w-plus-data (peek (+ w-plus 1)))  ; Read packed chars
+      (poke (+ st-plus 1) w-plus-data)
 
       ; Compile "3 + 4" with the updated parser
       (define-var method-addr-plus (compile-smalltalk st-plus))
@@ -2246,8 +2267,9 @@
       (define-var st-minus (malloc 2))
       (poke st-minus 6)
       ; "10 - 6" = 1=49, 0=48, space=32, -=45, space=32, 6=54
-      (define-var w-minus "10 - 6")
-      (poke (+ st-minus 1) w-minus)
+      (define-var w-minus "10 - 6")  ; String literal address
+      (define-var w-minus-data (peek (+ w-minus 1)))  ; Read packed chars
+      (poke (+ st-minus 1) w-minus-data)
 
       ; Compile "10 - 6" with the updated parser
       (define-var method-addr-minus (compile-smalltalk st-minus))
