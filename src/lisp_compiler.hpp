@@ -224,75 +224,27 @@ class LispCompiler {
                 }
                 // Basic arithmetic operators
                 else if (op == "+") {
-                    if (items.size() < 3)
-                        throw std::runtime_error("+ requires at least 2 arguments");
-                    compile_expr(items[1]);
-                    for (size_t i = 2; i < items.size(); i++) {
-                        compile_expr(items[i]);
-                        emit_opcode(Opcode::ADD);
-                    }
+                    compile_binary_op(items, Opcode::ADD, "+", true);
                 } else if (op == "-") {
-                    if (items.size() < 3)
-                        throw std::runtime_error("- requires at least 2 arguments");
-                    compile_expr(items[1]);
-                    for (size_t i = 2; i < items.size(); i++) {
-                        compile_expr(items[i]);
-                        emit_opcode(Opcode::SUB);
-                    }
+                    compile_binary_op(items, Opcode::SUB, "-", true);
                 } else if (op == "*") {
-                    if (items.size() < 3)
-                        throw std::runtime_error("* requires at least 2 arguments");
-                    compile_expr(items[1]);
-                    for (size_t i = 2; i < items.size(); i++) {
-                        compile_expr(items[i]);
-                        emit_opcode(Opcode::MUL);
-                    }
+                    compile_binary_op(items, Opcode::MUL, "*", true);
                 } else if (op == "/") {
-                    if (items.size() < 3)
-                        throw std::runtime_error("/ requires at least 2 arguments");
-                    compile_expr(items[1]);
-                    for (size_t i = 2; i < items.size(); i++) {
-                        compile_expr(items[i]);
-                        emit_opcode(Opcode::DIV);
-                    }
+                    compile_binary_op(items, Opcode::DIV, "/", true);
                 } else if (op == "%") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("% requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::MOD);
+                    compile_binary_op(items, Opcode::MOD, "%");
                 }
                 // Comparison operators
                 else if (op == "=") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("= requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::EQ);
+                    compile_binary_op(items, Opcode::EQ, "=");
                 } else if (op == "<") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("< requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::LT);
+                    compile_binary_op(items, Opcode::LT, "<");
                 } else if (op == ">") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("> requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::GT);
+                    compile_binary_op(items, Opcode::GT, ">");
                 } else if (op == "<=") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("<= requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::LTE);
+                    compile_binary_op(items, Opcode::LTE, "<=");
                 } else if (op == ">=") {
-                    if (items.size() != 3)
-                        throw std::runtime_error(">= requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::GTE);
+                    compile_binary_op(items, Opcode::GTE, ">=");
                 }
                 // Control flow
                 else if (op == "if") {
@@ -346,41 +298,17 @@ class LispCompiler {
                 }
                 // Bitwise operations
                 else if (op == "bit-and") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("bit-and requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::AND);
+                    compile_binary_op(items, Opcode::AND, "bit-and");
                 } else if (op == "bit-or") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("bit-or requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::OR);
+                    compile_binary_op(items, Opcode::OR, "bit-or");
                 } else if (op == "bit-xor") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("bit-xor requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::XOR);
+                    compile_binary_op(items, Opcode::XOR, "bit-xor");
                 } else if (op == "bit-shl") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("bit-shl requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::SHL);
+                    compile_binary_op(items, Opcode::SHL, "bit-shl");
                 } else if (op == "bit-shr") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("bit-shr requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::SHR);
+                    compile_binary_op(items, Opcode::SHR, "bit-shr");
                 } else if (op == "bit-ashr") {
-                    if (items.size() != 3)
-                        throw std::runtime_error("bit-ashr requires exactly 2 arguments");
-                    compile_expr(items[1]);
-                    compile_expr(items[2]);
-                    emit_opcode(Opcode::ASHR);
+                    compile_binary_op(items, Opcode::ASHR, "bit-ashr");
                 }
                 // Function address (get pointer to compiled function)
                 else if (op == "function-address") {
@@ -643,6 +571,32 @@ class LispCompiler {
 
         // Pop scope
         pop_scope();
+    }
+
+    // Helper: Compile binary/variadic operators
+    // Variadic: (op a b c) => ((a op b) op c) - left-to-right folding
+    // Binary: (op a b) => (a op b) - exactly 2 arguments
+    void compile_binary_op(const std::vector<ASTNodePtr>& items, Opcode opcode,
+                           const std::string& op_name, bool variadic = false) {
+        if (variadic) {
+            // Variadic operator: requires at least 2 arguments
+            if (items.size() < 3) {
+                throw std::runtime_error(op_name + " requires at least 2 arguments");
+            }
+            compile_expr(items[1]);
+            for (size_t i = 2; i < items.size(); i++) {
+                compile_expr(items[i]);
+                emit_opcode(opcode);
+            }
+        } else {
+            // Binary operator: requires exactly 2 arguments
+            if (items.size() != 3) {
+                throw std::runtime_error(op_name + " requires exactly 2 arguments");
+            }
+            compile_expr(items[1]);
+            compile_expr(items[2]);
+            emit_opcode(opcode);
+        }
     }
 
     // (while condition body...)
