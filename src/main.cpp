@@ -14,17 +14,16 @@ void run_lisp(const std::string& source) {
 
         // Compile
         LispCompiler compiler;
-        auto bytecode = compiler.compile(ast);
+        auto program = compiler.compile(ast);
 
-        std::cout << "Bytecode (" << bytecode.size() << " words):" << '\n';
-        for (size_t i = 0; i < bytecode.size(); i++) {
-            std::cout << "  " << i << ": " << bytecode[i] << '\n';
+        std::cout << "Bytecode (" << program.bytecode.size() << " words):" << '\n';
+        for (size_t i = 0; i < program.bytecode.size(); i++) {
+            std::cout << "  " << i << ": " << program.bytecode[i] << '\n';
         }
 
         // Execute
         StackVM vm;
-        vm.load_program(bytecode);
-        compiler.write_strings_to_memory(vm); // Write string literals to memory
+        vm.load_program(program); // Automatically handles bytecode + strings
         vm.execute();
 
         std::cout << "Result: " << vm.get_top() << '\n';
@@ -67,11 +66,10 @@ int main() {
         auto ast = parser.parse();
 
         LispCompiler compiler;
-        auto bytecode = compiler.compile(ast);
+        auto program = compiler.compile(ast);
 
         StackVM vm;
-        vm.load_program(bytecode);
-        compiler.write_strings_to_memory(vm); // Write string literals to memory
+        vm.load_program(program); // Automatically handles bytecode + strings
         vm.execute();
 
         std::cout << "Result: " << vm.get_top() << '\n';

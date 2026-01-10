@@ -402,6 +402,30 @@ class LispCompiler {
                     emit_opcode(Opcode::PUSH);
                     label_refs.emplace_back(current_address(), func_name);
                     emit(0); // Placeholder
+                }
+                // Dynamic function call via FUNCALL opcode
+                else if (op == "funcall") {
+                    // Syntax: (funcall target-address arg1 arg2 ... argN)
+                    // Stack layout: [arg1] [arg2] ... [argN] [arg_count] [target_address]
+                    if (items.size() < 2)
+                        throw std::runtime_error(
+                            "funcall requires at least 1 argument (target address)");
+
+                    // Compile all arguments first (they go on the stack)
+                    size_t num_args = items.size() - 2; // Exclude 'funcall' and target-address
+                    for (size_t i = 2; i < items.size(); i++) {
+                        compile_expr(items[i]);
+                    }
+
+                    // Push arg count
+                    emit_opcode(Opcode::PUSH);
+                    emit(num_args);
+
+                    // Push target address
+                    compile_expr(items[1]);
+
+                    // Emit FUNCALL
+                    emit_opcode(Opcode::FUNCALL);
                 } else {
                     throw std::runtime_error("Unknown operator: " + op);
                 }

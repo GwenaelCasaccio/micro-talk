@@ -50,6 +50,7 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_advanced \
 	$(BUILD_DIR)/test_smalltalk \
 	$(BUILD_DIR)/test_comments \
+	$(BUILD_DIR)/test_funcall \
 	$(BUILD_DIR)/test_vm_stack \
 	$(BUILD_DIR)/test_vm_interrupt \
 	$(BUILD_DIR)/test_vm_alu \
