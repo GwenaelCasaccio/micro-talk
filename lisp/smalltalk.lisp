@@ -55,11 +55,86 @@
       (poke (+ object OBJECT_HEADER_INDEXED_SLOTS) indexed)
       object))
 
+  ; ===== Hash Table Implementation =====
+  ; Simple hash table with linear probing for fast lookups
+
+  ; Hash function using DJB2 algorithm for strings
+  ; Returns hash value modulo table size
+  (define-func (hash-string str-addr table-size)
+    (do
+      (if (= str-addr NULL)
+          0
+          (do
+            (define-var str-len (peek str-addr))
+            (define-var hash 5381)  ; DJB2 initial value
+
+            ; Hash each character
+            (for (i 0 str-len)
+              (do
+                ; Get word containing this character
+                (define-var word-idx (/ i 8))
+                (define-var char-in-word (% i 8))
+                (define-var word (peek (+ str-addr 1 word-idx)))
+
+                ; Extract byte at position
+                (define-var shift (* char-in-word 8))
+                (define-var char-val (bit-and (bit-shr word shift) 255))
+
+                ; hash = hash * 33 + char
+                (set hash (+ (* hash 33) char-val))))
+
+            ; Return hash modulo table size
+            (% hash table-size)))))
+
+  ; Hash table structure:
+  ; Each bucket has 3 slots: [key, value, occupied_flag]
+  ; occupied_flag: 0 = empty, 1 = occupied, 2 = deleted
+
+  (define-var HASH_BUCKET_SIZE 3)
+  (define-var HASH_KEY_OFFSET 0)
+  (define-var HASH_VALUE_OFFSET 1)
+  (define-var HASH_OCCUPIED_OFFSET 2)
+
+  (define-var HASH_EMPTY 0)
+  (define-var HASH_OCCUPIED 1)
+  (define-var HASH_DELETED 2)
+
+  (define-func (new-hash-table capacity)
+    ; Create hash table with given capacity
+    ; Returns object with capacity * HASH_BUCKET_SIZE indexed slots
+    (do
+      (define-var ht (new-instance (tag-int 992) 1 (* capacity HASH_BUCKET_SIZE)))
+      (slot-at-put ht 0 (tag-int capacity))  ; Store capacity
+
+      ; Initialize all buckets to empty
+      (for (i 0 (* capacity HASH_BUCKET_SIZE))
+        (array-at-put ht i NULL))
+
+      ht))
+
+  (define-func (hash-table-capacity ht)
+    (untag-int (slot-at ht 0)))
+
+  (define-func (hash-table-get-bucket ht bucket-idx offset)
+    ; Get field from bucket
+    (array-at ht (+ (* bucket-idx HASH_BUCKET_SIZE) offset)))
+
+  (define-func (hash-table-set-bucket ht bucket-idx offset value)
+    ; Set field in bucket
+    (array-at-put ht (+ (* bucket-idx HASH_BUCKET_SIZE) offset) value))
+
+  ; Note: Generic hash-table-lookup and hash-table-insert removed
+  ; Each use case (symbol table, method dictionary) has specialized versions
+  ; that don't require passing functions as parameters
+
   ; ===== Symbol Table for Selectors =====
   ; Maps selector strings to unique IDs for consistent method lookup
+  ; Now using hash table for O(1) lookups instead of O(n) linear search
 
   (define-var SYMBOL_TABLE_CAPACITY 1000)
+  (define-var SYMBOL_HASH_SIZE 509)  ; Prime number for better distribution
   (define-var symbol-table NULL)
+  (define-var symbol-hash NULL)  ; Hash table for fast string lookup
   (define-var symbol-count 0)
 
   (define-func (init-symbol-table)
@@ -67,6 +142,7 @@
       ; Create array to hold selector strings
       ; Each entry is a string address (or NULL if unused)
       (set symbol-table (new-instance (tag-int 991) 0 SYMBOL_TABLE_CAPACITY))
+      (set symbol-hash (new-hash-table SYMBOL_HASH_SIZE))
       (set symbol-count 0)
       symbol-table))
 
@@ -89,6 +165,72 @@
             equal)
           0)))
 
+  (define-func (symbol-hash-lookup name-str)
+    ; Look up string in hash table using content comparison
+    ; Returns symbol ID (tagged int) if found, 0 if not found
+    (do
+      (define-var capacity SYMBOL_HASH_SIZE)
+      (define-var hash (hash-string name-str capacity))
+      (define-var idx hash)
+      (define-var found-id 0)
+      (define-var probes 0)
+
+      ; Linear probing with string content comparison
+      (while (< probes capacity)
+        (do
+          (define-var occupied (hash-table-get-bucket symbol-hash idx HASH_OCCUPIED_OFFSET))
+
+          (if (= occupied HASH_EMPTY)
+              ; Empty slot - not found
+              (set probes capacity)
+              (do
+                (if (= occupied HASH_OCCUPIED)
+                    ; Check if string content matches
+                    (do
+                      (define-var stored-str (hash-table-get-bucket symbol-hash idx HASH_KEY_OFFSET))
+                      (if (string-equal-addr name-str stored-str)
+                          (do
+                            (set found-id (hash-table-get-bucket symbol-hash idx HASH_VALUE_OFFSET))
+                            (set probes capacity))
+                          0))
+                    0)
+
+                ; Move to next bucket
+                (set idx (% (+ idx 1) capacity))
+                (set probes (+ probes 1))))))
+
+      found-id))
+
+  (define-func (symbol-hash-insert name-str symbol-id)
+    ; Insert string into hash table
+    ; Returns 1 on success, 0 if table is full
+    (do
+      (define-var capacity SYMBOL_HASH_SIZE)
+      (define-var hash (hash-string name-str capacity))
+      (define-var idx hash)
+      (define-var inserted 0)
+      (define-var probes 0)
+
+      ; Linear probing to find empty or deleted slot
+      (while (< probes capacity)
+        (do
+          (define-var occupied (hash-table-get-bucket symbol-hash idx HASH_OCCUPIED_OFFSET))
+
+          (if (if (= occupied HASH_EMPTY) 1 (= occupied HASH_DELETED))
+              ; Found slot - insert here
+              (do
+                (hash-table-set-bucket symbol-hash idx HASH_KEY_OFFSET name-str)
+                (hash-table-set-bucket symbol-hash idx HASH_VALUE_OFFSET symbol-id)
+                (hash-table-set-bucket symbol-hash idx HASH_OCCUPIED_OFFSET HASH_OCCUPIED)
+                (set inserted 1)
+                (set probes capacity))
+              (do
+                ; Move to next bucket
+                (set idx (% (+ idx 1) capacity))
+                (set probes (+ probes 1))))))
+
+      inserted))
+
   (define-func (intern-selector name-str)
     ; Look up or create selector ID for given string
     ; name-str: address of string in memory
@@ -98,27 +240,27 @@
           (init-symbol-table)
           0)
 
-      ; Search for existing selector
-      (define-var found-id 0)
-      (for (i 0 symbol-count)
-        (do
-          (define-var existing-str (array-at symbol-table i))
-          (if (string-equal-addr name-str existing-str)
-              (set found-id (+ i 1))
-              0)))
+      ; Search for existing selector using hash table
+      (define-var found-id (symbol-hash-lookup name-str))
 
       ; If found, return existing ID
       (if (> found-id 0)
-          (tag-int found-id)
+          found-id
           (do
             ; Not found, create new entry
             (if (>= symbol-count SYMBOL_TABLE_CAPACITY)
                 (abort "Symbol table full")
                 0)
 
+            ; Add to symbol table array
             (array-at-put symbol-table symbol-count name-str)
             (set symbol-count (+ symbol-count 1))
-            (tag-int symbol-count)))))
+
+            ; Add to hash table for fast lookup
+            (define-var new-id (tag-int symbol-count))
+            (symbol-hash-insert name-str new-id)
+
+            new-id))))
 
   (define-func (selector-name selector-id)
     ; Lookup string for a selector ID
@@ -133,35 +275,107 @@
                 NULL)))))
 
   ; ===== Method Dictionary =====
+  ; Now using hash table for O(1) method lookup instead of O(n) linear search
+
+  (define-var METHOD_DICT_HASH_SIZE 127)  ; Prime number for method dictionary
+
+  (define-func (method-hash-int key table-size)
+    ; Simple hash function for integer keys (selector IDs)
+    ; Using multiplicative hashing
+    (do
+      (define-var untagged (untag-int key))
+      (% (* untagged 2654435761) table-size)))  ; Knuth's multiplicative hash constant
 
   (define-func (new-method-dict capacity)
+    ; Create method dictionary with hash table
+    ; Structure: hash table stored in indexed slots
     (do
-      (define-var dict (new-instance (tag-int 989) 1 (* capacity 2)))
-      (slot-at-put dict 0 (tag-int 0))
+      ; Use METHOD_DICT_HASH_SIZE for hash table
+      (define-var dict (new-instance (tag-int 989) 1 (* METHOD_DICT_HASH_SIZE HASH_BUCKET_SIZE)))
+      (slot-at-put dict 0 (tag-int METHOD_DICT_HASH_SIZE))  ; Store hash size
+
+      ; Initialize all buckets to empty
+      (for (i 0 (* METHOD_DICT_HASH_SIZE HASH_BUCKET_SIZE))
+        (array-at-put dict i NULL))
+
       dict))
-  
+
   (define-func (method-dict-add dict selector code-addr)
+    ; Add method to dictionary using hash table
     (do
-      (define-var size (untag-int (slot-at dict 0)))
-      (define-var entry (* size 2))
-      (array-at-put dict entry selector)
-      (array-at-put dict (+ entry 1) code-addr)
-      (slot-at-put dict  0 (tag-int (+ size 1)))
+      (define-var capacity (untag-int (slot-at dict 0)))
+      (define-var hash (method-hash-int selector capacity))
+      (define-var idx hash)
+      (define-var inserted 0)
+      (define-var probes 0)
+
+      ; Linear probing to find empty or matching slot
+      (while (< probes capacity)
+        (do
+          (define-var bucket-offset (* idx HASH_BUCKET_SIZE))
+          (define-var occupied (array-at dict (+ bucket-offset HASH_OCCUPIED_OFFSET)))
+
+          (if (if (= occupied HASH_EMPTY) 1 (= occupied HASH_DELETED))
+              ; Found empty slot - insert here
+              (do
+                (array-at-put dict (+ bucket-offset HASH_KEY_OFFSET) selector)
+                (array-at-put dict (+ bucket-offset HASH_VALUE_OFFSET) code-addr)
+                (array-at-put dict (+ bucket-offset HASH_OCCUPIED_OFFSET) HASH_OCCUPIED)
+                (set inserted 1)
+                (set probes capacity))
+              (do
+                ; Check if key already exists (update case)
+                (if (= occupied HASH_OCCUPIED)
+                    (if (= (array-at dict (+ bucket-offset HASH_KEY_OFFSET)) selector)
+                        ; Update existing entry
+                        (do
+                          (array-at-put dict (+ bucket-offset HASH_VALUE_OFFSET) code-addr)
+                          (set inserted 1)
+                          (set probes capacity))
+                        0)
+                    0)
+
+                ; Move to next bucket
+                (set idx (% (+ idx 1) capacity))
+                (set probes (+ probes 1))))))
+
       dict))
-  
+
   (define-func (method-dict-lookup dict selector)
+    ; Look up method in dictionary using hash table
     (do
       (if (= dict NULL)
           NULL
           (do
-            (define-var size (untag-int (slot-at dict 0)))
+            (define-var capacity (untag-int (slot-at dict 0)))
+            (define-var hash (method-hash-int selector capacity))
+            (define-var idx hash)
             (define-var found NULL)
-            (for (i 0 size)
+            (define-var probes 0)
+
+            ; Linear probing
+            (while (< probes capacity)
               (do
-                (define-var entry (* i 2))
-                (if (= (array-at dict entry) selector)
-                    (set found (array-at dict (+ entry 1)))
-                    0)))
+                (define-var bucket-offset (* idx HASH_BUCKET_SIZE))
+                (define-var occupied (array-at dict (+ bucket-offset HASH_OCCUPIED_OFFSET)))
+
+                (if (= occupied HASH_EMPTY)
+                    ; Empty slot - not found
+                    (set probes capacity)
+                    (do
+                      (if (= occupied HASH_OCCUPIED)
+                          ; Check if key matches
+                          (if (= (array-at dict (+ bucket-offset HASH_KEY_OFFSET)) selector)
+                              (do
+                                (set found (array-at dict (+ bucket-offset HASH_VALUE_OFFSET)))
+                                (set probes capacity))
+                              0)
+                          0)
+
+                      ; Move to next bucket
+                      (set idx (% (+ idx 1) capacity))
+                      (set probes (+ probes 1))))))
+
             found))))
   
   (define-func (new-class name superclass)
