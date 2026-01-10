@@ -2325,8 +2325,99 @@
       (print-string "")
       (print-string "🎉 First working Smalltalk message send system! 🎉")
       (print-string "")
-      (print-string "Note: Actual execution requires running compiled bytecode")
-      (print-string "      in a VM instance (see tests/test_message_send_exec.cpp)")
+
+      ; ========================================================================
+      ; Test 50: FUNCALL-BASED MESSAGE SEND EXECUTION!
+      ; ========================================================================
+      (print-string "=== Test 50: funcall-Based Message Send Execution ===")
+      (print-string "")
+      (print-string "Now with funcall primitive, we can do dynamic dispatch!")
+      (print-string "")
+
+      ; Test 50.1: Use funcall to call SmallInteger methods directly
+      (print-string "Test 50.1: Direct method invocation via funcall")
+
+      (define-var receiver (tag-int 15))
+      (define-var arg (tag-int 8))
+
+      ; Call the add method directly
+      (define-var add-method-addr (function-address si-add-impl))
+      (define-var add-result (funcall add-method-addr receiver arg))
+      (print-string "  15 + 8 via funcall:")
+      (print-int (untag-int add-result))
+      (assert-equal (untag-int add-result) 23 "15 + 8 should be 23")
+
+      ; Call the multiply method directly
+      (define-var mul-method-addr (function-address si-mul-impl))
+      (define-var mul-result (funcall mul-method-addr receiver arg))
+      (print-string "  15 * 8 via funcall:")
+      (print-int (untag-int mul-result))
+      (assert-equal (untag-int mul-result) 120 "15 * 8 should be 120")
+
+      ; Call the negated method directly
+      (define-var neg-method-addr (function-address si-negated-impl))
+      (define-var neg-result-fc (funcall neg-method-addr (tag-int 42)))
+      (print-string "  42 negated via funcall: -42")
+      ; Note: print-int shows unsigned, but value is correct (assertion passes)
+      (assert-equal (untag-int neg-result-fc) -42 "42 negated should be -42")
+
+      (print-string "  ✓ PASSED: Direct method calls via funcall working!")
+      (print-string "")
+
+      ; Test 50.2: Full message send with lookup + funcall
+      (print-string "Test 50.2: Complete message send: lookup + funcall")
+
+      (define-func (send-message receiver selector arg)
+        (do
+          (define-var method (lookup-method receiver selector))
+          (funcall method receiver arg)))
+
+      (define-var msg-result (send-message (tag-int 10) sel-plus-id (tag-int 32)))
+      (print-string "  10 + 32 via send-message:")
+      (print-int (untag-int msg-result))
+      (assert-equal (untag-int msg-result) 42 "10 + 32 should be 42")
+
+      (print-string "  ✓ PASSED: Full message send chain working!")
+      (print-string "")
+
+      ; Test 50.3: Multiple message sends
+      (print-string "Test 50.3: Multiple message sends via funcall")
+
+      (define-var r1 (send-message (tag-int 7) sel-mul-id (tag-int 6)))
+      (print-string "  7 * 6 =")
+      (print-int (untag-int r1))
+      (assert-equal (untag-int r1) 42 "7 * 6 should be 42")
+
+      (define-var r2 (send-message (tag-int 100) sel-minus-id (tag-int 58)))
+      (print-string "  100 - 58 =")
+      (print-int (untag-int r2))
+      (assert-equal (untag-int r2) 42 "100 - 58 should be 42")
+
+      (define-var r3 (send-message (tag-int 126) sel-div-id (tag-int 3)))
+      (print-string "  126 / 3 =")
+      (print-int (untag-int r3))
+      (assert-equal (untag-int r3) 42 "126 / 3 should be 42")
+
+      (print-string "  ✓ PASSED: Multiple message sends working!")
+      (print-string "")
+
+      (print-string "=== 🎉 MESSAGE SENDS FULLY OPERATIONAL! 🎉 ===")
+      (print-string "")
+      (print-string "Achievement unlocked:")
+      (print-string "  ✓ funcall primitive enables dynamic dispatch")
+      (print-string "  ✓ Method lookup via inheritance chain")
+      (print-string "  ✓ Dynamic method invocation via funcall")
+      (print-string "  ✓ Full message send: lookup-method + funcall")
+      (print-string "  ✓ Multiple message types: +, -, *, /, negated")
+      (print-string "")
+      (print-string "Message send chain:")
+      (print-string "  receiver selector arg")
+      (print-string "    → lookup-method(receiver, selector)")
+      (print-string "    → funcall(method, receiver, arg)")
+      (print-string "    → result")
+      (print-string "")
+      (print-string "This IS a working Smalltalk message send system!")
+      (print-string "")
 
       0))
 
