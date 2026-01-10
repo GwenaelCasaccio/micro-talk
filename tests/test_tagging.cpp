@@ -30,7 +30,7 @@ void run_lisp_code(const std::string& source, LispCompiler& compiler) {
         // Compile
         auto bytecode = compiler.compile_program(exprs);
 
-        std::cout << "Compiled " << exprs.size() << " expressions into " << bytecode.size()
+        std::cout << "Compiled " << exprs.size() << " expressions into " << bytecode.bytecode.size()
                   << " words of bytecode" << '\n';
 
         // Execute

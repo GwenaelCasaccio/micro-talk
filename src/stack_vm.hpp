@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "interrupt.hpp"
+#include "memory_layout.hpp"
 
 // Forward declaration for StackVM
 class StackVM;
@@ -83,23 +84,14 @@ class StackVM {
     uint64_t hp;      // Heap pointer
     bool running{false};
 
-    // Memory layout (in 64-bit words, each word = 8 bytes):
-    // Large, well-separated regions to avoid collisions
-    // Uses virtual memory - physical memory only allocated on access
-    //
-    // [0 ... CODE_SIZE)                    : Code segment (1GB)
-    // [GLOBALS_START ... HEAP_START)       : Global variables (1GB)
-    // [HEAP_START ... STACK_START)         : Heap (1GB, grows upward)
-    // [STACK_START ... MEMORY_SIZE)        : Stack (1GB, grows downward)
-
-    static constexpr size_t GB_IN_WORDS = 134217728; // 1GB / 8 bytes = 128M words
-
-    static constexpr size_t CODE_SIZE = GB_IN_WORDS;       // 1GB for code
-    static constexpr size_t GLOBALS_START = CODE_SIZE;     // Starts after code
-    static constexpr size_t HEAP_START = 2 * GB_IN_WORDS;  // Starts after globals
-    static constexpr size_t STACK_START = 3 * GB_IN_WORDS; // Starts after heap
-    static constexpr size_t MEMORY_SIZE = 4 * GB_IN_WORDS; // 4GB total
-    static constexpr size_t STACK_BASE = STACK_START;      // Stack grows down from start
+    // Memory layout constants are defined in memory_layout.hpp
+    // See MemoryLayout namespace for region boundaries and helper functions
+    static constexpr size_t CODE_SIZE = MemoryLayout::CODE_SIZE;
+    static constexpr size_t GLOBALS_START = MemoryLayout::GLOBALS_START;
+    static constexpr size_t HEAP_START = MemoryLayout::HEAP_START;
+    static constexpr size_t STACK_START = MemoryLayout::STACK_START;
+    static constexpr size_t MEMORY_SIZE = MemoryLayout::MEMORY_SIZE;
+    static constexpr size_t STACK_BASE = MemoryLayout::STACK_BASE;
 
     void push(uint64_t value) {
         if (sp <= hp) {

@@ -14,7 +14,7 @@ void test(const std::string& name, const std::string& code) {
         LispCompiler compiler;
         auto bytecode = compiler.compile(ast);
 
-        std::cout << "Bytecode size: " << bytecode.size() << " words" << '\n';
+        std::cout << "Bytecode size: " << bytecode.bytecode.size() << " words" << '\n';
 
         StackVM vm;
         vm.load_program(bytecode);

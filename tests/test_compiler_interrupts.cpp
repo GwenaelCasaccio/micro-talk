@@ -177,8 +177,8 @@ void test_bytecode_contains_iret() {
 
     // Check that bytecode contains IRET opcode
     bool found_iret = false;
-    for (size_t i = 0; i < bytecode.size(); i++) {
-        if (bytecode[i] == static_cast<uint64_t>(Opcode::IRET)) {
+    for (size_t i = 0; i < bytecode.bytecode.size(); i++) {
+        if (bytecode.bytecode[i] == static_cast<uint64_t>(Opcode::IRET)) {
             found_iret = true;
             break;
         }
@@ -204,8 +204,8 @@ void test_bytecode_contains_signal_reg() {
 
     // Check that bytecode contains SIGNAL_REG opcode
     bool found_signal_reg = false;
-    for (size_t i = 0; i < bytecode.size(); i++) {
-        if (bytecode[i] == static_cast<uint64_t>(Opcode::SIGNAL_REG)) {
+    for (size_t i = 0; i < bytecode.bytecode.size(); i++) {
+        if (bytecode.bytecode[i] == static_cast<uint64_t>(Opcode::SIGNAL_REG)) {
             found_signal_reg = true;
             break;
         }

@@ -17,7 +17,7 @@ int main() {
 
         std::cout << "Lisp code: (+ 5 3)" << '\n';
         std::cout << "Disassembly:" << '\n';
-        Disassembler::disassemble(bytecode);
+        Disassembler::disassemble(bytecode.bytecode);
         std::cout << '\n';
     }
 
@@ -32,7 +32,7 @@ int main() {
 
         std::cout << "Lisp code: (if (> 10 5) 42 0)" << '\n';
         std::cout << "Disassembly:" << '\n';
-        Disassembler::disassemble(bytecode);
+        Disassembler::disassemble(bytecode.bytecode);
         std::cout << '\n';
     }
 
@@ -47,7 +47,7 @@ int main() {
 
         std::cout << "Lisp code: (do (define-var x 10) (+ x 5))" << '\n';
         std::cout << "Disassembly:" << '\n';
-        Disassembler::disassemble(bytecode);
+        Disassembler::disassemble(bytecode.bytecode);
         std::cout << '\n';
     }
 
@@ -63,7 +63,7 @@ int main() {
 
         std::cout << "Lisp code: (do (define-var i 0) (while (< i 3) (set i (+ i 1))))" << '\n';
         std::cout << "Disassembly:" << '\n';
-        Disassembler::disassemble(bytecode);
+        Disassembler::disassemble(bytecode.bytecode);
         std::cout << '\n';
     }
 
@@ -78,7 +78,7 @@ int main() {
 
         std::cout << "Lisp code: (bit-or (bit-shl 42 3) 1)" << '\n';
         std::cout << "Disassembly:" << '\n';
-        Disassembler::disassemble(bytecode);
+        Disassembler::disassemble(bytecode.bytecode);
         std::cout << '\n';
     }
 
@@ -93,7 +93,7 @@ int main() {
 
         std::cout << "Lisp code: (* (+ 2 3) (- 10 4))" << '\n';
         std::cout << "Disassembly:" << '\n';
-        Disassembler::disassemble(bytecode);
+        Disassembler::disassemble(bytecode.bytecode);
         std::cout << '\n';
     }
 

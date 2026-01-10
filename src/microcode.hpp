@@ -155,10 +155,10 @@ class MicrocodeCompiler {
 
         // Compile the function
         LispCompiler compiler;
-        auto bytecode = compiler.compile(func_ast);
+        auto program = compiler.compile(func_ast);
 
         // Register as microcode
-        uint8_t opcode = microcode_sys.define(name, params.size(), bytecode);
+        uint8_t opcode = microcode_sys.define(name, params.size(), program.bytecode);
 
         printf("Defined microcode: %s (opcode %d, %zu params)\n", name.c_str(), opcode,
                params.size());
@@ -167,7 +167,7 @@ class MicrocodeCompiler {
     }
 
     // Compile regular Lisp code that may use microcode instructions
-    std::vector<uint64_t> compile(const std::string& source) {
+    CompiledProgram compile(const std::string& source) {
         // For now, just use the base compiler
         LispParser parser(source);
         auto ast = parser.parse();

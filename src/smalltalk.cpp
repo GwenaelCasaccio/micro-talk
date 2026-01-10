@@ -18,9 +18,9 @@ void run_lisp(const std::string& source) {
         LispCompiler compiler;
         auto bytecode = compiler.compile(ast);
 
-        std::cout << "Bytecode (" << bytecode.size() << " words):" << '\n';
-        for (size_t i = 0; i < bytecode.size(); i++) {
-            std::cout << "  " << i << ": " << bytecode[i] << '\n';
+        std::cout << "Bytecode (" << bytecode.bytecode.size() << " words):" << '\n';
+        for (size_t i = 0; i < bytecode.bytecode.size(); i++) {
+            std::cout << "  " << i << ": " << bytecode.bytecode[i] << '\n';
         }
 
         // Execute
@@ -59,7 +59,7 @@ int main() {
         LispCompiler compiler;
         auto bytecode = compiler.compile(ast);
 
-        std::cout << "Bytecode: " << bytecode.size() << " words" << std::endl << std::endl;
+        std::cout << "Bytecode: " << bytecode.bytecode.size() << " words" << std::endl << std::endl;
 
         StackVM vm;
         vm.load_program(bytecode);

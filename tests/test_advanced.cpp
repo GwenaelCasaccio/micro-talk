@@ -21,7 +21,7 @@ int main() {
         LispCompiler compiler;
         auto bytecode = compiler.compile(ast);
 
-        std::cout << "Bytecode: " << bytecode.size() << " words" << '\n' << '\n';
+        std::cout << "Bytecode: " << bytecode.bytecode.size() << " words" << '\n' << '\n';
 
         StackVM vm;
         vm.load_program(bytecode);
