@@ -268,29 +268,29 @@ class StackVM {
                 }
 
                 case Opcode::LT: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
+                    int64_t b = static_cast<int64_t>(pop());
+                    int64_t a = static_cast<int64_t>(pop());
                     push(a < b ? 1 : 0);
                     break;
                 }
 
                 case Opcode::GT: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
+                    int64_t b = static_cast<int64_t>(pop());
+                    int64_t a = static_cast<int64_t>(pop());
                     push(a > b ? 1 : 0);
                     break;
                 }
 
                 case Opcode::LTE: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
+                    int64_t b = static_cast<int64_t>(pop());
+                    int64_t a = static_cast<int64_t>(pop());
                     push(a <= b ? 1 : 0);
                     break;
                 }
 
                 case Opcode::GTE: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
+                    int64_t b = static_cast<int64_t>(pop());
+                    int64_t a = static_cast<int64_t>(pop());
                     push(a >= b ? 1 : 0);
                     break;
                 }

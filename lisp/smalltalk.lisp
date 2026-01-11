@@ -2792,6 +2792,148 @@
       (print-string "  → 10-20x speedup for monomorphic call sites")
       (print-string "")
 
+      ; ========================================================================
+      ; Test 52: UNARY MESSAGE SENDS
+      ; ========================================================================
+      (print-string "=== Test 52: Unary Message Sends ===")
+      (print-string "")
+      (print-string "Unary messages are messages with no arguments.")
+      (print-string "Examples: negated, size, hash, yourself, class")
+      (print-string "")
+
+      ; Define send-unary for unary messages (no arguments)
+      (define-func (send-unary receiver selector cache-id)
+        (do
+          (define-var method (lookup-method-cached receiver selector cache-id))
+          (funcall method receiver)))
+
+      ; Test 52.1: Basic unary message (negated)
+      (print-string "Test 52.1: Unary message - negated")
+
+      (define-var neg1 (send-unary (tag-int 42) negated-sel 20))
+      (assert-equal (untag-int neg1) -42 "42 negated should be -42")
+      (print-string "  42 negated = -42")
+
+      (define-var neg2 (send-unary (tag-int -17) negated-sel 21))
+      (assert-equal (untag-int neg2) 17 "-17 negated should be 17")
+      (print-string "  -17 negated = 17")
+
+      (print-string "  ✓ PASSED: Unary messages working!")
+      (print-string "")
+
+      ; Test 52.2: Add more unary methods
+      (print-string "Test 52.2: Additional unary methods")
+
+      ; abs - absolute value
+      (define-func (si-abs-impl receiver)
+        (do
+          (define-var val (untag-int receiver))
+          (if (< val 0)
+              (tag-int (- 0 val))
+              (tag-int val))))
+
+      ; Create and intern "abs" selector
+      (define-var str-abs-sel (malloc 2))
+      (poke str-abs-sel 3)  ; "abs" = 3 chars
+      (define-var w-abs-sel "abs")
+      (define-var w-abs-sel-data (peek (+ w-abs-sel 1)))
+      (poke (+ str-abs-sel 1) w-abs-sel-data)
+      (define-var abs-sel (intern-selector str-abs-sel))
+
+      (method-dict-add si-methods-real abs-sel (function-address si-abs-impl))
+
+      (define-var abs1 (send-unary (tag-int -42) abs-sel 22))
+      (assert-equal (untag-int abs1) 42 "abs(-42) should be 42")
+      (print-string "  -42 abs = 42")
+
+      (define-var abs2 (send-unary (tag-int 17) abs-sel 23))
+      (assert-equal (untag-int abs2) 17 "abs(17) should be 17")
+      (print-string "  17 abs = 17")
+
+      (print-string "  ✓ PASSED: Multiple unary methods working!")
+      (print-string "")
+
+      ; Test 52.3: Even/Odd predicates
+      (print-string "Test 52.3: Unary predicates - even, odd")
+
+      ; even - returns true (1) if even, false (0) if odd
+      (define-func (si-even-impl receiver)
+        (do
+          (define-var val (untag-int receiver))
+          (tag-int (if (= (% val 2) 0) 1 0))))
+
+      ; odd - returns true (1) if odd, false (0) if even
+      (define-func (si-odd-impl receiver)
+        (do
+          (define-var val (untag-int receiver))
+          (tag-int (if (= (% val 2) 0) 0 1))))
+
+      ; Create and intern "even" selector
+      (define-var str-even-sel (malloc 2))
+      (poke str-even-sel 4)  ; "even" = 4 chars
+      (define-var w-even-sel "even")
+      (define-var w-even-sel-data (peek (+ w-even-sel 1)))
+      (poke (+ str-even-sel 1) w-even-sel-data)
+      (define-var even-sel (intern-selector str-even-sel))
+
+      ; Create and intern "odd" selector
+      (define-var str-odd-sel (malloc 2))
+      (poke str-odd-sel 3)  ; "odd" = 3 chars
+      (define-var w-odd-sel "odd")
+      (define-var w-odd-sel-data (peek (+ w-odd-sel 1)))
+      (poke (+ str-odd-sel 1) w-odd-sel-data)
+      (define-var odd-sel (intern-selector str-odd-sel))
+
+      (method-dict-add si-methods-real even-sel (function-address si-even-impl))
+      (method-dict-add si-methods-real odd-sel (function-address si-odd-impl))
+
+      (define-var even1 (send-unary (tag-int 42) even-sel 24))
+      (assert-equal (untag-int even1) 1 "42 even should be true")
+      (print-string "  42 even = true")
+
+      (define-var odd1 (send-unary (tag-int 42) odd-sel 25))
+      (assert-equal (untag-int odd1) 0 "42 odd should be false")
+      (print-string "  42 odd = false")
+
+      (define-var even2 (send-unary (tag-int 17) even-sel 26))
+      (assert-equal (untag-int even2) 0 "17 even should be false")
+      (print-string "  17 even = false")
+
+      (define-var odd2 (send-unary (tag-int 17) odd-sel 27))
+      (assert-equal (untag-int odd2) 1 "17 odd should be true")
+      (print-string "  17 odd = true")
+
+      (print-string "  ✓ PASSED: Unary predicates working!")
+      (print-string "")
+
+      ; Test 52.4: Chain unary and binary messages
+      (print-string "Test 52.4: Chaining unary and binary messages")
+
+      ; abs first, then add
+      (define-var abs-val (send-unary (tag-int -10) abs-sel 28))
+      (define-var chained1 (send-message abs-val sel-plus-id (tag-int 32) 29))
+      (assert-equal (untag-int chained1) 42 "(-10 abs) + 32 should be 42")
+      (print-string "  (-10 abs) + 32 = 42")
+
+      ; negated first, then multiply
+      (define-var neg-val (send-unary (tag-int 7) negated-sel 30))
+      (define-var chained2 (send-message neg-val sel-mul-id (tag-int -6) 31))
+      (assert-equal (untag-int chained2) 42 "(7 negated) * -6 should be 42")
+      (print-string "  (7 negated) * -6 = 42")
+
+      (print-string "  ✓ PASSED: Message chaining working!")
+      (print-string "")
+
+      (print-string "=== Unary Message Send Complete ===")
+      (print-string "")
+      (print-string "Unary messages implemented:")
+      (print-string "  ✓ negated - arithmetic negation")
+      (print-string "  ✓ abs - absolute value")
+      (print-string "  ✓ even - test if even")
+      (print-string "  ✓ odd - test if odd")
+      (print-string "  ✓ Message chaining (unary + binary)")
+      (print-string "")
+
       (print-string "=== 🎉 MESSAGE SENDS FULLY OPERATIONAL! 🎉 ===")
       (print-string "")
       (print-string "Achievement unlocked:")
@@ -2799,13 +2941,17 @@
       (print-string "  ✓ Method lookup via inheritance chain")
       (print-string "  ✓ Dynamic method invocation via funcall")
       (print-string "  ✓ Full message send: lookup-method + funcall")
-      (print-string "  ✓ Multiple message types: +, -, *, /, negated")
+      (print-string "  ✓ Binary messages: +, -, *, /")
+      (print-string "  ✓ Unary messages: negated, abs, even, odd")
+      (print-string "  ✓ Message chaining (unary + binary)")
       (print-string "")
-      (print-string "Message send chain:")
-      (print-string "  receiver selector arg")
-      (print-string "    → lookup-method(receiver, selector)")
-      (print-string "    → funcall(method, receiver, arg)")
-      (print-string "    → result")
+      (print-string "Message send chains:")
+      (print-string "  Binary:  receiver selector arg")
+      (print-string "           → send-message(receiver, selector, arg, cache-id)")
+      (print-string "           → funcall(method, receiver, arg)")
+      (print-string "  Unary:   receiver selector")
+      (print-string "           → send-unary(receiver, selector, cache-id)")
+      (print-string "           → funcall(method, receiver)")
       (print-string "")
       (print-string "This IS a working Smalltalk message send system!")
       (print-string "")
