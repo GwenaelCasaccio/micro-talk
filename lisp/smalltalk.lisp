@@ -38,8 +38,13 @@
   (define-func (malloc size)
     (do
       (define-var result heap-pointer)
-      ; Round size up to even number to keep addresses even (avoid tagging conflicts)
-      (define-var aligned-size (if (= (% size 2) 0) size (+ size 1)))
+      ; Round size up to multiple of 8 for proper alignment with 3-bit tagging
+      ; With 3-bit tags, addresses must be 8-byte aligned (last 3 bits = 000)
+      ; This ensures OOPs have xxx...xxx000 format, leaving 3 bits for tags
+      (define-var remainder (% size 8))
+      (define-var aligned-size (if (= remainder 0)
+                                   size
+                                   (+ size (- 8 remainder))))
       (set heap-pointer (+ heap-pointer aligned-size))
       result))
 

@@ -221,6 +221,14 @@ class LispCompiler {
                     compile_peek(items);
                 } else if (op == "poke") {
                     compile_poke(items);
+                } else if (op == "peek-byte") {
+                    compile_peek_byte(items);
+                } else if (op == "poke-byte") {
+                    compile_poke_byte(items);
+                } else if (op == "peek32") {
+                    compile_peek32(items);
+                } else if (op == "poke32") {
+                    compile_poke32(items);
                 }
                 // Basic arithmetic operators
                 else if (op == "+") {
@@ -778,6 +786,50 @@ class LispCompiler {
         emit_opcode(Opcode::STORE);
 
         // The DUP'd value remains on stack as return value
+    }
+
+    // (peek-byte addr) - Read single byte from memory
+    void compile_peek_byte(const std::vector<ASTNodePtr>& items) {
+        if (items.size() != 2) {
+            throw std::runtime_error("peek-byte requires 1 argument: byte address");
+        }
+
+        compile_expr(items[1]);
+        emit_opcode(Opcode::LOAD_BYTE);
+    }
+
+    // (poke-byte addr value) - Write single byte to memory
+    void compile_poke_byte(const std::vector<ASTNodePtr>& items) {
+        if (items.size() != 3) {
+            throw std::runtime_error("poke-byte requires 2 arguments: address and value");
+        }
+
+        compile_expr(items[2]); // value
+        emit_opcode(Opcode::DUP);
+        compile_expr(items[1]); // address
+        emit_opcode(Opcode::STORE_BYTE);
+    }
+
+    // (peek32 addr) - Read 32-bit word from memory
+    void compile_peek32(const std::vector<ASTNodePtr>& items) {
+        if (items.size() != 2) {
+            throw std::runtime_error("peek32 requires 1 argument: 32-bit word address");
+        }
+
+        compile_expr(items[1]);
+        emit_opcode(Opcode::LOAD32);
+    }
+
+    // (poke32 addr value) - Write 32-bit word to memory
+    void compile_poke32(const std::vector<ASTNodePtr>& items) {
+        if (items.size() != 3) {
+            throw std::runtime_error("poke32 requires 2 arguments: address and value");
+        }
+
+        compile_expr(items[2]); // value
+        emit_opcode(Opcode::DUP);
+        compile_expr(items[1]); // address
+        emit_opcode(Opcode::STORE32);
     }
 
     // Add string literal to table (or return existing address if duplicate)

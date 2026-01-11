@@ -50,6 +50,7 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_advanced \
 	$(BUILD_DIR)/test_smalltalk \
 	$(BUILD_DIR)/test_hash_table \
+	$(BUILD_DIR)/test_memory_granular \
 	$(BUILD_DIR)/test_comments \
 	$(BUILD_DIR)/test_funcall \
 	$(BUILD_DIR)/test_vm_stack \
@@ -250,6 +251,9 @@ smalltalk: $(BUILD_DIR)/test_smalltalk
 
 hash: $(BUILD_DIR)/test_hash_table
 	@./$(BUILD_DIR)/test_hash_table
+
+memory: $(BUILD_DIR)/test_memory_granular
+	@./$(BUILD_DIR)/test_memory_granular
 
 comments: $(BUILD_DIR)/test_comments
 	@./$(BUILD_DIR)/test_comments

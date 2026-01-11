@@ -31,29 +31,33 @@ struct CompiledProgram {
 // Opcodes for the stack VM
 enum class Opcode : uint8_t {
     HALT = 0,
-    PUSH,  // Push immediate 64-bit value
-    POP,   // Pop and discard
-    DUP,   // Duplicate top
-    SWAP,  // Swap top two elements
-    ADD,   // Pop two, push sum
-    SUB,   // Pop two, push difference
-    MUL,   // Pop two, push product
-    DIV,   // Pop two, push quotient
-    MOD,   // Pop two, push remainder
-    EQ,    // Pop two, push 1 if equal, 0 otherwise
-    LT,    // Pop two, push 1 if less than, 0 otherwise
-    GT,    // Pop two, push 1 if greater than, 0 otherwise
-    LTE,   // Pop two, push 1 if less than or equal, 0 otherwise
-    GTE,   // Pop two, push 1 if greater than or equal, 0 otherwise
-    JMP,   // Unconditional jump to address
-    JZ,    // Jump if top of stack is zero
-    ENTER, // Save previous BP to the stack set it to SP
-    LEAVE, // Restore BP from the stack
-    CALL,  // Call function at address
-    RET,   // Return from function
-    IRET,  // Return from interruption
-    LOAD,  // Load from memory address on stack
-    STORE, // Store value to memory address
+    PUSH,       // Push immediate 64-bit value
+    POP,        // Pop and discard
+    DUP,        // Duplicate top
+    SWAP,       // Swap top two elements
+    ADD,        // Pop two, push sum
+    SUB,        // Pop two, push difference
+    MUL,        // Pop two, push product
+    DIV,        // Pop two, push quotient
+    MOD,        // Pop two, push remainder
+    EQ,         // Pop two, push 1 if equal, 0 otherwise
+    LT,         // Pop two, push 1 if less than, 0 otherwise
+    GT,         // Pop two, push 1 if greater than, 0 otherwise
+    LTE,        // Pop two, push 1 if less than or equal, 0 otherwise
+    GTE,        // Pop two, push 1 if greater than or equal, 0 otherwise
+    JMP,        // Unconditional jump to address
+    JZ,         // Jump if top of stack is zero
+    ENTER,      // Save previous BP to the stack set it to SP
+    LEAVE,      // Restore BP from the stack
+    CALL,       // Call function at address
+    RET,        // Return from function
+    IRET,       // Return from interruption
+    LOAD,       // Load 64-bit word from memory address on stack
+    STORE,      // Store 64-bit word to memory address
+    LOAD_BYTE,  // Load byte from memory (address on stack)
+    STORE_BYTE, // Store byte to memory (value, address on stack)
+    LOAD32,     // Load 32-bit word from memory
+    STORE32,    // Store 32-bit word to memory
     BP_LOAD,
     BP_STORE,
     PRINT,     // Debug: print top of stack as integer
@@ -419,6 +423,86 @@ class StackVM {
                         throw std::runtime_error("STORE Cannot write to code segment");
                     }
                     memory[addr] = value;
+                    break;
+                }
+
+                case Opcode::LOAD_BYTE: {
+                    // Load a single byte from memory
+                    // Stack: [addr] -> [byte_value]
+                    uint64_t addr = pop();
+                    check_memory_bounds(addr / 8); // Check word boundary
+
+                    // Calculate word index and byte offset
+                    uint64_t word_idx = addr / 8;
+                    uint64_t byte_offset = addr % 8;
+
+                    // Extract byte
+                    uint64_t word = memory[word_idx];
+                    uint8_t byte_val = (word >> (byte_offset * 8)) & 0xFF;
+
+                    push(byte_val);
+                    break;
+                }
+
+                case Opcode::STORE_BYTE: {
+                    // Store a single byte to memory
+                    // Stack: [value, addr] -> []
+                    uint64_t addr = pop();
+                    uint64_t value = pop() & 0xFF; // Only keep low byte
+
+                    check_memory_bounds(addr / 8);
+                    uint64_t word_idx = addr / 8;
+
+                    if (word_idx < CODE_SIZE) {
+                        throw std::runtime_error("STORE_BYTE Cannot write to code segment");
+                    }
+
+                    uint64_t byte_offset = addr % 8;
+
+                    // Read-modify-write: clear byte, then set new value
+                    uint64_t mask = ~(0xFFULL << (byte_offset * 8));
+                    memory[word_idx] = (memory[word_idx] & mask) | (value << (byte_offset * 8));
+                    break;
+                }
+
+                case Opcode::LOAD32: {
+                    // Load a 32-bit word from memory
+                    // Stack: [addr] -> [32bit_value]
+                    uint64_t addr = pop();
+                    check_memory_bounds(addr / 8);
+
+                    uint64_t word_idx = addr / 8;
+                    uint64_t is_high = (addr / 4) % 2; // 0 = low 32 bits, 1 = high 32 bits
+
+                    uint64_t word = memory[word_idx];
+                    uint32_t val32 = is_high ? (word >> 32) : (word & 0xFFFFFFFF);
+
+                    push(val32);
+                    break;
+                }
+
+                case Opcode::STORE32: {
+                    // Store a 32-bit word to memory
+                    // Stack: [value, addr] -> []
+                    uint64_t addr = pop();
+                    uint64_t value = pop() & 0xFFFFFFFF; // Only keep low 32 bits
+
+                    check_memory_bounds(addr / 8);
+                    uint64_t word_idx = addr / 8;
+
+                    if (word_idx < CODE_SIZE) {
+                        throw std::runtime_error("STORE32 Cannot write to code segment");
+                    }
+
+                    uint64_t is_high = (addr / 4) % 2;
+
+                    if (is_high) {
+                        // Store in high 32 bits
+                        memory[word_idx] = (memory[word_idx] & 0xFFFFFFFF) | (value << 32);
+                    } else {
+                        // Store in low 32 bits
+                        memory[word_idx] = (memory[word_idx] & 0xFFFFFFFF00000000ULL) | value;
+                    }
                     break;
                 }
 
