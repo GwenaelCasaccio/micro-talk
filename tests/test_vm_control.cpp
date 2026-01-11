@@ -1,3 +1,4 @@
+#include "../src/memory_layout.hpp"
 #include "../src/stack_vm.hpp"
 #include <cassert>
 #include <iostream>
@@ -236,7 +237,7 @@ void test_jump_bounds_check() {
     StackVM vm;
     std::vector<uint64_t> program = {
         static_cast<uint64_t>(Opcode::JMP),
-        70000, // Out of bounds (> MEMORY_SIZE = 65536)
+        MemoryLayout::MEMORY_SIZE + 1000, // Out of bounds
         static_cast<uint64_t>(Opcode::HALT),
     };
 

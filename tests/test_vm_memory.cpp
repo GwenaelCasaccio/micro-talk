@@ -1,3 +1,4 @@
+#include "../src/memory_layout.hpp"
 #include "../src/stack_vm.hpp"
 #include <cassert>
 #include <iostream>
@@ -8,19 +9,19 @@ void test_load_store() {
 
     StackVM vm;
     std::vector<uint64_t> program = {
-        // Store 42 at address 16384 (heap start)
-        static_cast<uint64_t>(Opcode::PUSH), 42, static_cast<uint64_t>(Opcode::PUSH), 16384,
-        static_cast<uint64_t>(Opcode::STORE),
+        // Store 42 at address MemoryLayout::HEAP_START (heap start)
+        static_cast<uint64_t>(Opcode::PUSH), 42, static_cast<uint64_t>(Opcode::PUSH),
+        MemoryLayout::HEAP_START, static_cast<uint64_t>(Opcode::STORE),
 
-        // Load from address 16384
-        static_cast<uint64_t>(Opcode::PUSH), 16384, static_cast<uint64_t>(Opcode::LOAD),
-        static_cast<uint64_t>(Opcode::HALT)};
+        // Load from address MemoryLayout::HEAP_START
+        static_cast<uint64_t>(Opcode::PUSH), MemoryLayout::HEAP_START,
+        static_cast<uint64_t>(Opcode::LOAD), static_cast<uint64_t>(Opcode::HALT)};
 
     vm.load_program(program);
     vm.execute();
 
     assert(vm.get_top() == 42);
-    std::cout << "  ✓ STORE/LOAD: Store 42 at 16384, load back -> 42" << '\n';
+    std::cout << "  ✓ STORE/LOAD: Store 42 at MemoryLayout::HEAP_START, load back -> 42" << '\n';
 }
 
 void test_multiple_stores() {
@@ -28,23 +29,24 @@ void test_multiple_stores() {
 
     StackVM vm;
     std::vector<uint64_t> program = {
-        // Store 100 at 16384
-        static_cast<uint64_t>(Opcode::PUSH), 100, static_cast<uint64_t>(Opcode::PUSH), 16384,
-        static_cast<uint64_t>(Opcode::STORE),
+        // Store 100 at MemoryLayout::HEAP_START
+        static_cast<uint64_t>(Opcode::PUSH), 100, static_cast<uint64_t>(Opcode::PUSH),
+        MemoryLayout::HEAP_START, static_cast<uint64_t>(Opcode::STORE),
 
-        // Store 200 at 16385
-        static_cast<uint64_t>(Opcode::PUSH), 200, static_cast<uint64_t>(Opcode::PUSH), 16385,
-        static_cast<uint64_t>(Opcode::STORE),
+        // Store 200 at MemoryLayout::HEAP_START + 1
+        static_cast<uint64_t>(Opcode::PUSH), 200, static_cast<uint64_t>(Opcode::PUSH),
+        MemoryLayout::HEAP_START + 1, static_cast<uint64_t>(Opcode::STORE),
 
-        // Store 300 at 16386
-        static_cast<uint64_t>(Opcode::PUSH), 300, static_cast<uint64_t>(Opcode::PUSH), 16386,
-        static_cast<uint64_t>(Opcode::STORE),
+        // Store 300 at MemoryLayout::HEAP_START + 2
+        static_cast<uint64_t>(Opcode::PUSH), 300, static_cast<uint64_t>(Opcode::PUSH),
+        MemoryLayout::HEAP_START + 2, static_cast<uint64_t>(Opcode::STORE),
 
         // Load all three and verify last one
-        static_cast<uint64_t>(Opcode::PUSH), 16384, static_cast<uint64_t>(Opcode::LOAD),
-        static_cast<uint64_t>(Opcode::PUSH), 16385, static_cast<uint64_t>(Opcode::LOAD),
-        static_cast<uint64_t>(Opcode::PUSH), 16386, static_cast<uint64_t>(Opcode::LOAD),
-        static_cast<uint64_t>(Opcode::HALT)};
+        static_cast<uint64_t>(Opcode::PUSH), MemoryLayout::HEAP_START,
+        static_cast<uint64_t>(Opcode::LOAD), static_cast<uint64_t>(Opcode::PUSH),
+        MemoryLayout::HEAP_START + 1, static_cast<uint64_t>(Opcode::LOAD),
+        static_cast<uint64_t>(Opcode::PUSH), MemoryLayout::HEAP_START + 2,
+        static_cast<uint64_t>(Opcode::LOAD), static_cast<uint64_t>(Opcode::HALT)};
 
     vm.load_program(program);
     vm.execute();
@@ -58,7 +60,7 @@ void test_store_code_segment_protection() {
 
     StackVM vm;
     std::vector<uint64_t> program = {
-        // Try to write to code segment (address < 16384)
+        // Try to write to code segment (address < MemoryLayout::HEAP_START)
         static_cast<uint64_t>(Opcode::PUSH),  42,
         static_cast<uint64_t>(Opcode::PUSH),  100, // Code segment
         static_cast<uint64_t>(Opcode::STORE), static_cast<uint64_t>(Opcode::HALT)};
@@ -82,10 +84,10 @@ void test_load_bounds_check() {
     std::cout << "Testing LOAD bounds checking..." << '\n';
 
     StackVM vm;
-    std::vector<uint64_t> program = {// Try to load from out-of-bounds address
-                                     static_cast<uint64_t>(Opcode::PUSH), 100000, // Out of bounds
-                                     static_cast<uint64_t>(Opcode::LOAD),
-                                     static_cast<uint64_t>(Opcode::HALT)};
+    std::vector<uint64_t> program = {
+        // Try to load from out-of-bounds address
+        static_cast<uint64_t>(Opcode::PUSH), MemoryLayout::MEMORY_SIZE + 1000, // Out of bounds
+        static_cast<uint64_t>(Opcode::LOAD), static_cast<uint64_t>(Opcode::HALT)};
 
     vm.load_program(program);
 
@@ -109,7 +111,7 @@ void test_store_bounds_check() {
     std::vector<uint64_t> program = {
         // Try to store to out-of-bounds address
         static_cast<uint64_t>(Opcode::PUSH),  42,
-        static_cast<uint64_t>(Opcode::PUSH),  100000, // Out of bounds
+        static_cast<uint64_t>(Opcode::PUSH),  MemoryLayout::MEMORY_SIZE + 1000, // Out of bounds
         static_cast<uint64_t>(Opcode::STORE), static_cast<uint64_t>(Opcode::HALT)};
 
     vm.load_program(program);
@@ -132,19 +134,19 @@ void test_memory_as_array() {
 
     StackVM vm;
     std::vector<uint64_t> program = {
-        // Initialize array at 16400
-        static_cast<uint64_t>(Opcode::PUSH), 10, static_cast<uint64_t>(Opcode::PUSH), 16400,
-        static_cast<uint64_t>(Opcode::STORE),
+        // Initialize array at MemoryLayout::HEAP_START + 16
+        static_cast<uint64_t>(Opcode::PUSH), 10, static_cast<uint64_t>(Opcode::PUSH),
+        MemoryLayout::HEAP_START + 16, static_cast<uint64_t>(Opcode::STORE),
 
-        static_cast<uint64_t>(Opcode::PUSH), 20, static_cast<uint64_t>(Opcode::PUSH), 16401,
-        static_cast<uint64_t>(Opcode::STORE),
+        static_cast<uint64_t>(Opcode::PUSH), 20, static_cast<uint64_t>(Opcode::PUSH),
+        MemoryLayout::HEAP_START + 17, static_cast<uint64_t>(Opcode::STORE),
 
-        static_cast<uint64_t>(Opcode::PUSH), 30, static_cast<uint64_t>(Opcode::PUSH), 16402,
-        static_cast<uint64_t>(Opcode::STORE),
+        static_cast<uint64_t>(Opcode::PUSH), 30, static_cast<uint64_t>(Opcode::PUSH),
+        MemoryLayout::HEAP_START + 18, static_cast<uint64_t>(Opcode::STORE),
 
         // Read array[1]
-        static_cast<uint64_t>(Opcode::PUSH), 16401, static_cast<uint64_t>(Opcode::LOAD),
-        static_cast<uint64_t>(Opcode::HALT)};
+        static_cast<uint64_t>(Opcode::PUSH), MemoryLayout::HEAP_START + 17,
+        static_cast<uint64_t>(Opcode::LOAD), static_cast<uint64_t>(Opcode::HALT)};
 
     vm.load_program(program);
     vm.execute();
@@ -159,21 +161,23 @@ void test_read_write_cycle() {
     StackVM vm;
     std::vector<uint64_t> program = {
         // Store initial value
-        static_cast<uint64_t>(Opcode::PUSH), 10, static_cast<uint64_t>(Opcode::PUSH), 16500,
-        static_cast<uint64_t>(Opcode::STORE),
+        static_cast<uint64_t>(Opcode::PUSH), 10, static_cast<uint64_t>(Opcode::PUSH),
+        MemoryLayout::HEAP_START + 116, static_cast<uint64_t>(Opcode::STORE),
 
         // Load value
-        static_cast<uint64_t>(Opcode::PUSH), 16500, static_cast<uint64_t>(Opcode::LOAD),
+        static_cast<uint64_t>(Opcode::PUSH), MemoryLayout::HEAP_START + 116,
+        static_cast<uint64_t>(Opcode::LOAD),
 
         // Modify (add 5)
         static_cast<uint64_t>(Opcode::PUSH), 5, static_cast<uint64_t>(Opcode::ADD),
 
         // Store back
-        static_cast<uint64_t>(Opcode::PUSH), 16500, static_cast<uint64_t>(Opcode::STORE),
+        static_cast<uint64_t>(Opcode::PUSH), MemoryLayout::HEAP_START + 116,
+        static_cast<uint64_t>(Opcode::STORE),
 
         // Load again to verify
-        static_cast<uint64_t>(Opcode::PUSH), 16500, static_cast<uint64_t>(Opcode::LOAD),
-        static_cast<uint64_t>(Opcode::HALT)};
+        static_cast<uint64_t>(Opcode::PUSH), MemoryLayout::HEAP_START + 116,
+        static_cast<uint64_t>(Opcode::LOAD), static_cast<uint64_t>(Opcode::HALT)};
 
     vm.load_program(program);
     vm.execute();
