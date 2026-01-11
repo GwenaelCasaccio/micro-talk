@@ -49,6 +49,7 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_microcode \
 	$(BUILD_DIR)/test_advanced \
 	$(BUILD_DIR)/test_smalltalk \
+	$(BUILD_DIR)/test_hash_table \
 	$(BUILD_DIR)/test_comments \
 	$(BUILD_DIR)/test_funcall \
 	$(BUILD_DIR)/test_vm_stack \
@@ -246,6 +247,9 @@ advanced: $(BUILD_DIR)/test_advanced
 
 smalltalk: $(BUILD_DIR)/test_smalltalk
 	@./$(BUILD_DIR)/test_smalltalk
+
+hash: $(BUILD_DIR)/test_hash_table
+	@./$(BUILD_DIR)/test_hash_table
 
 comments: $(BUILD_DIR)/test_comments
 	@./$(BUILD_DIR)/test_comments
