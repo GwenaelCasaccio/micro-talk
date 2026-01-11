@@ -293,479 +293,490 @@ class StackVM {
                           << " BP=" << bp << " HP=" << hp << std::endl;
             }
 
-            switch (OP) {
-                case Opcode::HALT:
-                    running = false;
-                    break;
-
-                case Opcode::PUSH:
-                    if (ip >= MEMORY_SIZE)
-                        throw std::runtime_error("IP out of bounds");
-                    push(memory[ip++]);
-                    break;
-
-                case Opcode::POP:
-                    pop();
-                    break;
-
-                case Opcode::DUP:
-                    push(peek());
-                    break;
-
-                case Opcode::SWAP: {
-                    uint64_t a = pop();
-                    uint64_t b = pop();
-                    push(a);
-                    push(b);
-                    break;
-                }
-
-                case Opcode::ADD: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    push(a + b);
-                    break;
-                }
-
-                case Opcode::SUB: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    push(a - b);
-                    break;
-                }
-
-                case Opcode::MUL: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    push(a * b);
-                    break;
-                }
-
-                case Opcode::DIV: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    if (b == 0)
-                        throw std::runtime_error("Division by zero");
-                    push(a / b);
-                    break;
-                }
-
-                case Opcode::MOD: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    if (b == 0)
-                        throw std::runtime_error("Modulo by zero");
-                    push(a % b);
-                    break;
-                }
-
-                case Opcode::EQ: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    push(a == b ? 1 : 0);
-                    break;
-                }
-
-                case Opcode::LT: {
-                    int64_t b = static_cast<int64_t>(pop());
-                    int64_t a = static_cast<int64_t>(pop());
-                    push(a < b ? 1 : 0);
-                    break;
-                }
-
-                case Opcode::GT: {
-                    int64_t b = static_cast<int64_t>(pop());
-                    int64_t a = static_cast<int64_t>(pop());
-                    push(a > b ? 1 : 0);
-                    break;
-                }
-
-                case Opcode::LTE: {
-                    int64_t b = static_cast<int64_t>(pop());
-                    int64_t a = static_cast<int64_t>(pop());
-                    push(a <= b ? 1 : 0);
-                    break;
-                }
-
-                case Opcode::GTE: {
-                    int64_t b = static_cast<int64_t>(pop());
-                    int64_t a = static_cast<int64_t>(pop());
-                    push(a >= b ? 1 : 0);
-                    break;
-                }
-
-                case Opcode::JMP:
-                    if (ip >= MEMORY_SIZE)
-                        throw std::runtime_error("IP out of bounds");
-                    ip = memory[ip];
-                    if (ip >= MEMORY_SIZE)
-                        throw std::runtime_error("Jump target out of bounds");
-                    break;
-
-                case Opcode::JZ: {
-                    if (ip >= MEMORY_SIZE)
-                        throw std::runtime_error("IP out of bounds");
-                    uint64_t cond = pop();
-                    uint64_t addr = memory[ip++];
-                    if (cond == 0) {
-                        ip = addr;
-                        if (ip >= MEMORY_SIZE)
-                            throw std::runtime_error("Jump target out of bounds");
-                    }
-                    break;
-                }
-
-                case Opcode::ENTER: {
-                    if (ip >= MEMORY_SIZE)
-                        throw std::runtime_error("IP out of bounds");
-                    const size_t TEMP_SIZE = memory[ip++];
-
-                    for (uint64_t i = 0; i < TEMP_SIZE; i++) {
-                        push(0);
-                    }
-                    push(bp);
-                    bp = sp;
-
-                    break;
-                }
-
-                case Opcode::LEAVE: {
-                    if (ip >= MEMORY_SIZE)
-                        throw std::runtime_error("IP out of bounds");
-                    const size_t TEMP_SIZE = memory[ip++];
-                    const uint64_t RESULT = pop();
-
-                    bp = pop();
-
-                    for (uint64_t i = 0; i < TEMP_SIZE; i++) {
-                        pop();
-                    }
-
-                    push(RESULT);
-                    break;
-                }
-
-                case Opcode::CALL: {
-                    if (ip >= MEMORY_SIZE)
-                        throw std::runtime_error("IP out of bounds");
-                    const uint64_t TARGET = memory[ip++]; // Read target and advance IP
-                    if (ip >= MEMORY_SIZE)
-                        throw std::runtime_error("IP out of bounds");
-                    const uint64_t NB_ARGS = memory[ip++]; // Arguments
-
-                    const uint64_t BASE = sp;
-
-                    push(ip);    // Save return address (now past the operand)
-                    ip = TARGET; // Jump to function
-
-                    for (uint64_t i = NB_ARGS; i > 0; i--) {
-                        push(memory[BASE + NB_ARGS - i]);
-                    }
-
-                    if (ip >= MEMORY_SIZE)
-                        throw std::runtime_error("Call target out of bounds");
-                    break;
-                }
-
-                case Opcode::RET: {
-                    if (ip >= MEMORY_SIZE)
-                        throw std::runtime_error("IP out of bounds");
-                    const size_t NB_ARGS = memory[ip++];
-
-                    const uint64_t RESULT = pop();
-
-                    for (uint64_t i = 0; i < NB_ARGS; i++) {
-                        pop();
-                    }
-
-                    const uint64_t RET_ADDR = pop(); // Pop return address
-
-                    for (uint64_t i = 0; i < NB_ARGS; i++) {
-                        pop();
-                    }
-
-                    push(RESULT);
-
-                    ip = RET_ADDR; // Return to caller
-
-                    if (ip >= MEMORY_SIZE) {
-                        throw std::runtime_error("Return address out of bounds");
-                    }
-
-                    break;
-                }
-
-                case Opcode::IRET: {
-                    ip = pop();
-
-                    if (ip >= MEMORY_SIZE) {
-                        throw std::runtime_error("Return address out of bounds");
-                    }
-
-                    interrupt_flag = true;
-
-                    break;
-                }
-
-                case Opcode::LOAD: {
-                    uint64_t addr = pop();
-                    check_memory_bounds(addr);
-                    push(memory[addr]);
-                    break;
-                }
-
-                case Opcode::STORE: {
-                    uint64_t addr = pop();
-                    uint64_t value = pop();
-                    check_memory_bounds(addr);
-                    if (addr < CODE_SIZE) {
-                        throw std::runtime_error("STORE Cannot write to code segment");
-                    }
-                    memory[addr] = value;
-                    break;
-                }
-
-                case Opcode::LOAD_BYTE: {
-                    // Load a single byte from memory
-                    // Stack: [addr] -> [byte_value]
-                    uint64_t addr = pop();
-                    check_memory_bounds(addr / 8); // Check word boundary
-
-                    // Calculate word index and byte offset
-                    uint64_t word_idx = addr / 8;
-                    uint64_t byte_offset = addr % 8;
-
-                    // Extract byte
-                    uint64_t word = memory[word_idx];
-                    uint8_t byte_val = (word >> (byte_offset * 8)) & 0xFF;
-
-                    push(byte_val);
-                    break;
-                }
-
-                case Opcode::STORE_BYTE: {
-                    // Store a single byte to memory
-                    // Stack: [value, addr] -> []
-                    uint64_t addr = pop();
-                    uint64_t value = pop() & 0xFF; // Only keep low byte
-
-                    check_memory_bounds(addr / 8);
-                    uint64_t word_idx = addr / 8;
-
-                    if (word_idx < CODE_SIZE) {
-                        throw std::runtime_error("STORE_BYTE Cannot write to code segment");
-                    }
-
-                    uint64_t byte_offset = addr % 8;
-
-                    // Read-modify-write: clear byte, then set new value
-                    uint64_t mask = ~(0xFFULL << (byte_offset * 8));
-                    memory[word_idx] = (memory[word_idx] & mask) | (value << (byte_offset * 8));
-                    break;
-                }
-
-                case Opcode::LOAD32: {
-                    // Load a 32-bit word from memory
-                    // Stack: [addr] -> [32bit_value]
-                    uint64_t addr = pop();
-                    check_memory_bounds(addr / 8);
-
-                    uint64_t word_idx = addr / 8;
-                    uint64_t is_high = (addr / 4) % 2; // 0 = low 32 bits, 1 = high 32 bits
-
-                    uint64_t word = memory[word_idx];
-                    uint32_t val32 = is_high ? (word >> 32) : (word & 0xFFFFFFFF);
-
-                    push(val32);
-                    break;
-                }
-
-                case Opcode::STORE32: {
-                    // Store a 32-bit word to memory
-                    // Stack: [value, addr] -> []
-                    uint64_t addr = pop();
-                    uint64_t value = pop() & 0xFFFFFFFF; // Only keep low 32 bits
-
-                    check_memory_bounds(addr / 8);
-                    uint64_t word_idx = addr / 8;
-
-                    if (word_idx < CODE_SIZE) {
-                        throw std::runtime_error("STORE32 Cannot write to code segment");
-                    }
-
-                    uint64_t is_high = (addr / 4) % 2;
-
-                    if (is_high) {
-                        // Store in high 32 bits
-                        memory[word_idx] = (memory[word_idx] & 0xFFFFFFFF) | (value << 32);
-                    } else {
-                        // Store in low 32 bits
-                        memory[word_idx] = (memory[word_idx] & 0xFFFFFFFF00000000ULL) | value;
-                    }
-                    break;
-                }
-
-                case Opcode::BP_LOAD: {
-                    const uint64_t IDX = pop();
-                    const uint64_t ADR = bp + IDX + 1;
-                    check_memory_bounds(ADR);
-                    const uint64_t VALUE = memory[ADR];
-                    push(VALUE);
-                    break;
-                }
-
-                case Opcode::BP_STORE: {
-                    const uint64_t IDX = pop();
-                    const uint64_t VALUE = pop();
-                    const uint64_t ADR = bp + IDX + 1; // with SP ++ IP on the stack
-                    check_memory_bounds(ADR);
-                    if (IDX < 1) {
-                        throw std::runtime_error("At least return");
-                    }
-                    if (ADR < CODE_SIZE) {
-                        throw std::runtime_error("BP_STORE Cannot write to code segment");
-                    }
-                    memory[ADR] = VALUE;
-                    break;
-                }
-                case Opcode::PRINT:
-                    std::cout << "DEBUG: " << peek() << '\n';
-                    break;
-
-                case Opcode::PRINT_STR: {
-                    uint64_t addr = peek();
-                    check_memory_bounds(addr);
-                    // Read length from first word
-                    uint64_t len = memory[addr];
-                    std::cout << "DEBUG_STR: ";
-                    // Read characters (packed as 8 bytes per word)
-                    for (uint64_t i = 0; i < len; i++) {
-                        uint64_t word_idx = (i / 8) + 1;
-                        uint64_t byte_idx = i % 8;
-                        uint64_t word = memory[addr + word_idx];
-                        char c = (word >> (byte_idx * 8)) & 0xFF;
-                        std::cout << c;
-                    }
-                    std::cout << '\n';
-                    break;
-                }
-
-                case Opcode::AND: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    push(a & b);
-                    break;
-                }
-
-                case Opcode::OR: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    push(a | b);
-                    break;
-                }
-
-                case Opcode::XOR: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    push(a ^ b);
-                    break;
-                }
-
-                case Opcode::SHL: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    push(a << b);
-                    break;
-                }
-
-                case Opcode::SHR: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    push(a >> b);
-                    break;
-                }
-
-                case Opcode::ASHR: {
-                    uint64_t b = pop();
-                    uint64_t a = pop();
-                    auto signed_a = static_cast<int64_t>(a);
-                    push(static_cast<uint64_t>(signed_a >> b));
-                    break;
-                }
-
-                case Opcode::CLI: {
-                    interrupt_flag = false;
-                    break;
-                }
-
-                case Opcode::STI: {
-                    interrupt_flag = true;
-                    break;
-                }
-
-                case Opcode::SIGNAL_REG: {
-                    const uint64_t signal = pop();
-                    const size_t code_ptr = pop();
-
-                    if (signal < 1 || signal > 31)
-                        throw std::runtime_error("Bad signal ID");
-
-                    if (code_ptr >= MEMORY_SIZE) {
-                        throw std::runtime_error("Interrupt pointer out of bounds");
-                    }
-
-                    signal_handlers[signal - 1] = code_ptr;
-
-                    break;
-                }
-
-                case Opcode::ABORT: {
-                    const uint64_t addr = pop();
-                    if (addr >= MEMORY_SIZE) {
-                        std::cerr << "ABORT: Invalid string address " << addr << std::endl;
-                        running = false;
-                        break;
-                    }
-
-                    // Read string: length followed by packed characters
-                    const uint64_t length = memory[addr];
-                    std::cout << "ABORT: ";
-                    for (size_t i = 0; i < length; i++) {
-                        const size_t word_idx = addr + 1 + i / 8;
-                        const size_t byte_idx = i % 8;
-                        const char c =
-                            static_cast<char>((memory[word_idx] >> (byte_idx * 8)) & 0xFF);
-                        std::cout << c;
-                    }
-                    std::cout << std::endl;
-                    running = false;
-                    break;
-                }
-
-                case Opcode::FUNCALL: {
-                    // Stack: [arg1] [arg2] ... [argN] [arg_count] [target_address]
-                    const uint64_t TARGET = pop();
-                    const uint64_t NB_ARGS = pop();
-
-                    if (TARGET >= MEMORY_SIZE)
-                        throw std::runtime_error("FUNCALL target out of bounds");
-
-                    const uint64_t BASE = sp;
-
-                    push(ip);    // Save return address
-                    ip = TARGET; // Jump to function
-
-                    // Push arguments to new frame
-                    for (uint64_t i = NB_ARGS; i > 0; i--) {
-                        push(memory[BASE + NB_ARGS - i]);
-                    }
-
-                    break;
-                }
-
-                default:
-                    throw std::runtime_error("Unknown opcode");
+            // Computed goto dispatch table for faster branch prediction
+            static const void* dispatch_table[] = {
+                &&op_halt,       &&op_push,      &&op_pop,     &&op_dup,     &&op_swap,
+                &&op_add,        &&op_sub,       &&op_mul,     &&op_div,     &&op_mod,
+                &&op_eq,         &&op_lt,        &&op_gt,      &&op_lte,     &&op_gte,
+                &&op_jmp,        &&op_jz,        &&op_enter,   &&op_leave,   &&op_call,
+                &&op_ret,        &&op_iret,      &&op_load,    &&op_store,   &&op_load_byte,
+                &&op_store_byte, &&op_load32,    &&op_store32, &&op_bp_load, &&op_bp_store,
+                &&op_print,      &&op_print_str, &&op_and,     &&op_or,      &&op_xor,
+                &&op_shl,        &&op_shr,       &&op_ashr,    &&op_cli,     &&op_sti,
+                &&op_signal_reg, &&op_abort,     &&op_funcall};
+
+            const uint8_t opcode_idx = static_cast<uint8_t>(OP);
+            if (opcode_idx >= 43) {
+                throw std::runtime_error("Unknown opcode");
             }
+            goto* dispatch_table[opcode_idx];
+
+        op_halt:
+            running = false;
+            continue;
+
+        op_push:
+            if (ip >= MEMORY_SIZE)
+                throw std::runtime_error("IP out of bounds");
+            push(memory[ip++]);
+            continue;
+
+        op_pop:
+            pop();
+            continue;
+
+        op_dup:
+            push(peek());
+            continue;
+
+        op_swap: {
+            uint64_t a = pop();
+            uint64_t b = pop();
+            push(a);
+            push(b);
+            continue;
+        }
+
+        op_add: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            push(a + b);
+            continue;
+        }
+
+        op_sub: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            push(a - b);
+            continue;
+        }
+
+        op_mul: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            push(a * b);
+            continue;
+        }
+
+        op_div: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            if (b == 0)
+                throw std::runtime_error("Division by zero");
+            push(a / b);
+            continue;
+        }
+
+        op_mod: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            if (b == 0)
+                throw std::runtime_error("Modulo by zero");
+            push(a % b);
+            continue;
+        }
+
+        op_eq: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            push(a == b ? 1 : 0);
+            continue;
+        }
+
+        op_lt: {
+            int64_t b = static_cast<int64_t>(pop());
+            int64_t a = static_cast<int64_t>(pop());
+            push(a < b ? 1 : 0);
+            continue;
+        }
+
+        op_gt: {
+            int64_t b = static_cast<int64_t>(pop());
+            int64_t a = static_cast<int64_t>(pop());
+            push(a > b ? 1 : 0);
+            continue;
+        }
+
+        op_lte: {
+            int64_t b = static_cast<int64_t>(pop());
+            int64_t a = static_cast<int64_t>(pop());
+            push(a <= b ? 1 : 0);
+            continue;
+        }
+
+        op_gte: {
+            int64_t b = static_cast<int64_t>(pop());
+            int64_t a = static_cast<int64_t>(pop());
+            push(a >= b ? 1 : 0);
+            continue;
+        }
+
+        op_jmp:
+            if (ip >= MEMORY_SIZE)
+                throw std::runtime_error("IP out of bounds");
+            ip = memory[ip];
+            if (ip >= MEMORY_SIZE)
+                throw std::runtime_error("Jump target out of bounds");
+            continue;
+
+        op_jz: {
+            if (ip >= MEMORY_SIZE)
+                throw std::runtime_error("IP out of bounds");
+            uint64_t cond = pop();
+            uint64_t addr = memory[ip++];
+            if (cond == 0) {
+                ip = addr;
+                if (ip >= MEMORY_SIZE)
+                    throw std::runtime_error("Jump target out of bounds");
+            }
+            continue;
+        }
+
+        op_enter: {
+            if (ip >= MEMORY_SIZE)
+                throw std::runtime_error("IP out of bounds");
+            const size_t TEMP_SIZE = memory[ip++];
+
+            for (uint64_t i = 0; i < TEMP_SIZE; i++) {
+                push(0);
+            }
+            push(bp);
+            bp = sp;
+
+            continue;
+        }
+
+        op_leave: {
+            if (ip >= MEMORY_SIZE)
+                throw std::runtime_error("IP out of bounds");
+            const size_t TEMP_SIZE = memory[ip++];
+            const uint64_t RESULT = pop();
+
+            bp = pop();
+
+            for (uint64_t i = 0; i < TEMP_SIZE; i++) {
+                pop();
+            }
+
+            push(RESULT);
+            continue;
+        }
+
+        op_call: {
+            if (ip >= MEMORY_SIZE)
+                throw std::runtime_error("IP out of bounds");
+            const uint64_t TARGET = memory[ip++]; // Read target and advance IP
+            if (ip >= MEMORY_SIZE)
+                throw std::runtime_error("IP out of bounds");
+            const uint64_t NB_ARGS = memory[ip++]; // Arguments
+
+            const uint64_t BASE = sp;
+
+            push(ip);    // Save return address (now past the operand)
+            ip = TARGET; // Jump to function
+
+            for (uint64_t i = NB_ARGS; i > 0; i--) {
+                push(memory[BASE + NB_ARGS - i]);
+            }
+
+            if (ip >= MEMORY_SIZE)
+                throw std::runtime_error("Call target out of bounds");
+            continue;
+        }
+
+        op_ret: {
+            if (ip >= MEMORY_SIZE)
+                throw std::runtime_error("IP out of bounds");
+            const size_t NB_ARGS = memory[ip++];
+
+            const uint64_t RESULT = pop();
+
+            for (uint64_t i = 0; i < NB_ARGS; i++) {
+                pop();
+            }
+
+            const uint64_t RET_ADDR = pop(); // Pop return address
+
+            for (uint64_t i = 0; i < NB_ARGS; i++) {
+                pop();
+            }
+
+            push(RESULT);
+
+            ip = RET_ADDR; // Return to caller
+
+            if (ip >= MEMORY_SIZE) {
+                throw std::runtime_error("Return address out of bounds");
+            }
+
+            continue;
+        }
+
+        op_iret: {
+            ip = pop();
+
+            if (ip >= MEMORY_SIZE) {
+                throw std::runtime_error("Return address out of bounds");
+            }
+
+            interrupt_flag = true;
+
+            continue;
+        }
+
+        op_load: {
+            uint64_t addr = pop();
+            check_memory_bounds(addr);
+            push(memory[addr]);
+            continue;
+        }
+
+        op_store: {
+            uint64_t addr = pop();
+            uint64_t value = pop();
+            check_memory_bounds(addr);
+            if (addr < CODE_SIZE) {
+                throw std::runtime_error("STORE Cannot write to code segment");
+            }
+            memory[addr] = value;
+            continue;
+        }
+
+        op_load_byte: {
+            // Load a single byte from memory
+            // Stack: [addr] -> [byte_value]
+            uint64_t addr = pop();
+            check_memory_bounds(addr / 8); // Check word boundary
+
+            // Calculate word index and byte offset
+            uint64_t word_idx = addr / 8;
+            uint64_t byte_offset = addr % 8;
+
+            // Extract byte
+            uint64_t word = memory[word_idx];
+            uint8_t byte_val = (word >> (byte_offset * 8)) & 0xFF;
+
+            push(byte_val);
+            continue;
+        }
+
+        op_store_byte: {
+            // Store a single byte to memory
+            // Stack: [value, addr] -> []
+            uint64_t addr = pop();
+            uint64_t value = pop() & 0xFF; // Only keep low byte
+
+            check_memory_bounds(addr / 8);
+            uint64_t word_idx = addr / 8;
+
+            if (word_idx < CODE_SIZE) {
+                throw std::runtime_error("STORE_BYTE Cannot write to code segment");
+            }
+
+            uint64_t byte_offset = addr % 8;
+
+            // Read-modify-write: clear byte, then set new value
+            uint64_t mask = ~(0xFFULL << (byte_offset * 8));
+            memory[word_idx] = (memory[word_idx] & mask) | (value << (byte_offset * 8));
+            continue;
+        }
+
+        op_load32: {
+            // Load a 32-bit word from memory
+            // Stack: [addr] -> [32bit_value]
+            uint64_t addr = pop();
+            check_memory_bounds(addr / 8);
+
+            uint64_t word_idx = addr / 8;
+            uint64_t is_high = (addr / 4) % 2; // 0 = low 32 bits, 1 = high 32 bits
+
+            uint64_t word = memory[word_idx];
+            uint32_t val32 = is_high ? (word >> 32) : (word & 0xFFFFFFFF);
+
+            push(val32);
+            continue;
+        }
+
+        op_store32: {
+            // Store a 32-bit word to memory
+            // Stack: [value, addr] -> []
+            uint64_t addr = pop();
+            uint64_t value = pop() & 0xFFFFFFFF; // Only keep low 32 bits
+
+            check_memory_bounds(addr / 8);
+            uint64_t word_idx = addr / 8;
+
+            if (word_idx < CODE_SIZE) {
+                throw std::runtime_error("STORE32 Cannot write to code segment");
+            }
+
+            uint64_t is_high = (addr / 4) % 2;
+
+            if (is_high) {
+                // Store in high 32 bits
+                memory[word_idx] = (memory[word_idx] & 0xFFFFFFFF) | (value << 32);
+            } else {
+                // Store in low 32 bits
+                memory[word_idx] = (memory[word_idx] & 0xFFFFFFFF00000000ULL) | value;
+            }
+            continue;
+        }
+
+        op_bp_load: {
+            const uint64_t IDX = pop();
+            const uint64_t ADR = bp + IDX + 1;
+            check_memory_bounds(ADR);
+            const uint64_t VALUE = memory[ADR];
+            push(VALUE);
+            continue;
+        }
+
+        op_bp_store: {
+            const uint64_t IDX = pop();
+            const uint64_t VALUE = pop();
+            const uint64_t ADR = bp + IDX + 1; // with SP ++ IP on the stack
+            check_memory_bounds(ADR);
+            if (IDX < 1) {
+                throw std::runtime_error("At least return");
+            }
+            if (ADR < CODE_SIZE) {
+                throw std::runtime_error("BP_STORE Cannot write to code segment");
+            }
+            memory[ADR] = VALUE;
+            continue;
+        }
+
+        op_print:
+            std::cout << "DEBUG: " << peek() << '\n';
+            continue;
+
+        op_print_str: {
+            uint64_t addr = peek();
+            check_memory_bounds(addr);
+            // Read length from first word
+            uint64_t len = memory[addr];
+            std::cout << "DEBUG_STR: ";
+            // Read characters (packed as 8 bytes per word)
+            for (uint64_t i = 0; i < len; i++) {
+                uint64_t word_idx = (i / 8) + 1;
+                uint64_t byte_idx = i % 8;
+                uint64_t word = memory[addr + word_idx];
+                char c = (word >> (byte_idx * 8)) & 0xFF;
+                std::cout << c;
+            }
+            std::cout << '\n';
+            continue;
+        }
+
+        op_and: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            push(a & b);
+            continue;
+        }
+
+        op_or: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            push(a | b);
+            continue;
+        }
+
+        op_xor: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            push(a ^ b);
+            continue;
+        }
+
+        op_shl: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            push(a << b);
+            continue;
+        }
+
+        op_shr: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            push(a >> b);
+            continue;
+        }
+
+        op_ashr: {
+            uint64_t b = pop();
+            uint64_t a = pop();
+            auto signed_a = static_cast<int64_t>(a);
+            push(static_cast<uint64_t>(signed_a >> b));
+            continue;
+        }
+
+        op_cli:
+            interrupt_flag = false;
+            continue;
+
+        op_sti:
+            interrupt_flag = true;
+            continue;
+
+        op_signal_reg: {
+            const uint64_t signal = pop();
+            const size_t code_ptr = pop();
+
+            if (signal < 1 || signal > 31)
+                throw std::runtime_error("Bad signal ID");
+
+            if (code_ptr >= MEMORY_SIZE) {
+                throw std::runtime_error("Interrupt pointer out of bounds");
+            }
+
+            signal_handlers[signal - 1] = code_ptr;
+
+            continue;
+        }
+
+        op_abort: {
+            const uint64_t addr = pop();
+            if (addr >= MEMORY_SIZE) {
+                std::cerr << "ABORT: Invalid string address " << addr << std::endl;
+                running = false;
+                continue;
+            }
+
+            // Read string: length followed by packed characters
+            const uint64_t length = memory[addr];
+            std::cout << "ABORT: ";
+            for (size_t i = 0; i < length; i++) {
+                const size_t word_idx = addr + 1 + i / 8;
+                const size_t byte_idx = i % 8;
+                const char c = static_cast<char>((memory[word_idx] >> (byte_idx * 8)) & 0xFF);
+                std::cout << c;
+            }
+            std::cout << std::endl;
+            running = false;
+            continue;
+        }
+
+        op_funcall: {
+            // Stack: [arg1] [arg2] ... [argN] [arg_count] [target_address]
+            const uint64_t TARGET = pop();
+            const uint64_t NB_ARGS = pop();
+
+            if (TARGET >= MEMORY_SIZE)
+                throw std::runtime_error("FUNCALL target out of bounds");
+
+            const uint64_t BASE = sp;
+
+            push(ip);    // Save return address
+            ip = TARGET; // Jump to function
+
+            // Push arguments to new frame
+            for (uint64_t i = NB_ARGS; i > 0; i--) {
+                push(memory[BASE + NB_ARGS - i]);
+            }
+
+            continue;
+        }
         }
 
         running = true;

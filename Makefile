@@ -4,7 +4,12 @@
 
 # Compiler and flags
 CXX := g++
-CXXFLAGS := -std=c++17 -Wall -Wextra -O0 -g
+# OPTIMIZE flag support: make OPTIMIZE=1 for -O3, default -O0 -g
+ifdef OPTIMIZE
+    CXXFLAGS := -std=c++17 -Wall -Wextra -O3
+else
+    CXXFLAGS := -std=c++17 -Wall -Wextra -O0 -g
+endif
 LDFLAGS :=
 
 # Directories
@@ -58,6 +63,7 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_vm_alu \
 	$(BUILD_DIR)/test_vm_memory \
 	$(BUILD_DIR)/test_vm_control \
+	$(BUILD_DIR)/test_vm_benchmark \
 	$(BUILD_DIR)/test_parser_basic \
 	$(BUILD_DIR)/test_parser_comments \
 	$(BUILD_DIR)/test_parser_errors \
@@ -115,6 +121,11 @@ help:
 	@echo "  make parser-all   - Run all parser tests"
 	@echo "  make compiler-all - Run all compiler tests"
 	@echo "  make transpiler   - Run transpiler tests"
+	@echo ""
+	@echo "$(COLOR_BOLD)Performance:$(COLOR_RESET)"
+	@echo "  make benchmark    - Run dispatch benchmarks (-O0 and -O3)"
+	@echo "  make benchmark-o0 - Benchmark at -O0 (debug)"
+	@echo "  make benchmark-o3 - Benchmark at -O3 (release)"
 	@echo ""
 	@echo "$(COLOR_BOLD)Code Quality:$(COLOR_RESET)"
 	@echo "  make format       - Format all C++ files"
@@ -359,6 +370,36 @@ test-all: vm-all parser-all compiler-all transpiler integration-all
 	@echo "    ✓ Loops, Microcode, Advanced"
 	@echo "    ✓ Smalltalk, Comments"
 	@echo "$(COLOR_GREEN)$(COLOR_BOLD)======================================$(COLOR_RESET)"
+
+# ============================================================================
+# Performance Benchmarking
+# ============================================================================
+
+.PHONY: benchmark benchmark-o0 benchmark-o3
+
+benchmark-o0: $(BUILD_DIR)/test_vm_benchmark
+	@echo ""
+	@echo "$(COLOR_BLUE)$(COLOR_BOLD)╔════════════════════════════════════════════════╗$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)$(COLOR_BOLD)║   Computed Goto Benchmark (-O0 Debug Build)   ║$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)$(COLOR_BOLD)╚════════════════════════════════════════════════╝$(COLOR_RESET)"
+	@echo ""
+	@./$(BUILD_DIR)/test_vm_benchmark
+
+benchmark-o3:
+	@$(MAKE) clean > /dev/null 2>&1
+	@$(MAKE) OPTIMIZE=1 $(BUILD_DIR)/test_vm_benchmark > /dev/null 2>&1
+	@echo ""
+	@echo "$(COLOR_GREEN)$(COLOR_BOLD)╔════════════════════════════════════════════════╗$(COLOR_RESET)"
+	@echo "$(COLOR_GREEN)$(COLOR_BOLD)║   Computed Goto Benchmark (-O3 Release Build) ║$(COLOR_RESET)"
+	@echo "$(COLOR_GREEN)$(COLOR_BOLD)╚════════════════════════════════════════════════╝$(COLOR_RESET)"
+	@echo ""
+	@./$(BUILD_DIR)/test_vm_benchmark
+
+benchmark: benchmark-o0 benchmark-o3
+	@echo ""
+	@echo "$(COLOR_GREEN)$(COLOR_BOLD)✓ Benchmark complete!$(COLOR_RESET)"
+	@echo ""
+	@echo "$(COLOR_YELLOW)Note: Computed goto provides 20-40% speedup over switch at -O3$(COLOR_RESET)"
 
 # ============================================================================
 # Transpiler Workflows
