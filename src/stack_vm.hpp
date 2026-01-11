@@ -87,6 +87,7 @@ class StackVM {
     uint64_t bp;      // Base/frame pointer
     uint64_t hp;      // Heap pointer
     bool running{false};
+    bool trace_mode{false}; // Enable trace/debug output during execution
 
     // Memory layout constants are defined in memory_layout.hpp
     // See MemoryLayout namespace for region boundaries and helper functions
@@ -121,6 +122,99 @@ class StackVM {
     static void check_memory_bounds(uint64_t addr) {
         if (addr >= MEMORY_SIZE) {
             throw std::runtime_error("Memory access out of bounds");
+        }
+    }
+
+    static const char* opcode_name(Opcode op) {
+        switch (op) {
+            case Opcode::HALT:
+                return "HALT";
+            case Opcode::PUSH:
+                return "PUSH";
+            case Opcode::POP:
+                return "POP";
+            case Opcode::DUP:
+                return "DUP";
+            case Opcode::SWAP:
+                return "SWAP";
+            case Opcode::ADD:
+                return "ADD";
+            case Opcode::SUB:
+                return "SUB";
+            case Opcode::MUL:
+                return "MUL";
+            case Opcode::DIV:
+                return "DIV";
+            case Opcode::MOD:
+                return "MOD";
+            case Opcode::EQ:
+                return "EQ";
+            case Opcode::LT:
+                return "LT";
+            case Opcode::GT:
+                return "GT";
+            case Opcode::LTE:
+                return "LTE";
+            case Opcode::GTE:
+                return "GTE";
+            case Opcode::JMP:
+                return "JMP";
+            case Opcode::JZ:
+                return "JZ";
+            case Opcode::ENTER:
+                return "ENTER";
+            case Opcode::LEAVE:
+                return "LEAVE";
+            case Opcode::CALL:
+                return "CALL";
+            case Opcode::RET:
+                return "RET";
+            case Opcode::IRET:
+                return "IRET";
+            case Opcode::LOAD:
+                return "LOAD";
+            case Opcode::STORE:
+                return "STORE";
+            case Opcode::LOAD_BYTE:
+                return "LOAD_BYTE";
+            case Opcode::STORE_BYTE:
+                return "STORE_BYTE";
+            case Opcode::LOAD32:
+                return "LOAD32";
+            case Opcode::STORE32:
+                return "STORE32";
+            case Opcode::BP_LOAD:
+                return "BP_LOAD";
+            case Opcode::BP_STORE:
+                return "BP_STORE";
+            case Opcode::PRINT:
+                return "PRINT";
+            case Opcode::PRINT_STR:
+                return "PRINT_STR";
+            case Opcode::AND:
+                return "AND";
+            case Opcode::OR:
+                return "OR";
+            case Opcode::XOR:
+                return "XOR";
+            case Opcode::SHL:
+                return "SHL";
+            case Opcode::SHR:
+                return "SHR";
+            case Opcode::ASHR:
+                return "ASHR";
+            case Opcode::CLI:
+                return "CLI";
+            case Opcode::STI:
+                return "STI";
+            case Opcode::SIGNAL_REG:
+                return "SIGNAL_REG";
+            case Opcode::ABORT:
+                return "ABORT";
+            case Opcode::FUNCALL:
+                return "FUNCALL";
+            default:
+                return "UNKNOWN";
         }
     }
 
@@ -193,6 +287,11 @@ class StackVM {
 
             const uint64_t INSTRUCTION = memory[ip++];
             const auto OP = static_cast<Opcode>(INSTRUCTION & 0xFF);
+
+            if (trace_mode) {
+                std::cerr << "IP=" << (ip - 1) << " OP=" << opcode_name(OP) << " SP=" << sp
+                          << " BP=" << bp << " HP=" << hp << std::endl;
+            }
 
             switch (OP) {
                 case Opcode::HALT:
@@ -710,6 +809,98 @@ class StackVM {
             throw std::runtime_error("Cannot write to code segment");
         }
         memory[addr] = value;
+    }
+
+    // Debug/trace mode controls
+    void set_trace_mode(bool enabled) {
+        trace_mode = enabled;
+    }
+    [[nodiscard]] bool get_trace_mode() const {
+        return trace_mode;
+    }
+
+    // Dump stack contents (top 'count' elements)
+    void dump_stack(size_t count = 10) const {
+        std::cerr << "=== Stack Dump ===" << std::endl;
+        std::cerr << "SP=" << sp << " (STACK_BASE=" << STACK_BASE << ")" << std::endl;
+
+        size_t depth = STACK_BASE - sp;
+        size_t to_print = std::min(count, depth);
+
+        for (size_t i = 0; i < to_print; i++) {
+            uint64_t addr = sp + i;
+            std::cerr << "  [SP+" << i << "] @" << addr << ": " << memory[addr] << " (0x"
+                      << std::hex << memory[addr] << std::dec << ")" << std::endl;
+        }
+
+        if (depth > to_print) {
+            std::cerr << "  ... (" << (depth - to_print) << " more)" << std::endl;
+        }
+    }
+
+    // Dump memory range [start, end)
+    void dump_memory(uint64_t start, uint64_t end) const {
+        std::cerr << "=== Memory Dump [" << start << ", " << end << ") ===" << std::endl;
+
+        if (end > MEMORY_SIZE) {
+            end = MEMORY_SIZE;
+        }
+        if (start >= end) {
+            std::cerr << "Invalid range" << std::endl;
+            return;
+        }
+
+        for (uint64_t addr = start; addr < end; addr++) {
+            std::cerr << "  @" << addr << ": " << memory[addr] << " (0x" << std::hex << memory[addr]
+                      << std::dec << ")";
+
+            // Mark special addresses
+            if (addr == ip)
+                std::cerr << " <- IP";
+            if (addr == sp)
+                std::cerr << " <- SP";
+            if (addr == bp)
+                std::cerr << " <- BP";
+            if (addr == hp)
+                std::cerr << " <- HP";
+
+            std::cerr << std::endl;
+        }
+    }
+
+    // Disassemble bytecode starting at 'start' for 'count' instructions
+    void disassemble(uint64_t start, uint64_t count) const {
+        std::cerr << "=== Disassembly @ " << start << " ===" << std::endl;
+
+        uint64_t addr = start;
+        for (uint64_t i = 0; i < count && addr < MEMORY_SIZE; i++) {
+            uint64_t instr = memory[addr];
+            auto op = static_cast<Opcode>(instr & 0xFF);
+
+            std::cerr << "  @" << addr << ": " << opcode_name(op);
+
+            // Show immediate value for opcodes that use it
+            switch (op) {
+                case Opcode::PUSH:
+                case Opcode::JMP:
+                case Opcode::JZ:
+                case Opcode::CALL:
+                case Opcode::BP_LOAD:
+                case Opcode::BP_STORE:
+                    if (addr + 1 < MEMORY_SIZE) {
+                        std::cerr << " " << memory[addr + 1];
+                        addr++; // Skip immediate
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            if (addr == ip - 1)
+                std::cerr << " <- IP";
+            std::cerr << std::endl;
+            addr++;
+        }
     }
 };
 
