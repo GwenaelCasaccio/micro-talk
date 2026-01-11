@@ -2682,12 +2682,12 @@
       ; Test 50.2: Full message send with lookup + funcall
       (print-string "Test 50.2: Complete message send: lookup + funcall")
 
-      (define-func (send-message receiver selector arg)
+      (define-func (send-message receiver selector arg cache-id)
         (do
-          (define-var method (lookup-method receiver selector))
+          (define-var method (lookup-method-cached receiver selector cache-id))
           (funcall method receiver arg)))
 
-      (define-var msg-result (send-message (tag-int 10) sel-plus-id (tag-int 32)))
+      (define-var msg-result (send-message (tag-int 10) sel-plus-id (tag-int 32) 10))
       (print-string "  10 + 32 via send-message:")
       (print-int (untag-int msg-result))
       (assert-equal (untag-int msg-result) 42 "10 + 32 should be 42")
@@ -2698,17 +2698,17 @@
       ; Test 50.3: Multiple message sends
       (print-string "Test 50.3: Multiple message sends via funcall")
 
-      (define-var r1 (send-message (tag-int 7) sel-mul-id (tag-int 6)))
+      (define-var r1 (send-message (tag-int 7) sel-mul-id (tag-int 6) 11))
       (print-string "  7 * 6 =")
       (print-int (untag-int r1))
       (assert-equal (untag-int r1) 42 "7 * 6 should be 42")
 
-      (define-var r2 (send-message (tag-int 100) sel-minus-id (tag-int 58)))
+      (define-var r2 (send-message (tag-int 100) sel-minus-id (tag-int 58) 12))
       (print-string "  100 - 58 =")
       (print-int (untag-int r2))
       (assert-equal (untag-int r2) 42 "100 - 58 should be 42")
 
-      (define-var r3 (send-message (tag-int 126) sel-div-id (tag-int 3)))
+      (define-var r3 (send-message (tag-int 126) sel-div-id (tag-int 3) 13))
       (print-string "  126 / 3 =")
       (print-int (untag-int r3))
       (assert-equal (untag-int r3) 42 "126 / 3 should be 42")
