@@ -61,6 +61,7 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_parser_basic \
 	$(BUILD_DIR)/test_parser_comments \
 	$(BUILD_DIR)/test_parser_errors \
+	$(BUILD_DIR)/test_parser_radix \
 	$(BUILD_DIR)/test_compiler_basic \
 	$(BUILD_DIR)/test_compiler_control \
 	$(BUILD_DIR)/test_compiler_variables \
@@ -301,7 +302,10 @@ parser-comments: $(BUILD_DIR)/test_parser_comments
 parser-errors: $(BUILD_DIR)/test_parser_errors
 	@./$(BUILD_DIR)/test_parser_errors
 
-parser-all: parser-basic parser-comments parser-errors
+parser-radix: $(BUILD_DIR)/test_parser_radix
+	@./$(BUILD_DIR)/test_parser_radix
+
+parser-all: parser-basic parser-comments parser-errors parser-radix
 	@echo ""
 	@echo "$(COLOR_GREEN)✓ All parser tests passed!$(COLOR_RESET)"
 

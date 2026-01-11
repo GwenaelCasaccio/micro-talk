@@ -47,29 +47,29 @@ int main() {
              "(do "
              "  (define-var HEAP_WORDS 268435456) "
              "  (define-var addr (* HEAP_WORDS 8)) "
-             "  (poke-byte addr 66) "
+             "  (poke-byte addr 16r42) "
              "  (peek-byte addr))",
-             66);
+             0x42);
 
     run_test("Store multiple bytes in same word",
              "(do "
              "  (define-var base (* 268435456 8)) "
-             "  (poke-byte base 17) "
-             "  (poke-byte (+ base 1) 34) "
-             "  (poke-byte (+ base 2) 51) "
-             "  (poke-byte (+ base 3) 68) "
+             "  (poke-byte base 16r11) "
+             "  (poke-byte (+ base 1) 16r22) "
+             "  (poke-byte (+ base 2) 16r33) "
+             "  (poke-byte (+ base 3) 16r44) "
              "  (+ (+ (peek-byte base) (peek-byte (+ base 1))) "
              "     (+ (peek-byte (+ base 2)) (peek-byte (+ base 3)))))",
-             17 + 34 + 51 + 68);
+             0x11 + 0x22 + 0x33 + 0x44);
 
     run_test("Byte operations preserve other bytes",
              "(do "
              "  (define-var word-addr 268435456) "
-             "  (poke word-addr 1234605616436508552) "
+             "  (poke word-addr 16r1122334455667788) "
              "  (define-var byte-addr (* word-addr 8)) "
-             "  (poke-byte (+ byte-addr 1) 255) "
+             "  (poke-byte (+ byte-addr 1) 16rFF) "
              "  (peek-byte (+ byte-addr 1)))",
-             255);
+             0xFF);
 
     // Test 2: 32-bit operations
     // Note: peek32/poke32 use byte addresses for 32-bit values
@@ -77,17 +77,17 @@ int main() {
     run_test("Store and load 32-bit value",
              "(do "
              "  (define-var addr32 (* 268435456 8)) "
-             "  (poke32 addr32 305419896) "
+             "  (poke32 addr32 16r12345678) "
              "  (peek32 addr32))",
-             305419896);
+             0x12345678);
 
     run_test("Two 32-bit values in one 64-bit word",
              "(do "
              "  (define-var base (* 268435456 8)) "
-             "  (poke32 base 286331153) "
-             "  (poke32 (+ base 4) 572662306) "
+             "  (poke32 base 16r11111111) "
+             "  (poke32 (+ base 4) 16r22222222) "
              "  (+ (peek32 base) (peek32 (+ base 4))))",
-             286331153 + 572662306);
+             0x11111111 + 0x22222222);
 
     // Test 3: Mixed operations
     std::cout << "--- Test 3: Mixed Operations ---" << std::endl;
@@ -96,21 +96,21 @@ int main() {
              "  (define-var word-addr 268435460) "
              "  (poke word-addr 0) "
              "  (define-var byte-addr (* word-addr 8)) "
-             "  (poke-byte byte-addr 18) "
-             "  (poke-byte (+ byte-addr 7) 52) "
+             "  (poke-byte byte-addr 16r12) "
+             "  (poke-byte (+ byte-addr 7) 16r34) "
              "  (+ (peek-byte byte-addr) (peek-byte (+ byte-addr 7))))",
-             18 + 52);
+             0x12 + 0x34);
 
     run_test("Verify byte addressing within word",
              "(do "
              "  (define-var word-addr 268435472) "
-             "  (poke word-addr 72623859790382856) "
+             "  (poke word-addr 16r0102030405060708) "
              "  (define-var base (* word-addr 8)) "
              "  (+ (+ (+ (peek-byte base) (peek-byte (+ base 1))) "
              "        (+ (peek-byte (+ base 2)) (peek-byte (+ base 3)))) "
              "     (+ (+ (peek-byte (+ base 4)) (peek-byte (+ base 5))) "
              "        (+ (peek-byte (+ base 6)) (peek-byte (+ base 7))))))",
-             8 + 7 + 6 + 5 + 4 + 3 + 2 + 1);
+             1 + 2 + 3 + 4 + 5 + 6 + 7 + 8);
 
     // Test 4: Memory alignment with 8-byte malloc
     std::cout << "--- Test 4: 8-byte Alignment ---" << std::endl;

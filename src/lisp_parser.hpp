@@ -109,6 +109,7 @@ class LispParser {
             next();
         }
 
+        // Parse initial digits (could be radix or the number itself)
         while (std::isdigit(peek()) != 0) {
             num_str += next();
         }
@@ -117,6 +118,48 @@ class LispParser {
             throw std::runtime_error("Invalid number");
         }
 
+        // Check for radix notation: <radix>r<digits>
+        // e.g., 16rFF, 2r1010, 8r77
+        if (peek() == 'r' || peek() == 'R') {
+            next(); // consume 'r'
+
+            int radix = std::stoi(num_str);
+            if (radix < 2 || radix > 36) {
+                throw std::runtime_error("Radix must be between 2 and 36");
+            }
+
+            // Parse digits in the specified radix
+            std::string digits;
+            while (!is_delimiter(peek())) {
+                char c = peek();
+                // Check if character is valid for this radix
+                int digit_value;
+                if (std::isdigit(c)) {
+                    digit_value = c - '0';
+                } else if (std::isalpha(c)) {
+                    digit_value = std::toupper(c) - 'A' + 10;
+                } else {
+                    throw std::runtime_error("Invalid digit in radix notation");
+                }
+
+                if (digit_value >= radix) {
+                    throw std::runtime_error("Digit out of range for radix " +
+                                             std::to_string(radix));
+                }
+
+                digits += next();
+            }
+
+            if (digits.empty()) {
+                throw std::runtime_error("Missing digits after radix notation");
+            }
+
+            // Convert from specified radix to int64_t
+            int64_t value = std::stoll(digits, nullptr, radix);
+            return ASTNode::make_number(negative ? -value : value);
+        }
+
+        // Normal decimal number
         int64_t value = std::stoll(num_str);
         return ASTNode::make_number(negative ? -value : value);
     }
