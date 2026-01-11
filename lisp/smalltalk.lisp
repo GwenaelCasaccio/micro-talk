@@ -2682,10 +2682,15 @@
       ; Test 50.2: Full message send with lookup + funcall
       (print-string "Test 50.2: Complete message send: lookup + funcall")
 
+      ; Unified send-message: handles both unary (arg = NULL) and binary messages
       (define-func (send-message receiver selector arg cache-id)
         (do
           (define-var method (lookup-method-cached receiver selector cache-id))
-          (funcall method receiver arg)))
+          (if (= arg NULL)
+              ; Unary: call with just receiver
+              (funcall method receiver)
+              ; Binary: call with receiver and arg
+              (funcall method receiver arg))))
 
       (define-var msg-result (send-message (tag-int 10) sel-plus-id (tag-int 32) 10))
       (print-string "  10 + 32 via send-message:")
@@ -2801,20 +2806,15 @@
       (print-string "Examples: negated, size, hash, yourself, class")
       (print-string "")
 
-      ; Define send-unary for unary messages (no arguments)
-      (define-func (send-unary receiver selector cache-id)
-        (do
-          (define-var method (lookup-method-cached receiver selector cache-id))
-          (funcall method receiver)))
-
       ; Test 52.1: Basic unary message (negated)
+      ; Use send-message with NULL arg for unary messages
       (print-string "Test 52.1: Unary message - negated")
 
-      (define-var neg1 (send-unary (tag-int 42) negated-sel 20))
+      (define-var neg1 (send-message (tag-int 42) negated-sel NULL 20))
       (assert-equal (untag-int neg1) -42 "42 negated should be -42")
       (print-string "  42 negated = -42")
 
-      (define-var neg2 (send-unary (tag-int -17) negated-sel 21))
+      (define-var neg2 (send-message (tag-int -17) negated-sel NULL 21))
       (assert-equal (untag-int neg2) 17 "-17 negated should be 17")
       (print-string "  -17 negated = 17")
 
@@ -2842,11 +2842,11 @@
 
       (method-dict-add si-methods-real abs-sel (function-address si-abs-impl))
 
-      (define-var abs1 (send-unary (tag-int -42) abs-sel 22))
+      (define-var abs1 (send-message (tag-int -42) abs-sel NULL 22))
       (assert-equal (untag-int abs1) 42 "abs(-42) should be 42")
       (print-string "  -42 abs = 42")
 
-      (define-var abs2 (send-unary (tag-int 17) abs-sel 23))
+      (define-var abs2 (send-message (tag-int 17) abs-sel NULL 23))
       (assert-equal (untag-int abs2) 17 "abs(17) should be 17")
       (print-string "  17 abs = 17")
 
@@ -2887,19 +2887,19 @@
       (method-dict-add si-methods-real even-sel (function-address si-even-impl))
       (method-dict-add si-methods-real odd-sel (function-address si-odd-impl))
 
-      (define-var even1 (send-unary (tag-int 42) even-sel 24))
+      (define-var even1 (send-message (tag-int 42) even-sel NULL 24))
       (assert-equal (untag-int even1) 1 "42 even should be true")
       (print-string "  42 even = true")
 
-      (define-var odd1 (send-unary (tag-int 42) odd-sel 25))
+      (define-var odd1 (send-message (tag-int 42) odd-sel NULL 25))
       (assert-equal (untag-int odd1) 0 "42 odd should be false")
       (print-string "  42 odd = false")
 
-      (define-var even2 (send-unary (tag-int 17) even-sel 26))
+      (define-var even2 (send-message (tag-int 17) even-sel NULL 26))
       (assert-equal (untag-int even2) 0 "17 even should be false")
       (print-string "  17 even = false")
 
-      (define-var odd2 (send-unary (tag-int 17) odd-sel 27))
+      (define-var odd2 (send-message (tag-int 17) odd-sel NULL 27))
       (assert-equal (untag-int odd2) 1 "17 odd should be true")
       (print-string "  17 odd = true")
 
@@ -2910,13 +2910,13 @@
       (print-string "Test 52.4: Chaining unary and binary messages")
 
       ; abs first, then add
-      (define-var abs-val (send-unary (tag-int -10) abs-sel 28))
+      (define-var abs-val (send-message (tag-int -10) abs-sel NULL 28))
       (define-var chained1 (send-message abs-val sel-plus-id (tag-int 32) 29))
       (assert-equal (untag-int chained1) 42 "(-10 abs) + 32 should be 42")
       (print-string "  (-10 abs) + 32 = 42")
 
       ; negated first, then multiply
-      (define-var neg-val (send-unary (tag-int 7) negated-sel 30))
+      (define-var neg-val (send-message (tag-int 7) negated-sel NULL 30))
       (define-var chained2 (send-message neg-val sel-mul-id (tag-int -6) 31))
       (assert-equal (untag-int chained2) 42 "(7 negated) * -6 should be 42")
       (print-string "  (7 negated) * -6 = 42")
@@ -2950,8 +2950,10 @@
       (print-string "           → send-message(receiver, selector, arg, cache-id)")
       (print-string "           → funcall(method, receiver, arg)")
       (print-string "  Unary:   receiver selector")
-      (print-string "           → send-unary(receiver, selector, cache-id)")
+      (print-string "           → send-message(receiver, selector, NULL, cache-id)")
       (print-string "           → funcall(method, receiver)")
+      (print-string "")
+      (print-string "Note: send-message is unified - pass NULL as arg for unary messages")
       (print-string "")
       (print-string "This IS a working Smalltalk message send system!")
       (print-string "")
