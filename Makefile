@@ -251,8 +251,8 @@ run: $(TARGET)
 test: $(BUILD_DIR)/test_tagging
 	@./$(BUILD_DIR)/test_tagging
 
-simple: $(BUILD_DIR)/simple_tagging_test
-	@./$(BUILD_DIR)/simple_tagging_test
+# simple: $(BUILD_DIR)/simple_tagging_test - OBSOLETE: binary no longer exists
+#	@./$(BUILD_DIR)/simple_tagging_test
 
 vars: $(BUILD_DIR)/test_variables
 	@./$(BUILD_DIR)/test_variables
@@ -361,7 +361,7 @@ transpiler-demo: $(TRANSPILER_DEMO)
 	@./$(TRANSPILER_DEMO)
 
 # Integration tests
-integration-all: test simple vars lambda loops micro advanced smalltalk comments
+integration-all: test vars lambda loops micro advanced smalltalk comments
 	@echo ""
 	@echo "$(COLOR_GREEN)✓ All integration tests passed!$(COLOR_RESET)"
 
