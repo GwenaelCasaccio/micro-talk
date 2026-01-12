@@ -22,9 +22,26 @@
 
 class StackVM {
   private:
+    // Memory layout constants are defined in memory_layout.hpp
+    // See MemoryLayout namespace for region boundaries and helper functions
+    static constexpr size_t CODE_SIZE = MemoryLayout::CODE_SIZE;
+    static constexpr size_t GLOBALS_START = MemoryLayout::GLOBALS_START;
+    static constexpr size_t HEAP_START = MemoryLayout::HEAP_START;
+    static constexpr size_t STACK_START = MemoryLayout::STACK_START;
+    static constexpr size_t MEMORY_SIZE = MemoryLayout::MEMORY_SIZE;
+    static constexpr size_t STACK_BASE = MemoryLayout::STACK_BASE;
+
+    // Signal handling constants
+    static constexpr int MIN_SIGNAL = 1;
+    static constexpr int MAX_SIGNAL = 31;
+    static constexpr size_t NUM_SIGNALS = MAX_SIGNAL;
+
+    // String packing constants
+    static constexpr size_t BYTES_PER_WORD = 8;
+
     InterruptHandling interruptHandling;
     bool interrupt_flag{true};
-    std::array<uint64_t, 31> signal_handlers{0};
+    std::array<uint64_t, NUM_SIGNALS> signal_handlers{0};
 
     uint64_t* memory; // Flat linear mmap'd memory (64-bit words)
     uint64_t ip{0};   // Instruction pointer
@@ -34,14 +51,22 @@ class StackVM {
     bool running{false};
     bool trace_mode{false}; // Enable trace/debug output during execution
 
-    // Memory layout constants are defined in memory_layout.hpp
-    // See MemoryLayout namespace for region boundaries and helper functions
-    static constexpr size_t CODE_SIZE = MemoryLayout::CODE_SIZE;
-    static constexpr size_t GLOBALS_START = MemoryLayout::GLOBALS_START;
-    static constexpr size_t HEAP_START = MemoryLayout::HEAP_START;
-    static constexpr size_t STACK_START = MemoryLayout::STACK_START;
-    static constexpr size_t MEMORY_SIZE = MemoryLayout::MEMORY_SIZE;
-    static constexpr size_t STACK_BASE = MemoryLayout::STACK_BASE;
+    // Helper method to read packed strings from memory
+    std::string read_packed_string(uint64_t addr) const {
+        VMChecks::check_memory_bounds(addr);
+        const uint64_t length = memory[addr];
+        std::string result;
+        result.reserve(length);
+
+        for (size_t i = 0; i < length; i++) {
+            const size_t word_idx = addr + 1 + i / BYTES_PER_WORD;
+            const size_t byte_idx = i % BYTES_PER_WORD;
+            const char c = static_cast<char>((memory[word_idx] >> (byte_idx * 8)) & 0xFF);
+            result += c;
+        }
+
+        return result;
+    }
 
     inline void push(uint64_t value) {
         VMChecks::check_stack_overflow(sp, hp);
@@ -114,22 +139,23 @@ class StackVM {
     void execute() {
         while (running && ip < MEMORY_SIZE) {
             if (interrupt_flag && interruptHandling.has_event()) {
-                for (int sig = 1; sig <= 31; sig++) {
-                    if (interruptHandling.get_count(sig) > 0 && signal_handlers[sig - 1] != 0) {
+                for (int sig = MIN_SIGNAL; sig <= MAX_SIGNAL; sig++) {
+                    if (interruptHandling.get_count(sig) > 0 &&
+                        signal_handlers[sig - MIN_SIGNAL] != 0) {
                         interrupt_flag = false;
                         push(ip);
-                        ip = signal_handlers[sig - 1];
+                        ip = signal_handlers[sig - MIN_SIGNAL];
                         interruptHandling.consumme(sig);
                         break;
                     }
                 }
             }
 
-            const uint64_t INSTRUCTION = memory[ip++];
-            const auto OP = static_cast<Opcode>(INSTRUCTION & 0xFF);
+            const uint64_t instruction = memory[ip++];
+            const auto op = static_cast<Opcode>(instruction & 0xFF);
 
             if (trace_mode) {
-                std::cerr << "IP=" << (ip - 1) << " OP=" << opcode_name(OP) << " SP=" << sp
+                std::cerr << "IP=" << (ip - 1) << " OP=" << opcode_name(op) << " SP=" << sp
                           << " BP=" << bp << " HP=" << hp << std::endl;
             }
 
@@ -145,7 +171,7 @@ class StackVM {
                 &&op_shl,        &&op_shr,       &&op_ashr,    &&op_cli,     &&op_sti,
                 &&op_signal_reg, &&op_abort,     &&op_funcall};
 
-            const uint8_t opcode_idx = static_cast<uint8_t>(OP);
+            const uint8_t opcode_idx = static_cast<uint8_t>(op);
             if (opcode_idx >= 43) {
                 throw std::runtime_error("Unknown opcode");
             }
@@ -269,9 +295,9 @@ class StackVM {
 
         op_enter: {
             VMChecks::check_ip_bounds(ip);
-            const size_t TEMP_SIZE = memory[ip++];
+            const size_t temp_size = memory[ip++];
 
-            for (uint64_t i = 0; i < TEMP_SIZE; i++) {
+            for (uint64_t i = 0; i < temp_size; i++) {
                 push(0);
             }
             push(bp);
@@ -282,32 +308,32 @@ class StackVM {
 
         op_leave: {
             VMChecks::check_ip_bounds(ip);
-            const size_t TEMP_SIZE = memory[ip++];
-            const uint64_t RESULT = pop();
+            const size_t temp_size = memory[ip++];
+            const uint64_t result = pop();
 
             bp = pop();
 
-            for (uint64_t i = 0; i < TEMP_SIZE; i++) {
+            for (uint64_t i = 0; i < temp_size; i++) {
                 pop();
             }
 
-            push(RESULT);
+            push(result);
             continue;
         }
 
         op_call: {
             VMChecks::check_ip_bounds(ip);
-            const uint64_t TARGET = memory[ip++]; // Read target and advance IP
+            const uint64_t target = memory[ip++]; // Read target and advance IP
             VMChecks::check_ip_bounds(ip);
-            const uint64_t NB_ARGS = memory[ip++]; // Arguments
+            const uint64_t nb_args = memory[ip++]; // Arguments
 
-            const uint64_t BASE = sp;
+            const uint64_t base = sp;
 
             push(ip);    // Save return address (now past the operand)
-            ip = TARGET; // Jump to function
+            ip = target; // Jump to function
 
-            for (uint64_t i = NB_ARGS; i > 0; i--) {
-                push(memory[BASE + NB_ARGS - i]);
+            for (uint64_t i = nb_args; i > 0; i--) {
+                push(memory[base + nb_args - i]);
             }
 
             VMChecks::check_ip_bounds(ip);
@@ -316,23 +342,23 @@ class StackVM {
 
         op_ret: {
             VMChecks::check_ip_bounds(ip);
-            const size_t NB_ARGS = memory[ip++];
+            const size_t nb_args = memory[ip++];
 
-            const uint64_t RESULT = pop();
+            const uint64_t result = pop();
 
-            for (uint64_t i = 0; i < NB_ARGS; i++) {
+            for (uint64_t i = 0; i < nb_args; i++) {
                 pop();
             }
 
-            const uint64_t RET_ADDR = pop(); // Pop return address
+            const uint64_t ret_addr = pop(); // Pop return address
 
-            for (uint64_t i = 0; i < NB_ARGS; i++) {
+            for (uint64_t i = 0; i < nb_args; i++) {
                 pop();
             }
 
-            push(RESULT);
+            push(result);
 
-            ip = RET_ADDR; // Return to caller
+            ip = ret_addr; // Return to caller
 
             VMChecks::check_ip_bounds(ip);
 
@@ -442,24 +468,24 @@ class StackVM {
         }
 
         op_bp_load: {
-            const uint64_t IDX = pop();
-            const uint64_t ADR = bp + IDX + 1;
-            VMChecks::check_memory_bounds(ADR);
-            VMChecks::check_stack_frame_bounds(ADR, sp);
-            const uint64_t VALUE = memory[ADR];
-            push(VALUE);
+            const uint64_t idx = pop();
+            const uint64_t adr = bp + idx + 1;
+            VMChecks::check_memory_bounds(adr);
+            VMChecks::check_stack_frame_bounds(adr, sp);
+            const uint64_t value = memory[adr];
+            push(value);
             continue;
         }
 
         op_bp_store: {
-            const uint64_t IDX = pop();
-            const uint64_t VALUE = pop();
-            const uint64_t ADR = bp + IDX + 1; // with SP ++ IP on the stack
-            VMChecks::check_memory_bounds(ADR);
-            VMChecks::check_bp_store_index(IDX);
-            VMChecks::check_stack_frame_bounds(ADR, sp);
-            VMChecks::check_code_segment_protection(ADR);
-            memory[ADR] = VALUE;
+            const uint64_t idx = pop();
+            const uint64_t value = pop();
+            const uint64_t adr = bp + idx + 1; // with SP ++ IP on the stack
+            VMChecks::check_memory_bounds(adr);
+            VMChecks::check_bp_store_index(idx);
+            VMChecks::check_stack_frame_bounds(adr, sp);
+            VMChecks::check_code_segment_protection(adr);
+            memory[adr] = value;
             continue;
         }
 
@@ -469,19 +495,8 @@ class StackVM {
 
         op_print_str: {
             uint64_t addr = peek();
-            VMChecks::check_memory_bounds(addr);
-            // Read length from first word
-            uint64_t len = memory[addr];
-            std::cout << "DEBUG_STR: ";
-            // Read characters (packed as 8 bytes per word)
-            for (uint64_t i = 0; i < len; i++) {
-                uint64_t word_idx = (i / 8) + 1;
-                uint64_t byte_idx = i % 8;
-                uint64_t word = memory[addr + word_idx];
-                char c = (word >> (byte_idx * 8)) & 0xFF;
-                std::cout << c;
-            }
-            std::cout << '\n';
+            std::string str = read_packed_string(addr);
+            std::cout << "DEBUG_STR: " << str << '\n';
             continue;
         }
 
@@ -540,14 +555,14 @@ class StackVM {
             const uint64_t signal = pop();
             const size_t code_ptr = pop();
 
-            if (signal < 1 || signal > 31)
+            if (signal < MIN_SIGNAL || signal > MAX_SIGNAL)
                 throw std::runtime_error("Bad signal ID");
 
             if (code_ptr >= MEMORY_SIZE) {
                 throw std::runtime_error("Interrupt pointer out of bounds");
             }
 
-            signal_handlers[signal - 1] = code_ptr;
+            signal_handlers[signal - MIN_SIGNAL] = code_ptr;
 
             continue;
         }
@@ -560,36 +575,29 @@ class StackVM {
                 continue;
             }
 
-            // Read string: length followed by packed characters
-            const uint64_t length = memory[addr];
-            std::cout << "ABORT: ";
-            for (size_t i = 0; i < length; i++) {
-                const size_t word_idx = addr + 1 + i / 8;
-                const size_t byte_idx = i % 8;
-                const char c = static_cast<char>((memory[word_idx] >> (byte_idx * 8)) & 0xFF);
-                std::cout << c;
-            }
-            std::cout << std::endl;
+            // Read string using helper method
+            std::string message = read_packed_string(addr);
+            std::cout << "ABORT: " << message << std::endl;
             running = false;
             continue;
         }
 
         op_funcall: {
             // Stack: [arg1] [arg2] ... [argN] [arg_count] [target_address]
-            const uint64_t TARGET = pop();
-            const uint64_t NB_ARGS = pop();
+            const uint64_t target = pop();
+            const uint64_t nb_args = pop();
 
-            if (TARGET >= MEMORY_SIZE)
+            if (target >= MEMORY_SIZE)
                 throw std::runtime_error("FUNCALL target out of bounds");
 
-            const uint64_t BASE = sp;
+            const uint64_t base = sp;
 
             push(ip);    // Save return address
-            ip = TARGET; // Jump to function
+            ip = target; // Jump to function
 
             // Push arguments to new frame
-            for (uint64_t i = NB_ARGS; i > 0; i--) {
-                push(memory[BASE + NB_ARGS - i]);
+            for (uint64_t i = nb_args; i > 0; i--) {
+                push(memory[base + nb_args - i]);
             }
 
             continue;
@@ -622,9 +630,9 @@ class StackVM {
         return interrupt_flag;
     }
     uint64_t get_signal_handler(int signal) {
-        if (signal < 1 || signal > 31)
+        if (signal < MIN_SIGNAL || signal > MAX_SIGNAL)
             throw std::runtime_error("Invalid signal");
-        return signal_handlers[signal - 1];
+        return signal_handlers[signal - MIN_SIGNAL];
     }
 
     [[nodiscard]] uint64_t read_memory(uint64_t addr) const {
