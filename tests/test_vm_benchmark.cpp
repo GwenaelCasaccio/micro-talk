@@ -129,8 +129,7 @@ void benchmark_memory() {
     program.push_back(static_cast<uint64_t>(Opcode::PUSH));
     program.push_back(0); // Initial value
     program.push_back(static_cast<uint64_t>(Opcode::PUSH));
-    program.push_back(30000); // Heap address (well after code segment which ends at 16384)
-    program.push_back(static_cast<uint64_t>(Opcode::SWAP));
+    program.push_back(134217728 * 2); // Heap address (well after code segment which ends at 16384)
     program.push_back(static_cast<uint64_t>(Opcode::STORE));
 
     // Loop 100,000 times: LOAD, modify, STORE
@@ -141,14 +140,13 @@ void benchmark_memory() {
 
     // Load from heap address 30000, add 1, store back
     program.push_back(static_cast<uint64_t>(Opcode::PUSH));
-    program.push_back(30000); // Heap address
+    program.push_back(134217728 * 2); // Heap address
     program.push_back(static_cast<uint64_t>(Opcode::LOAD));
     program.push_back(static_cast<uint64_t>(Opcode::PUSH));
     program.push_back(1);
     program.push_back(static_cast<uint64_t>(Opcode::ADD));
     program.push_back(static_cast<uint64_t>(Opcode::PUSH));
-    program.push_back(30000);
-    program.push_back(static_cast<uint64_t>(Opcode::SWAP));
+    program.push_back(134217728 * 2);
     program.push_back(static_cast<uint64_t>(Opcode::STORE));
 
     // Decrement counter
@@ -240,7 +238,7 @@ int main() {
 
     benchmark_arithmetic();
     benchmark_control_flow();
-    // benchmark_memory();  // TODO: Fix code segment protection issue
+    benchmark_memory(); // TODO: Fix code segment protection issue
     benchmark_mixed();
 
     std::cout << "╔══════════════════════════════════════════════════╗" << std::endl;
