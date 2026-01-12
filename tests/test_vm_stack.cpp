@@ -3,6 +3,15 @@
 #include <iostream>
 #include <vector>
 
+// Check if bounds checking is enabled (matches stack_vm.hpp configuration)
+#ifndef MICRO_TALK_BOUNDS_CHECKS
+#ifdef NDEBUG
+#define MICRO_TALK_BOUNDS_CHECKS 0
+#else
+#define MICRO_TALK_BOUNDS_CHECKS 1
+#endif
+#endif
+
 void test_push() {
     std::cout << "Testing PUSH..." << '\n';
 
@@ -92,6 +101,8 @@ void test_dup() {
 void test_stack_underflow() {
     std::cout << "Testing stack underflow detection..." << '\n';
 
+#if MICRO_TALK_BOUNDS_CHECKS
+    // Only run this test when bounds checking is enabled
     StackVM vm;
     std::vector<uint64_t> program = {static_cast<uint64_t>(Opcode::POP),
                                      static_cast<uint64_t>(Opcode::HALT)};
@@ -109,6 +120,10 @@ void test_stack_underflow() {
 
     assert(caught);
     std::cout << "  ✓ Stack underflow detected correctly" << '\n';
+#else
+    // With bounds checking disabled, skip test entirely (would cause undefined behavior)
+    std::cout << "  ⊘ Stack underflow test skipped (bounds checking disabled)" << '\n';
+#endif
 }
 
 int main() {

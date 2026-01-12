@@ -11,6 +11,28 @@
 #include "interrupt.hpp"
 #include "memory_layout.hpp"
 
+// ============================================================================
+// Bounds Checking Configuration
+// ============================================================================
+// Compile-time optional bounds checking for performance optimization.
+// Default: enabled in debug builds, disabled in release builds (based on NDEBUG)
+// Override: Define MICRO_TALK_BOUNDS_CHECKS=0 or =1 to force on/off
+//
+// Usage:
+//   make                          - Debug build with bounds checks
+//   make OPTIMIZE=1               - Release build without bounds checks
+//   make BOUNDS_CHECKS=1          - Force enable bounds checks
+//   make BOUNDS_CHECKS=0          - Force disable bounds checks
+//   make OPTIMIZE=1 BOUNDS_CHECKS=1  - Release with checks (paranoid mode)
+// ============================================================================
+#ifndef MICRO_TALK_BOUNDS_CHECKS
+#ifdef NDEBUG
+#define MICRO_TALK_BOUNDS_CHECKS 0 // Release: disable for performance
+#else
+#define MICRO_TALK_BOUNDS_CHECKS 1 // Debug: enable for safety
+#endif
+#endif
+
 // Forward declaration for StackVM
 class StackVM;
 
@@ -98,30 +120,60 @@ class StackVM {
     static constexpr size_t MEMORY_SIZE = MemoryLayout::MEMORY_SIZE;
     static constexpr size_t STACK_BASE = MemoryLayout::STACK_BASE;
 
+    // Compile-time flag for bounds checking (controlled by MICRO_TALK_BOUNDS_CHECKS macro)
+    static constexpr bool BOUNDS_CHECKS_ENABLED = (MICRO_TALK_BOUNDS_CHECKS != 0);
+
     void push(uint64_t value) {
-        if (sp <= hp) {
-            throw std::runtime_error("Stack overflow - collided with heap");
+        if constexpr (BOUNDS_CHECKS_ENABLED) {
+            if (sp <= hp) {
+                throw std::runtime_error("Stack overflow - collided with heap");
+            }
         }
         memory[--sp] = value;
     }
 
     uint64_t pop() {
-        if (sp >= STACK_BASE) {
-            throw std::runtime_error("Stack underflow");
+        if constexpr (BOUNDS_CHECKS_ENABLED) {
+            if (sp >= STACK_BASE) {
+                throw std::runtime_error("Stack underflow");
+            }
         }
         return memory[sp++];
     }
 
     [[nodiscard]] uint64_t peek() const {
-        if (sp >= STACK_BASE) {
-            throw std::runtime_error("Stack is empty");
+        if constexpr (BOUNDS_CHECKS_ENABLED) {
+            if (sp >= STACK_BASE) {
+                throw std::runtime_error("Stack is empty");
+            }
         }
         return memory[sp];
     }
 
-    static void check_memory_bounds(uint64_t addr) {
-        if (addr >= MEMORY_SIZE) {
-            throw std::runtime_error("Memory access out of bounds");
+    // Memory bounds checking (compile-time optional via if constexpr)
+    static inline void check_memory_bounds(uint64_t addr) {
+        if constexpr (BOUNDS_CHECKS_ENABLED) {
+            if (addr >= MEMORY_SIZE) {
+                throw std::runtime_error("Memory access out of bounds");
+            }
+        }
+    }
+
+    // IP bounds checking helper (compile-time optional via if constexpr)
+    static inline void check_ip_bounds(uint64_t ip_val, const char* context = "IP") {
+        if constexpr (BOUNDS_CHECKS_ENABLED) {
+            if (ip_val >= MEMORY_SIZE) {
+                throw std::runtime_error(std::string(context) + " out of bounds");
+            }
+        }
+    }
+
+    // Code segment write protection (compile-time optional via if constexpr)
+    static inline void check_code_segment_protection(uint64_t addr) {
+        if constexpr (BOUNDS_CHECKS_ENABLED) {
+            if (addr < CODE_SIZE) {
+                throw std::runtime_error("Cannot write to code segment");
+            }
         }
     }
 
@@ -316,8 +368,7 @@ class StackVM {
             continue;
 
         op_push:
-            if (ip >= MEMORY_SIZE)
-                throw std::runtime_error("IP out of bounds");
+            check_ip_bounds(ip);
             push(memory[ip++]);
             continue;
 
@@ -412,29 +463,24 @@ class StackVM {
         }
 
         op_jmp:
-            if (ip >= MEMORY_SIZE)
-                throw std::runtime_error("IP out of bounds");
+            check_ip_bounds(ip);
             ip = memory[ip];
-            if (ip >= MEMORY_SIZE)
-                throw std::runtime_error("Jump target out of bounds");
+            check_ip_bounds(ip);
             continue;
 
         op_jz: {
-            if (ip >= MEMORY_SIZE)
-                throw std::runtime_error("IP out of bounds");
+            check_ip_bounds(ip);
             uint64_t cond = pop();
             uint64_t addr = memory[ip++];
             if (cond == 0) {
                 ip = addr;
-                if (ip >= MEMORY_SIZE)
-                    throw std::runtime_error("Jump target out of bounds");
+                check_ip_bounds(ip);
             }
             continue;
         }
 
         op_enter: {
-            if (ip >= MEMORY_SIZE)
-                throw std::runtime_error("IP out of bounds");
+            check_ip_bounds(ip);
             const size_t TEMP_SIZE = memory[ip++];
 
             for (uint64_t i = 0; i < TEMP_SIZE; i++) {
@@ -447,8 +493,7 @@ class StackVM {
         }
 
         op_leave: {
-            if (ip >= MEMORY_SIZE)
-                throw std::runtime_error("IP out of bounds");
+            check_ip_bounds(ip);
             const size_t TEMP_SIZE = memory[ip++];
             const uint64_t RESULT = pop();
 
@@ -463,11 +508,9 @@ class StackVM {
         }
 
         op_call: {
-            if (ip >= MEMORY_SIZE)
-                throw std::runtime_error("IP out of bounds");
+            check_ip_bounds(ip);
             const uint64_t TARGET = memory[ip++]; // Read target and advance IP
-            if (ip >= MEMORY_SIZE)
-                throw std::runtime_error("IP out of bounds");
+            check_ip_bounds(ip);
             const uint64_t NB_ARGS = memory[ip++]; // Arguments
 
             const uint64_t BASE = sp;
@@ -479,14 +522,12 @@ class StackVM {
                 push(memory[BASE + NB_ARGS - i]);
             }
 
-            if (ip >= MEMORY_SIZE)
-                throw std::runtime_error("Call target out of bounds");
+            check_ip_bounds(ip);
             continue;
         }
 
         op_ret: {
-            if (ip >= MEMORY_SIZE)
-                throw std::runtime_error("IP out of bounds");
+            check_ip_bounds(ip);
             const size_t NB_ARGS = memory[ip++];
 
             const uint64_t RESULT = pop();
@@ -505,9 +546,7 @@ class StackVM {
 
             ip = RET_ADDR; // Return to caller
 
-            if (ip >= MEMORY_SIZE) {
-                throw std::runtime_error("Return address out of bounds");
-            }
+            check_ip_bounds(ip);
 
             continue;
         }
@@ -515,9 +554,7 @@ class StackVM {
         op_iret: {
             ip = pop();
 
-            if (ip >= MEMORY_SIZE) {
-                throw std::runtime_error("Return address out of bounds");
-            }
+            check_ip_bounds(ip);
 
             interrupt_flag = true;
 
@@ -535,9 +572,7 @@ class StackVM {
             uint64_t addr = pop();
             uint64_t value = pop();
             check_memory_bounds(addr);
-            if (addr < CODE_SIZE) {
-                throw std::runtime_error("STORE Cannot write to code segment");
-            }
+            check_code_segment_protection(addr);
             memory[addr] = value;
             continue;
         }
@@ -569,9 +604,7 @@ class StackVM {
             check_memory_bounds(addr / 8);
             uint64_t word_idx = addr / 8;
 
-            if (word_idx < CODE_SIZE) {
-                throw std::runtime_error("STORE_BYTE Cannot write to code segment");
-            }
+            check_code_segment_protection(word_idx);
 
             uint64_t byte_offset = addr % 8;
 
@@ -606,9 +639,7 @@ class StackVM {
             check_memory_bounds(addr / 8);
             uint64_t word_idx = addr / 8;
 
-            if (word_idx < CODE_SIZE) {
-                throw std::runtime_error("STORE32 Cannot write to code segment");
-            }
+            check_code_segment_protection(word_idx);
 
             uint64_t is_high = (addr / 4) % 2;
 
@@ -639,9 +670,7 @@ class StackVM {
             if (IDX < 1) {
                 throw std::runtime_error("At least return");
             }
-            if (ADR < CODE_SIZE) {
-                throw std::runtime_error("BP_STORE Cannot write to code segment");
-            }
+            check_code_segment_protection(ADR);
             memory[ADR] = VALUE;
             continue;
         }

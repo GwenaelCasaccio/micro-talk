@@ -10,6 +10,17 @@ ifdef OPTIMIZE
 else
     CXXFLAGS := -std=c++17 -Wall -Wextra -O0 -g
 endif
+
+# Bounds checking configuration (default: enabled in debug, disabled in release)
+# Override with: make BOUNDS_CHECKS=1 (force enable) or make BOUNDS_CHECKS=0 (force disable)
+ifdef BOUNDS_CHECKS
+    ifeq ($(BOUNDS_CHECKS),0)
+        CXXFLAGS += -DMICRO_TALK_BOUNDS_CHECKS=0
+    else
+        CXXFLAGS += -DMICRO_TALK_BOUNDS_CHECKS=1
+    endif
+endif
+
 LDFLAGS :=
 
 # Directories

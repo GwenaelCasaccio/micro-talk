@@ -4,6 +4,15 @@
 #include <iostream>
 #include <vector>
 
+// Check if bounds checking is enabled (matches stack_vm.hpp configuration)
+#ifndef MICRO_TALK_BOUNDS_CHECKS
+#ifdef NDEBUG
+#define MICRO_TALK_BOUNDS_CHECKS 0
+#else
+#define MICRO_TALK_BOUNDS_CHECKS 1
+#endif
+#endif
+
 void test_load_store() {
     std::cout << "Testing LOAD and STORE..." << '\n';
 
@@ -58,6 +67,8 @@ void test_multiple_stores() {
 void test_store_code_segment_protection() {
     std::cout << "Testing code segment write protection..." << '\n';
 
+#if MICRO_TALK_BOUNDS_CHECKS
+    // Only run this test when bounds checking is enabled
     StackVM vm;
     std::vector<uint64_t> program = {
         // Try to write to code segment (address < MemoryLayout::HEAP_START)
@@ -78,11 +89,18 @@ void test_store_code_segment_protection() {
 
     assert(caught);
     std::cout << "  ✓ Code segment write protection works" << '\n';
+#else
+    // With bounds checking disabled, skip test entirely (would cause undefined behavior)
+    std::cout << "  ⊘ Code segment write protection test skipped (bounds checking disabled)"
+              << '\n';
+#endif
 }
 
 void test_load_bounds_check() {
     std::cout << "Testing LOAD bounds checking..." << '\n';
 
+#if MICRO_TALK_BOUNDS_CHECKS
+    // Only run this test when bounds checking is enabled
     StackVM vm;
     std::vector<uint64_t> program = {
         // Try to load from out-of-bounds address
@@ -102,11 +120,17 @@ void test_load_bounds_check() {
 
     assert(caught);
     std::cout << "  ✓ LOAD bounds checking works" << '\n';
+#else
+    // With bounds checking disabled, skip test entirely (would cause undefined behavior)
+    std::cout << "  ⊘ LOAD bounds checking test skipped (bounds checking disabled)" << '\n';
+#endif
 }
 
 void test_store_bounds_check() {
     std::cout << "Testing STORE bounds checking..." << '\n';
 
+#if MICRO_TALK_BOUNDS_CHECKS
+    // Only run this test when bounds checking is enabled
     StackVM vm;
     std::vector<uint64_t> program = {
         // Try to store to out-of-bounds address
@@ -127,6 +151,10 @@ void test_store_bounds_check() {
 
     assert(caught);
     std::cout << "  ✓ STORE bounds checking works" << '\n';
+#else
+    // With bounds checking disabled, skip test entirely (would cause undefined behavior)
+    std::cout << "  ⊘ STORE bounds checking test skipped (bounds checking disabled)" << '\n';
+#endif
 }
 
 void test_memory_as_array() {

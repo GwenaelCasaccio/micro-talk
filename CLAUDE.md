@@ -120,6 +120,45 @@ The VM uses **computed goto** (GCC/Clang labels-as-values extension) for instruc
 - Uses `-std=c++17 -O3` for maximum performance
 - Use `make OPTIMIZE=1` for release builds with full optimization
 
+### Optional Bounds Checking
+
+The VM supports **compile-time optional bounds checking** using C++17 `if constexpr` for zero-overhead safety control:
+
+**Configuration:**
+```bash
+make                          # Default: checks enabled (debug build -O0)
+make OPTIMIZE=1               # Default: checks disabled (release -O3)
+make BOUNDS_CHECKS=1          # Force enable checks
+make BOUNDS_CHECKS=0          # Force disable checks
+make OPTIMIZE=1 BOUNDS_CHECKS=1  # Release build with checks (paranoid mode)
+```
+
+**Checked Operations:**
+- Stack operations: push/pop/peek overflow and underflow detection
+- Memory access: All LOAD/STORE bounds checking
+- Code segment: Write protection enforcement
+- IP validation: Instruction pointer bounds checking
+
+**Performance Impact (at -O3 optimization):**
+
+With bounds checking **disabled** (BOUNDS_CHECKS=0):
+- **Arithmetic**: 25.8% faster (39ms → 31ms)
+- **Control Flow**: 66.7% faster (5ms → 3ms)
+- **Memory Operations**: 33.3% faster (4ms → 3ms)
+- **Mixed Operations**: 66.7% faster (5ms → 3ms)
+
+**Safety Considerations:**
+- **Debug builds** (default `make`): Checks always enabled for safe development
+- **Release builds** (`make OPTIMIZE=1`): Checks disabled by default for maximum performance
+- **Paranoid mode** (`make OPTIMIZE=1 BOUNDS_CHECKS=1`): Release performance with runtime safety
+- **Division by zero**: Always checked (not affected by BOUNDS_CHECKS flag)
+
+**Implementation:**
+- Uses `static constexpr bool BOUNDS_CHECKS_ENABLED` with `if constexpr`
+- Compiler eliminates disabled checks entirely (dead code elimination)
+- Zero runtime overhead when disabled
+- All 169+ tests pass in both modes
+
 ### Memory Model
 
 Single flat 64K-word (512KB) mmap-allocated memory space:

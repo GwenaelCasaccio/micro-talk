@@ -4,6 +4,15 @@
 #include <iostream>
 #include <vector>
 
+// Check if bounds checking is enabled (matches stack_vm.hpp configuration)
+#ifndef MICRO_TALK_BOUNDS_CHECKS
+#ifdef NDEBUG
+#define MICRO_TALK_BOUNDS_CHECKS 0
+#else
+#define MICRO_TALK_BOUNDS_CHECKS 1
+#endif
+#endif
+
 void test_jmp() {
     std::cout << "Testing JMP (unconditional jump)..." << '\n';
 
@@ -234,6 +243,8 @@ void test_nested_calls_enter_leave() {
 void test_jump_bounds_check() {
     std::cout << "Testing jump bounds checking..." << '\n';
 
+#if MICRO_TALK_BOUNDS_CHECKS
+    // Only run this test when bounds checking is enabled
     StackVM vm;
     std::vector<uint64_t> program = {
         static_cast<uint64_t>(Opcode::JMP),
@@ -254,6 +265,10 @@ void test_jump_bounds_check() {
 
     assert(caught);
     std::cout << "  ✓ Jump bounds checking works" << '\n';
+#else
+    // With bounds checking disabled, skip test entirely (would cause undefined behavior)
+    std::cout << "  ⊘ Jump bounds checking test skipped (bounds checking disabled)" << '\n';
+#endif
 }
 
 int main() {
