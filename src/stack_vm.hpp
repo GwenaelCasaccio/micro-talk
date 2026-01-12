@@ -125,7 +125,7 @@ class StackVM {
 
     inline void push(uint64_t value) {
         if constexpr (BOUNDS_CHECKS_ENABLED) {
-            if (sp <= hp) {
+            if (sp - 1 <= hp) {
                 throw std::runtime_error("Stack overflow - collided with heap");
             }
         }
@@ -657,6 +657,11 @@ class StackVM {
             const uint64_t IDX = pop();
             const uint64_t ADR = bp + IDX + 1;
             check_memory_bounds(ADR);
+            if constexpr (BOUNDS_CHECKS_ENABLED) {
+                if (ADR < sp || ADR >= STACK_BASE) {
+                    throw std::runtime_error("BP_LOAD: Access outside stack frame boundaries");
+                }
+            }
             const uint64_t VALUE = memory[ADR];
             push(VALUE);
             continue;
@@ -667,8 +672,13 @@ class StackVM {
             const uint64_t VALUE = pop();
             const uint64_t ADR = bp + IDX + 1; // with SP ++ IP on the stack
             check_memory_bounds(ADR);
-            if (IDX < 1) {
-                throw std::runtime_error("At least return");
+            if constexpr (BOUNDS_CHECKS_ENABLED) {
+                if (IDX < 1) {
+                    throw std::runtime_error("BP_STORE: IDX must be at least 1");
+                }
+                if (ADR < sp || ADR >= STACK_BASE) {
+                    throw std::runtime_error("BP_STORE: Access outside stack frame boundaries");
+                }
             }
             check_code_segment_protection(ADR);
             memory[ADR] = VALUE;
