@@ -12,28 +12,7 @@
 #include "interrupt.hpp"
 #include "memory_layout.hpp"
 #include "opcodes.hpp"
-
-// ============================================================================
-// Bounds Checking Configuration
-// ============================================================================
-// Compile-time optional bounds checking for performance optimization.
-// Default: enabled in debug builds, disabled in release builds (based on NDEBUG)
-// Override: Define MICRO_TALK_BOUNDS_CHECKS=0 or =1 to force on/off
-//
-// Usage:
-//   make                          - Debug build with bounds checks
-//   make OPTIMIZE=1               - Release build without bounds checks
-//   make BOUNDS_CHECKS=1          - Force enable bounds checks
-//   make BOUNDS_CHECKS=0          - Force disable bounds checks
-//   make OPTIMIZE=1 BOUNDS_CHECKS=1  - Release with checks (paranoid mode)
-// ============================================================================
-#ifndef MICRO_TALK_BOUNDS_CHECKS
-#ifdef NDEBUG
-#define MICRO_TALK_BOUNDS_CHECKS 0 // Release: disable for performance
-#else
-#define MICRO_TALK_BOUNDS_CHECKS 1 // Debug: enable for safety
-#endif
-#endif
+#include "vm_checks.hpp"
 
 // ============================================================================
 // Stack Virtual Machine
@@ -64,61 +43,19 @@ class StackVM {
     static constexpr size_t MEMORY_SIZE = MemoryLayout::MEMORY_SIZE;
     static constexpr size_t STACK_BASE = MemoryLayout::STACK_BASE;
 
-    // Compile-time flag for bounds checking (controlled by MICRO_TALK_BOUNDS_CHECKS macro)
-    static constexpr bool BOUNDS_CHECKS_ENABLED = (MICRO_TALK_BOUNDS_CHECKS != 0);
-
     inline void push(uint64_t value) {
-        if constexpr (BOUNDS_CHECKS_ENABLED) {
-            if (sp - 1 <= hp) {
-                throw std::runtime_error("Stack overflow - collided with heap");
-            }
-        }
+        VMChecks::check_stack_overflow(sp, hp);
         memory[--sp] = value;
     }
 
     inline uint64_t pop() {
-        if constexpr (BOUNDS_CHECKS_ENABLED) {
-            if (sp >= STACK_BASE) {
-                throw std::runtime_error("Stack underflow");
-            }
-        }
+        VMChecks::check_stack_underflow(sp);
         return memory[sp++];
     }
 
     [[nodiscard]] inline uint64_t peek() const {
-        if constexpr (BOUNDS_CHECKS_ENABLED) {
-            if (sp >= STACK_BASE) {
-                throw std::runtime_error("Stack is empty");
-            }
-        }
+        VMChecks::check_stack_empty(sp);
         return memory[sp];
-    }
-
-    // Memory bounds checking (compile-time optional via if constexpr)
-    static inline void check_memory_bounds(uint64_t addr) {
-        if constexpr (BOUNDS_CHECKS_ENABLED) {
-            if (addr >= MEMORY_SIZE) {
-                throw std::runtime_error("Memory access out of bounds");
-            }
-        }
-    }
-
-    // IP bounds checking helper (compile-time optional via if constexpr)
-    static inline void check_ip_bounds(uint64_t ip_val, const char* context = "IP") {
-        if constexpr (BOUNDS_CHECKS_ENABLED) {
-            if (ip_val >= MEMORY_SIZE) {
-                throw std::runtime_error(std::string(context) + " out of bounds");
-            }
-        }
-    }
-
-    // Code segment write protection (compile-time optional via if constexpr)
-    static inline void check_code_segment_protection(uint64_t addr) {
-        if constexpr (BOUNDS_CHECKS_ENABLED) {
-            if (addr < CODE_SIZE) {
-                throw std::runtime_error("Cannot write to code segment");
-            }
-        }
     }
 
   public:
@@ -219,7 +156,7 @@ class StackVM {
             continue;
 
         op_push:
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
             push(memory[ip++]);
             continue;
 
@@ -314,24 +251,24 @@ class StackVM {
         }
 
         op_jmp:
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
             ip = memory[ip];
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
             continue;
 
         op_jz: {
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
             uint64_t cond = pop();
             uint64_t addr = memory[ip++];
             if (cond == 0) {
                 ip = addr;
-                check_ip_bounds(ip);
+                VMChecks::check_ip_bounds(ip);
             }
             continue;
         }
 
         op_enter: {
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
             const size_t TEMP_SIZE = memory[ip++];
 
             for (uint64_t i = 0; i < TEMP_SIZE; i++) {
@@ -344,7 +281,7 @@ class StackVM {
         }
 
         op_leave: {
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
             const size_t TEMP_SIZE = memory[ip++];
             const uint64_t RESULT = pop();
 
@@ -359,9 +296,9 @@ class StackVM {
         }
 
         op_call: {
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
             const uint64_t TARGET = memory[ip++]; // Read target and advance IP
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
             const uint64_t NB_ARGS = memory[ip++]; // Arguments
 
             const uint64_t BASE = sp;
@@ -373,12 +310,12 @@ class StackVM {
                 push(memory[BASE + NB_ARGS - i]);
             }
 
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
             continue;
         }
 
         op_ret: {
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
             const size_t NB_ARGS = memory[ip++];
 
             const uint64_t RESULT = pop();
@@ -397,7 +334,7 @@ class StackVM {
 
             ip = RET_ADDR; // Return to caller
 
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
 
             continue;
         }
@@ -405,7 +342,7 @@ class StackVM {
         op_iret: {
             ip = pop();
 
-            check_ip_bounds(ip);
+            VMChecks::check_ip_bounds(ip);
 
             interrupt_flag = true;
 
@@ -414,7 +351,7 @@ class StackVM {
 
         op_load: {
             uint64_t addr = pop();
-            check_memory_bounds(addr);
+            VMChecks::check_memory_bounds(addr);
             push(memory[addr]);
             continue;
         }
@@ -422,8 +359,8 @@ class StackVM {
         op_store: {
             uint64_t addr = pop();
             uint64_t value = pop();
-            check_memory_bounds(addr);
-            check_code_segment_protection(addr);
+            VMChecks::check_memory_bounds(addr);
+            VMChecks::check_code_segment_protection(addr);
             memory[addr] = value;
             continue;
         }
@@ -432,7 +369,7 @@ class StackVM {
             // Load a single byte from memory
             // Stack: [addr] -> [byte_value]
             uint64_t addr = pop();
-            check_memory_bounds(addr / 8); // Check word boundary
+            VMChecks::check_memory_bounds(addr / 8); // Check word boundary
 
             // Calculate word index and byte offset
             uint64_t word_idx = addr / 8;
@@ -452,10 +389,10 @@ class StackVM {
             uint64_t addr = pop();
             uint64_t value = pop() & 0xFF; // Only keep low byte
 
-            check_memory_bounds(addr / 8);
+            VMChecks::check_memory_bounds(addr / 8);
             uint64_t word_idx = addr / 8;
 
-            check_code_segment_protection(word_idx);
+            VMChecks::check_code_segment_protection(word_idx);
 
             uint64_t byte_offset = addr % 8;
 
@@ -469,7 +406,7 @@ class StackVM {
             // Load a 32-bit word from memory
             // Stack: [addr] -> [32bit_value]
             uint64_t addr = pop();
-            check_memory_bounds(addr / 8);
+            VMChecks::check_memory_bounds(addr / 8);
 
             uint64_t word_idx = addr / 8;
             uint64_t is_high = (addr / 4) % 2; // 0 = low 32 bits, 1 = high 32 bits
@@ -487,10 +424,10 @@ class StackVM {
             uint64_t addr = pop();
             uint64_t value = pop() & 0xFFFFFFFF; // Only keep low 32 bits
 
-            check_memory_bounds(addr / 8);
+            VMChecks::check_memory_bounds(addr / 8);
             uint64_t word_idx = addr / 8;
 
-            check_code_segment_protection(word_idx);
+            VMChecks::check_code_segment_protection(word_idx);
 
             uint64_t is_high = (addr / 4) % 2;
 
@@ -507,12 +444,8 @@ class StackVM {
         op_bp_load: {
             const uint64_t IDX = pop();
             const uint64_t ADR = bp + IDX + 1;
-            check_memory_bounds(ADR);
-            if constexpr (BOUNDS_CHECKS_ENABLED) {
-                if (ADR < sp || ADR >= STACK_BASE) {
-                    throw std::runtime_error("BP_LOAD: Access outside stack frame boundaries");
-                }
-            }
+            VMChecks::check_memory_bounds(ADR);
+            VMChecks::check_stack_frame_bounds(ADR, sp);
             const uint64_t VALUE = memory[ADR];
             push(VALUE);
             continue;
@@ -522,16 +455,10 @@ class StackVM {
             const uint64_t IDX = pop();
             const uint64_t VALUE = pop();
             const uint64_t ADR = bp + IDX + 1; // with SP ++ IP on the stack
-            check_memory_bounds(ADR);
-            if constexpr (BOUNDS_CHECKS_ENABLED) {
-                if (IDX < 1) {
-                    throw std::runtime_error("BP_STORE: IDX must be at least 1");
-                }
-                if (ADR < sp || ADR >= STACK_BASE) {
-                    throw std::runtime_error("BP_STORE: Access outside stack frame boundaries");
-                }
-            }
-            check_code_segment_protection(ADR);
+            VMChecks::check_memory_bounds(ADR);
+            VMChecks::check_bp_store_index(IDX);
+            VMChecks::check_stack_frame_bounds(ADR, sp);
+            VMChecks::check_code_segment_protection(ADR);
             memory[ADR] = VALUE;
             continue;
         }
@@ -542,7 +469,7 @@ class StackVM {
 
         op_print_str: {
             uint64_t addr = peek();
-            check_memory_bounds(addr);
+            VMChecks::check_memory_bounds(addr);
             // Read length from first word
             uint64_t len = memory[addr];
             std::cout << "DEBUG_STR: ";
@@ -701,11 +628,11 @@ class StackVM {
     }
 
     [[nodiscard]] uint64_t read_memory(uint64_t addr) const {
-        check_memory_bounds(addr);
+        VMChecks::check_memory_bounds(addr);
         return memory[addr];
     }
     void write_memory(uint64_t addr, uint64_t value) {
-        check_memory_bounds(addr);
+        VMChecks::check_memory_bounds(addr);
         if (addr < CODE_SIZE) {
             throw std::runtime_error("Cannot write to code segment");
         }
