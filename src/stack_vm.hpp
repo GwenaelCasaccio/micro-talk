@@ -123,7 +123,7 @@ class StackVM {
     // Compile-time flag for bounds checking (controlled by MICRO_TALK_BOUNDS_CHECKS macro)
     static constexpr bool BOUNDS_CHECKS_ENABLED = (MICRO_TALK_BOUNDS_CHECKS != 0);
 
-    void push(uint64_t value) {
+    inline void push(uint64_t value) {
         if constexpr (BOUNDS_CHECKS_ENABLED) {
             if (sp <= hp) {
                 throw std::runtime_error("Stack overflow - collided with heap");
@@ -132,7 +132,7 @@ class StackVM {
         memory[--sp] = value;
     }
 
-    uint64_t pop() {
+    inline uint64_t pop() {
         if constexpr (BOUNDS_CHECKS_ENABLED) {
             if (sp >= STACK_BASE) {
                 throw std::runtime_error("Stack underflow");
@@ -141,7 +141,7 @@ class StackVM {
         return memory[sp++];
     }
 
-    [[nodiscard]] uint64_t peek() const {
+    [[nodiscard]] inline uint64_t peek() const {
         if constexpr (BOUNDS_CHECKS_ENABLED) {
             if (sp >= STACK_BASE) {
                 throw std::runtime_error("Stack is empty");
