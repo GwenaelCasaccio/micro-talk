@@ -74,6 +74,7 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_vm_alu \
 	$(BUILD_DIR)/test_vm_memory \
 	$(BUILD_DIR)/test_vm_control \
+	$(BUILD_DIR)/test_vm_profiling \
 	$(BUILD_DIR)/test_vm_benchmark \
 	$(BUILD_DIR)/test_parser_basic \
 	$(BUILD_DIR)/test_parser_comments \
@@ -310,7 +311,10 @@ vm-memory: $(BUILD_DIR)/test_vm_memory
 vm-control: $(BUILD_DIR)/test_vm_control
 	@./$(BUILD_DIR)/test_vm_control
 
-vm-all: vm-stack vm-alu vm-memory vm-control
+vm-profiling: $(BUILD_DIR)/test_vm_profiling
+	@./$(BUILD_DIR)/test_vm_profiling
+
+vm-all: vm-stack vm-alu vm-memory vm-control vm-profiling
 	@echo ""
 	@echo "$(COLOR_GREEN)✓ All VM tests passed!$(COLOR_RESET)"
 

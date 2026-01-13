@@ -1,11 +1,15 @@
 #pragma once
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
 #include "compiled_program.hpp"
@@ -51,6 +55,11 @@ class StackVM {
     uint64_t hp;      // Heap pointer
     bool running{false};
     bool trace_mode{false}; // Enable trace/debug output during execution
+
+    // Execution profiling support
+    bool profiling_enabled{false};
+    std::array<uint64_t, 256> opcode_counts{0}; // Count execution of each opcode
+    uint64_t total_instructions{0};             // Total instructions executed
 
     // Helper method to read packed strings from memory
     std::string read_packed_string(uint64_t addr) const {
@@ -176,6 +185,13 @@ class StackVM {
             if (opcode_idx >= 43) {
                 throw VMException::UnknownOpcode(opcode_idx, ip - 1, sp, bp, hp);
             }
+
+            // Update profiling counters if enabled
+            if (profiling_enabled) {
+                opcode_counts[opcode_idx]++;
+                total_instructions++;
+            }
+
             goto* dispatch_table[opcode_idx];
 
         op_halt:
@@ -658,6 +674,71 @@ class StackVM {
         return trace_mode;
     }
 
+    // Execution profiling controls
+    void enable_profiling() {
+        profiling_enabled = true;
+    }
+    void disable_profiling() {
+        profiling_enabled = false;
+    }
+    [[nodiscard]] bool is_profiling_enabled() const {
+        return profiling_enabled;
+    }
+
+    // Reset profiling counters
+    void reset_profiling() {
+        opcode_counts.fill(0);
+        total_instructions = 0;
+    }
+
+    // Get profiling statistics
+    [[nodiscard]] uint64_t get_total_instructions() const {
+        return total_instructions;
+    }
+    [[nodiscard]] uint64_t get_opcode_count(Opcode op) const {
+        return opcode_counts[static_cast<uint8_t>(op)];
+    }
+    [[nodiscard]] const std::array<uint64_t, 256>& get_opcode_counts() const {
+        return opcode_counts;
+    }
+
+    // Print profiling report
+    void print_profiling_report() const {
+        if (total_instructions == 0) {
+            std::cerr
+                << "No profiling data available (profiling may be disabled or no instructions "
+                   "executed)"
+                << std::endl;
+            return;
+        }
+
+        std::cerr << "\n=== VM Execution Profile ===" << std::endl;
+        std::cerr << "Total instructions executed: " << total_instructions << std::endl;
+        std::cerr << "\nOpcode execution counts (sorted by frequency):" << std::endl;
+
+        // Create vector of (opcode, count) pairs for sorting
+        std::vector<std::pair<uint8_t, uint64_t>> sorted_opcodes;
+        for (uint8_t i = 0; i < 43; i++) { // Only include valid opcodes
+            if (opcode_counts[i] > 0) {
+                sorted_opcodes.emplace_back(i, opcode_counts[i]);
+            }
+        }
+
+        // Sort by count (descending)
+        std::sort(sorted_opcodes.begin(), sorted_opcodes.end(),
+                  [](const auto& a, const auto& b) { return a.second > b.second; });
+
+        // Print sorted results
+        for (const auto& [opcode_idx, count] : sorted_opcodes) {
+            auto op = static_cast<Opcode>(opcode_idx);
+            double percentage = (100.0 * count) / total_instructions;
+            std::cerr << "  " << std::setw(15) << std::left << opcode_name(op) << ": "
+                      << std::setw(12) << std::right << count << " (" << std::fixed
+                      << std::setprecision(2) << percentage << "%)" << std::endl;
+        }
+        std::cerr << "========================" << std::endl;
+    }
+
     // VM state snapshot for save/restore
     struct VMSnapshot {
         uint64_t ip, sp, bp, hp;
@@ -666,6 +747,9 @@ class StackVM {
         std::array<uint64_t, NUM_SIGNALS> signal_handlers;
         bool running;
         bool trace_mode;
+        bool profiling_enabled;
+        std::array<uint64_t, 256> opcode_counts;
+        uint64_t total_instructions;
     };
 
     // Checkpoint: Save current VM state
@@ -679,6 +763,9 @@ class StackVM {
         snap.signal_handlers = signal_handlers;
         snap.running = running;
         snap.trace_mode = trace_mode;
+        snap.profiling_enabled = profiling_enabled;
+        snap.opcode_counts = opcode_counts;
+        snap.total_instructions = total_instructions;
 
         // Copy entire memory
         snap.memory.resize(MEMORY_SIZE);
@@ -701,6 +788,9 @@ class StackVM {
         signal_handlers = snap.signal_handlers;
         running = snap.running;
         trace_mode = snap.trace_mode;
+        profiling_enabled = snap.profiling_enabled;
+        opcode_counts = snap.opcode_counts;
+        total_instructions = snap.total_instructions;
 
         // Restore entire memory
         memcpy(memory, snap.memory.data(), MEMORY_SIZE * sizeof(uint64_t));
