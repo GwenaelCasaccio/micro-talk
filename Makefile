@@ -89,6 +89,18 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_transpiler \
 	$(BUILD_DIR)/test_transpiler_extended
 
+# Smalltalk integration test binaries (from tests/smalltalk/)
+SMALLTALK_TEST_BINS := \
+	$(BUILD_DIR)/st_test_01_classes \
+	$(BUILD_DIR)/st_test_02_contexts \
+	$(BUILD_DIR)/st_test_03_symbols \
+	$(BUILD_DIR)/st_test_04_strings \
+	$(BUILD_DIR)/st_test_05_tokenizer \
+	$(BUILD_DIR)/st_test_06_parser \
+	$(BUILD_DIR)/st_test_07_compiler \
+	$(BUILD_DIR)/st_test_08_methods \
+	$(BUILD_DIR)/st_test_09_message_sends
+
 # Special binaries
 TRANSPILER_DEMO := $(BUILD_DIR)/transpiler_demo
 TOKENIZER_TRANSPILER := $(BUILD_DIR)/transpile_tokenizer
@@ -97,7 +109,7 @@ MINIMAL_VM := $(BUILD_DIR)/minimal_vm_test
 DISASSEMBLER_TEST := $(BUILD_DIR)/test_disassembler
 
 # All binaries (excluding optional/generated ones like ST_TOKENIZER)
-ALL_BINS := $(TARGET) $(UNIT_TEST_BINS) $(SMALLTALK) \
+ALL_BINS := $(TARGET) $(UNIT_TEST_BINS) $(SMALLTALK_TEST_BINS) $(SMALLTALK) \
             $(TRANSPILER_DEMO) $(TOKENIZER_TRANSPILER) $(MINIMAL_VM) \
             $(DISASSEMBLER_TEST)
 
@@ -134,6 +146,9 @@ help:
 	@echo "  make parser-all   - Run all parser tests"
 	@echo "  make compiler-all - Run all compiler tests"
 	@echo "  make transpiler   - Run transpiler tests"
+	@echo "  make st-all       - Run all Smalltalk split tests"
+	@echo "  make st-classes   - Run Smalltalk tests 1-8 (classes)"
+	@echo "  make st-contexts  - Run Smalltalk tests 9-14 (contexts)"
 	@echo ""
 	@echo "$(COLOR_BOLD)Performance:$(COLOR_RESET)"
 	@echo "  make benchmark    - Run dispatch benchmarks (-O0 and -O3)"
@@ -240,6 +255,11 @@ $(BUILD_DIR)/test_%: $(TEST_DIR)/test_%.cpp $(COMPILER_DEPS) | $(BUILD_DIR)
 	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
 	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
+# Smalltalk split tests (from tests/smalltalk/)
+$(BUILD_DIR)/st_test_%: $(TEST_DIR)/smalltalk/test_%.cpp $(COMPILER_DEPS) | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
 # ============================================================================
 # Test Execution Targets
 # ============================================================================
@@ -294,6 +314,7 @@ disasm: $(DISASSEMBLER_TEST)
 .PHONY: parser-basic parser-comments parser-errors parser-all
 .PHONY: compiler-basic compiler-control compiler-variables compiler-functions compiler-interrupts compiler-all
 .PHONY: transpiler transpiler-demo integration-all test-all
+.PHONY: st-classes st-contexts st-symbols st-strings st-tokenizer st-parser st-compiler st-methods st-messages st-all
 
 # VM tests
 vm-stack: $(BUILD_DIR)/test_vm_stack
@@ -372,6 +393,38 @@ transpiler-demo: $(TRANSPILER_DEMO)
 integration-all: test vars lambda loops micro advanced smalltalk comments
 	@echo ""
 	@echo "$(COLOR_GREEN)✓ All integration tests passed!$(COLOR_RESET)"
+
+# Smalltalk split integration tests
+st-classes: $(BUILD_DIR)/st_test_01_classes
+	@./$(BUILD_DIR)/st_test_01_classes
+
+st-contexts: $(BUILD_DIR)/st_test_02_contexts
+	@./$(BUILD_DIR)/st_test_02_contexts
+
+st-symbols: $(BUILD_DIR)/st_test_03_symbols
+	@./$(BUILD_DIR)/st_test_03_symbols
+
+st-strings: $(BUILD_DIR)/st_test_04_strings
+	@./$(BUILD_DIR)/st_test_04_strings
+
+st-tokenizer: $(BUILD_DIR)/st_test_05_tokenizer
+	@./$(BUILD_DIR)/st_test_05_tokenizer
+
+st-parser: $(BUILD_DIR)/st_test_06_parser
+	@./$(BUILD_DIR)/st_test_06_parser
+
+st-compiler: $(BUILD_DIR)/st_test_07_compiler
+	@./$(BUILD_DIR)/st_test_07_compiler
+
+st-methods: $(BUILD_DIR)/st_test_08_methods
+	@./$(BUILD_DIR)/st_test_08_methods
+
+st-messages: $(BUILD_DIR)/st_test_09_message_sends
+	@./$(BUILD_DIR)/st_test_09_message_sends
+
+st-all: st-classes st-contexts st-symbols st-strings st-tokenizer st-parser st-compiler st-methods st-messages
+	@echo ""
+	@echo "$(COLOR_GREEN)✓ All Smalltalk split tests passed!$(COLOR_RESET)"
 
 # All tests
 test-all: vm-all parser-all compiler-all transpiler integration-all
