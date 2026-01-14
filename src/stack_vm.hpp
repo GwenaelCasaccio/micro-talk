@@ -54,7 +54,8 @@ class StackVM {
     uint64_t bp;      // Base/frame pointer
     uint64_t hp;      // Heap pointer
     bool running{false};
-    bool trace_mode{false}; // Enable trace/debug output during execution
+    bool trace_mode{false};            // Enable trace/debug output during execution
+    bool hit_instruction_limit{false}; // True if execution stopped due to instruction limit
 
     // Execution profiling support
     bool profiling_enabled{false};
@@ -142,12 +143,17 @@ class StackVM {
         sp = STACK_BASE;
         bp = STACK_BASE;
         running = true;
+        hit_instruction_limit = false;
         interruptHandling.clear();
     }
 
     // Execute the loaded program
-    void execute() {
-        while (running && ip < MEMORY_SIZE) {
+    // max_instructions: Maximum number of instructions to execute (default: unlimited)
+    //                   Provides protection against infinite loops
+    void execute(uint64_t max_instructions = UINT64_MAX) {
+        uint64_t instruction_count = 0;
+        while (running && ip < MEMORY_SIZE && instruction_count < max_instructions) {
+            instruction_count++;
             if (interrupt_flag && interruptHandling.has_event()) {
                 for (int sig = MIN_SIGNAL; sig <= MAX_SIGNAL; sig++) {
                     if (interruptHandling.get_count(sig) > 0 &&
@@ -623,6 +629,8 @@ class StackVM {
         }
         }
 
+        // Check if we stopped due to instruction limit
+        hit_instruction_limit = (instruction_count >= max_instructions && running);
         running = true;
     }
 
@@ -672,6 +680,11 @@ class StackVM {
     }
     [[nodiscard]] bool get_trace_mode() const {
         return trace_mode;
+    }
+
+    // Execution limit control
+    [[nodiscard]] bool hit_instruction_limit_check() const {
+        return hit_instruction_limit;
     }
 
     // Execution profiling controls
