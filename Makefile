@@ -294,6 +294,21 @@ advanced: $(BUILD_DIR)/test_advanced
 smalltalk: $(BUILD_DIR)/test_smalltalk
 	@./$(BUILD_DIR)/test_smalltalk
 
+# Build combined smalltalk.lisp from modular sources
+SMALLTALK_MODULES := \
+	$(LISP_DIR)/smalltalk/00-runtime.lisp \
+	$(LISP_DIR)/smalltalk/01-symbol-table.lisp \
+	$(LISP_DIR)/smalltalk/02-classes.lisp \
+	$(LISP_DIR)/smalltalk/03-methods.lisp \
+	$(LISP_DIR)/smalltalk/04-tokenizer.lisp \
+	$(LISP_DIR)/smalltalk/05-parser.lisp \
+	$(LISP_DIR)/smalltalk/06-compiler.lisp
+
+smalltalk-build: $(SMALLTALK_MODULES)
+	@echo "$(COLOR_BLUE)=== Building combined smalltalk.lisp ===$(COLOR_RESET)"
+	@$(LISP_DIR)/smalltalk/build.sh
+	@echo "$(COLOR_GREEN)✓ Generated $(LISP_DIR)/smalltalk.lisp$(COLOR_RESET)"
+
 hash: $(BUILD_DIR)/test_hash_table
 	@./$(BUILD_DIR)/test_hash_table
 
