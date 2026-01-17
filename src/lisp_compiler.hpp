@@ -1,6 +1,7 @@
 #pragma once
 #include "lisp_parser.hpp"
 #include "stack_vm.hpp"
+#include "symbol_table.hpp"
 #include <map>
 #include <optional>
 #include <stdexcept>
@@ -54,6 +55,12 @@ class LispCompiler {
     std::map<std::string, uint64_t> string_dedup; // content -> address
     uint64_t next_string_address;
 
+    // Symbol table for exporting defined symbols
+    SymbolTable exported_symbols;
+
+    // Code base address for REPL (bytecode will be loaded at this offset)
+    uint64_t code_base_address{0};
+
     static constexpr uint64_t GLOBALS_BASE = 134217728;          // Match GLOBALS_START (1GB offset)
     static constexpr uint64_t STRING_TABLE_START = GLOBALS_BASE; // Strings at start of globals
     static constexpr uint64_t VAR_START =
@@ -67,8 +74,14 @@ class LispCompiler {
         emit(static_cast<uint64_t>(op));
     }
 
+    // Returns relative address within the bytecode (for patching)
     [[nodiscard]] size_t current_address() const {
         return bytecode.size();
+    }
+
+    // Returns absolute address (base + offset, for symbol table)
+    [[nodiscard]] size_t current_absolute_address() const {
+        return code_base_address + bytecode.size();
     }
 
     // Push a new scope
@@ -110,6 +123,12 @@ class LispCompiler {
 
         uint64_t addr = next_var_address++;
         current_scope.variables[name] = {.is_global = true, .addr = addr};
+
+        // Export global variable to symbol table (only at global scope level)
+        if (scopes.size() == 1) {
+            exported_symbols.define_variable(name, addr);
+        }
+
         return addr;
     }
 
@@ -271,10 +290,10 @@ class LispCompiler {
                     size_t end_jump = current_address();
                     emit(0); // placeholder for end address
 
-                    bytecode[else_jump] = current_address(); // patch else jump
-                    compile_expr(items[3]);                  // else branch
+                    bytecode[else_jump] = current_absolute_address(); // patch else jump
+                    compile_expr(items[3]);                           // else branch
 
-                    bytecode[end_jump] = current_address(); // patch end jump
+                    bytecode[end_jump] = current_absolute_address(); // patch end jump
                 }
                 // Sequential evaluation
                 else if (op == "do") {
@@ -362,6 +381,24 @@ class LispCompiler {
 
                     // Emit FUNCALL
                     emit_opcode(Opcode::FUNCALL);
+                }
+                // Symbol table access primitives (compile-time resolution)
+                else if (op == "symbol-count") {
+                    // (symbol-count) -> returns number of exported symbols
+                    emit_opcode(Opcode::PUSH);
+                    emit(exported_symbols.size());
+                } else if (op == "symbol-bound?") {
+                    // (symbol-bound? 'name) -> 1 if symbol exists, 0 otherwise
+                    compile_symbol_bound(items);
+                } else if (op == "symbol-address") {
+                    // (symbol-address 'name) -> address of symbol
+                    compile_symbol_address(items);
+                } else if (op == "symbol-value") {
+                    // (symbol-value 'name) -> value of variable
+                    compile_symbol_value(items);
+                } else if (op == "symbol-set!") {
+                    // (symbol-set! 'name value) -> set variable value
+                    compile_symbol_set(items);
                 } else {
                     throw std::runtime_error("Unknown operator: " + op);
                 }
@@ -517,6 +554,140 @@ class LispCompiler {
         // The duplicated value remains on the stack as the result
     }
 
+    // Helper: Extract symbol name from quoted expression (quote name) or 'name
+    std::string extract_quoted_symbol(const ASTNodePtr& node) {
+        if (node->type == NodeType::LIST) {
+            const auto& list = node->as_list();
+            if (list.size() == 2 && list[0]->type == NodeType::SYMBOL &&
+                list[0]->as_symbol() == "quote" && list[1]->type == NodeType::SYMBOL) {
+                return list[1]->as_symbol();
+            }
+        }
+        throw std::runtime_error("Expected quoted symbol, e.g., (quote name) or 'name");
+    }
+
+    // (symbol-bound? 'name) -> 1 if symbol exists, 0 otherwise
+    void compile_symbol_bound(const std::vector<ASTNodePtr>& items) {
+        if (items.size() != 2) {
+            throw std::runtime_error("symbol-bound? requires 1 argument: quoted symbol name");
+        }
+        std::string name = extract_quoted_symbol(items[1]);
+        bool bound = exported_symbols.exists(name) || lookup_variable(name).has_value();
+        emit_opcode(Opcode::PUSH);
+        emit(bound ? 1 : 0);
+    }
+
+    // (symbol-address 'name) -> address of symbol
+    void compile_symbol_address(const std::vector<ASTNodePtr>& items) {
+        if (items.size() != 2) {
+            throw std::runtime_error("symbol-address requires 1 argument: quoted symbol name");
+        }
+        std::string name = extract_quoted_symbol(items[1]);
+
+        // Check exported symbols first
+        auto entry = exported_symbols.lookup(name);
+        if (entry.has_value()) {
+            emit_opcode(Opcode::PUSH);
+            emit(entry->address);
+            return;
+        }
+
+        // Check compiler's variable table
+        auto var = lookup_variable(name);
+        if (var.has_value()) {
+            emit_opcode(Opcode::PUSH);
+            emit(var->addr);
+            return;
+        }
+
+        throw std::runtime_error("symbol-address: unknown symbol: " + name);
+    }
+
+    // (symbol-value 'name) -> value of variable
+    void compile_symbol_value(const std::vector<ASTNodePtr>& items) {
+        if (items.size() != 2) {
+            throw std::runtime_error("symbol-value requires 1 argument: quoted symbol name");
+        }
+        std::string name = extract_quoted_symbol(items[1]);
+
+        // Check exported symbols first
+        auto entry = exported_symbols.lookup(name);
+        if (entry.has_value()) {
+            if (entry->is_function()) {
+                // For functions, return the code address
+                emit_opcode(Opcode::PUSH);
+                emit(entry->address);
+                return;
+            }
+            // For variables, load from memory
+            emit_opcode(Opcode::PUSH);
+            emit(entry->address);
+            emit_opcode(Opcode::LOAD);
+            return;
+        }
+
+        // Check compiler's variable table
+        auto var = lookup_variable(name);
+        if (var.has_value()) {
+            emit_opcode(Opcode::PUSH);
+            emit(var->addr);
+            if (var->is_global) {
+                emit_opcode(Opcode::LOAD);
+            } else {
+                emit_opcode(Opcode::BP_LOAD);
+            }
+            return;
+        }
+
+        throw std::runtime_error("symbol-value: unknown symbol: " + name);
+    }
+
+    // (symbol-set! 'name value) -> set variable value
+    void compile_symbol_set(const std::vector<ASTNodePtr>& items) {
+        if (items.size() != 3) {
+            throw std::runtime_error(
+                "symbol-set! requires 2 arguments: quoted symbol name and value");
+        }
+        std::string name = extract_quoted_symbol(items[1]);
+
+        // Check exported symbols first
+        auto entry = exported_symbols.lookup(name);
+        if (entry.has_value()) {
+            if (entry->is_function()) {
+                throw std::runtime_error("symbol-set!: cannot set value of function: " + name);
+            }
+            // Compile the value expression
+            compile_expr(items[2]);
+            // Duplicate value to return
+            emit_opcode(Opcode::DUP);
+            // Store to the symbol's address
+            emit_opcode(Opcode::PUSH);
+            emit(entry->address);
+            emit_opcode(Opcode::STORE);
+            return;
+        }
+
+        // Check compiler's variable table
+        auto var = lookup_variable(name);
+        if (var.has_value()) {
+            // Compile the value expression
+            compile_expr(items[2]);
+            // Duplicate value to return
+            emit_opcode(Opcode::DUP);
+            // Store to the variable's address
+            emit_opcode(Opcode::PUSH);
+            emit(var->addr);
+            if (var->is_global) {
+                emit_opcode(Opcode::STORE);
+            } else {
+                emit_opcode(Opcode::BP_STORE);
+            }
+            return;
+        }
+
+        throw std::runtime_error("symbol-set!: unknown symbol: " + name);
+    }
+
     // (let ((var1 val1) (var2 val2) ...) body...)
     void compile_let(const std::vector<ASTNodePtr>& items) {
         if (items.size() < 3) {
@@ -622,7 +793,7 @@ class LispCompiler {
         // loop_end:
         //   push 0 (while returns 0)
 
-        size_t loop_start = current_address();
+        size_t loop_start = current_absolute_address();
 
         // Evaluate condition
         compile_expr(items[1]);
@@ -643,7 +814,7 @@ class LispCompiler {
         emit(loop_start);
 
         // Patch loop end address
-        bytecode[loop_end_ref] = current_address();
+        bytecode[loop_end_ref] = current_absolute_address();
 
         // Push 0 as return value (while doesn't return anything useful)
         emit_opcode(Opcode::PUSH);
@@ -698,7 +869,7 @@ class LispCompiler {
         // loop_end:
         //   push 0 (for returns 0)
 
-        size_t loop_start = current_address();
+        size_t loop_start = current_absolute_address();
 
         // Check condition: var < end
         emit_opcode(Opcode::PUSH);
@@ -741,7 +912,7 @@ class LispCompiler {
         emit(loop_start);
 
         // Patch loop end address
-        bytecode[loop_end_ref] = current_address();
+        bytecode[loop_end_ref] = current_absolute_address();
 
         // Pop scope
         pop_scope();
@@ -905,7 +1076,7 @@ class LispCompiler {
 
     CompiledProgram compile(const ASTNodePtr& ast) {
         bytecode.clear();
-        labels.clear();
+        // Don't clear labels - preserve imported function addresses
         label_refs.clear();
 
         compile_expr(ast);
@@ -932,7 +1103,7 @@ class LispCompiler {
 
     CompiledProgram compile_program(const std::vector<ASTNodePtr>& exprs) {
         bytecode.clear();
-        labels.clear();
+        // Don't clear labels - preserve imported function addresses
         label_refs.clear();
 
         for (size_t i = 0; i < exprs.size(); i++) {
@@ -976,6 +1147,79 @@ class LispCompiler {
         interrupts.clear();
         string_table.clear();
         string_dedup.clear();
+        exported_symbols.clear();
+    }
+
+    // ========================================================================
+    // Symbol Table API - for REPL persistence
+    // ========================================================================
+
+    // Get the symbol table containing all exported symbols
+    const SymbolTable& get_symbol_table() const {
+        return exported_symbols;
+    }
+
+    // Import symbols from a previous compilation (for REPL persistence)
+    // This populates the global scope with existing symbols
+    void import_symbols(const SymbolTable& symbols) {
+        if (scopes.empty()) {
+            push_scope();
+        }
+
+        auto& global_scope = scopes.front();
+
+        // Import variables
+        for (const auto& entry : symbols.all_variables()) {
+            global_scope.variables[entry.name] = {.is_global = true, .addr = entry.address};
+        }
+
+        // Import functions
+        for (const auto& entry : symbols.all_functions()) {
+            Function func;
+            func.params = entry.params;
+            func.body = nullptr; // Already compiled
+            func.code_address = entry.address;
+            functions[entry.name] = func;
+            labels[entry.name] = entry.address;
+        }
+
+        // Also copy to exported_symbols for future exports
+        exported_symbols.merge(symbols);
+    }
+
+    // Get the next variable address (for continuing from previous compilation)
+    uint64_t get_next_var_address() const {
+        return next_var_address;
+    }
+
+    // Set the next variable address (for continuing from previous compilation)
+    void set_next_var_address(uint64_t addr) {
+        next_var_address = addr;
+    }
+
+    // Get the next string address (for continuing from previous compilation)
+    uint64_t get_next_string_address() const {
+        return next_string_address;
+    }
+
+    // Set the next string address (for continuing from previous compilation)
+    void set_next_string_address(uint64_t addr) {
+        next_string_address = addr;
+    }
+
+    // Get the code base address (for REPL to load bytecode at correct offset)
+    uint64_t get_code_base_address() const {
+        return code_base_address;
+    }
+
+    // Set the code base address (for REPL - all addresses will be relative to this)
+    void set_code_base_address(uint64_t addr) {
+        code_base_address = addr;
+    }
+
+    // Get the size of the compiled bytecode
+    size_t get_bytecode_size() const {
+        return bytecode.size();
     }
 
     // Write string literals to VM memory
@@ -1005,10 +1249,17 @@ class LispCompiler {
     // Compile all function definitions
     void compile_all_functions() {
         for (auto& [name, func] : functions) {
+            // Skip functions that are already compiled (imported from previous REPL expressions)
+            if (func.body == nullptr) {
+                continue;
+            }
 
-            // Record function start address
-            func.code_address = current_address();
+            // Record function start address (absolute)
+            func.code_address = current_absolute_address();
             labels[name] = func.code_address;
+
+            // Export function to symbol table
+            exported_symbols.define_function(name, func.code_address, func.params);
 
             push_scope();
 
@@ -1044,8 +1295,8 @@ class LispCompiler {
     // Compile all interrupt handler definitions
     void compile_all_interrupts() {
         for (auto& [signal_num, intr] : interrupts) {
-            // Record interrupt handler start address
-            intr.code_address = current_address();
+            // Record interrupt handler start address (absolute)
+            intr.code_address = current_absolute_address();
 
             push_scope();
 

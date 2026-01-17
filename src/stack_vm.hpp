@@ -126,6 +126,14 @@ class StackVM {
         memcpy(memory, program.data(), program.size() * sizeof(uint64_t));
     }
 
+    // Load bytecode at a specific offset (for REPL to append code)
+    void load_program_at(const std::vector<uint64_t>& program, uint64_t offset) {
+        if (offset + program.size() > CODE_SIZE) {
+            throw VMException::ProgramTooLarge(offset + program.size(), CODE_SIZE);
+        }
+        memcpy(memory + offset, program.data(), program.size() * sizeof(uint64_t));
+    }
+
     // Load compiled program (bytecode + data)
     void load_program(const CompiledProgram& program) {
         // Load bytecode
@@ -138,6 +146,18 @@ class StackVM {
         program.write_strings(*this);
     }
 
+    // Load compiled program at a specific offset (for REPL)
+    void load_program_at(const CompiledProgram& program, uint64_t offset) {
+        if (offset + program.bytecode.size() > CODE_SIZE) {
+            throw VMException::ProgramTooLarge(offset + program.bytecode.size(), CODE_SIZE);
+        }
+        memcpy(memory + offset, program.bytecode.data(),
+               program.bytecode.size() * sizeof(uint64_t));
+
+        // Write string literals to memory
+        program.write_strings(*this);
+    }
+
     void reset() {
         ip = 0;
         sp = STACK_BASE;
@@ -145,6 +165,11 @@ class StackVM {
         running = true;
         hit_instruction_limit = false;
         interruptHandling.clear();
+    }
+
+    // Set instruction pointer (for REPL to start execution at specific address)
+    void set_ip(uint64_t new_ip) {
+        ip = new_ip;
     }
 
     // Execute the loaded program

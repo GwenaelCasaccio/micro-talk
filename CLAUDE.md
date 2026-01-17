@@ -35,6 +35,7 @@ make vm-stack       # Stack operations (PUSH, POP, DUP, SWAP, underflow)
 make vm-alu         # ALU: arithmetic, comparison, bitwise operations
 make vm-memory      # Memory: LOAD, STORE, bounds checking, protection
 make vm-control     # Control flow: JMP, JZ, conditionals
+make vm-checkpoint  # VM state checkpoint and restore
 make vm-all         # Run all VM tests together
 ```
 
@@ -84,9 +85,10 @@ make benchmark-o3   # Benchmark at -O3 (release build, 2.8-3.6x faster)
 Each test target builds and runs the corresponding test binary.
 
 **Test Summary:**
-- Total: 169+ tests across all suites
-- Unit tests: 169 tests (VM: 43, Parser: 58, Compiler: 44, Transpiler: 24)
+- Total: 180+ tests across all suites
+- Unit tests: 180 tests (VM: 47, Parser: 58, Compiler: 44, Transpiler: 35)
 - Integration tests: 9 test suites covering end-to-end functionality
+- Symbol table tests: 12 tests
 
 ## Architecture
 
@@ -232,6 +234,45 @@ Compiles Lisp code into bytecode and registers it with a unique opcode. Used to 
 
 Microcode functions are compiled once and reusable as VM primitives.
 
+### Symbol Table
+
+The compiler maintains a symbol table (`src/symbol_table.hpp`) that tracks all defined variables and functions:
+
+```cpp
+struct SymbolEntry {
+    std::string name;
+    SymbolType type;           // VARIABLE or FUNCTION
+    uint64_t address;          // Memory addr or code addr
+    std::vector<std::string> params;  // For functions
+};
+```
+
+**Features:**
+- Tracks global variables and functions by name
+- Supports symbol import/export for REPL persistence
+- Preserves insertion order for deterministic iteration
+- Enables dynamic symbol inspection from Lisp code
+
+### VM Checkpoint/Restore
+
+The VM supports saving and restoring complete execution state:
+
+```cpp
+auto snapshot = vm.checkpoint();  // Save state
+vm.restore(snapshot);             // Restore state
+```
+
+**Captures:**
+- All registers (IP, SP, BP, HP)
+- Complete memory image
+- Interrupt handlers and flags
+- VM running state
+
+**Use cases:**
+- Debugging and time-travel debugging
+- Speculative execution with rollback
+- Checkpointing long-running computations
+
 ## File Organization
 
 ### Core VM Components
@@ -239,9 +280,10 @@ Microcode functions are compiled once and reusable as VM primitives.
 - `src/lisp_parser.hpp` - S-expression parser (creates AST from text)
 - `src/lisp_compiler.hpp` - Lisp→bytecode compiler with scoping, functions, loops
 - `src/microcode.hpp` - Microcode definition and compilation system
+- `src/symbol_table.hpp` - Symbol table for tracking variables and functions
 
 ### Main Entry Points
-- `src/main.cpp` - Interactive REPL for Lisp expressions
+- `src/main.cpp` - Interactive persistent REPL for Lisp expressions
 - `src/test_*.cpp` - Individual test programs for specific features
 
 ### Lisp Programs
@@ -301,10 +343,11 @@ Line comments start with `;` and continue to end of line:
 - Bitwise: `(bit-and a b)`, `(bit-or a b)`, `(bit-xor a b)`, `(bit-shl a n)`, `(bit-shr a n)`, `(bit-ashr a n)`
 - Control: `(if cond then else)`, `(do expr1 expr2 ...)` (sequential, returns last)
 - Loops: `(while cond body...)`, `(for (var start end) body...)`
-- Variables: `(define var value)`, `(set var value)`, `(let ((var val)...) body...)`
-- Functions: `(define (name params...) body)`
+- Variables: `(define-var name value)`, `(set name value)`, `(let ((var val)...) body...)`
+- Functions: `(define-func (name params...) body)`
 - Memory: `(peek addr)`, `(poke addr value)`
 - Debug: `(print expr)`, `(print-string expr)`
+- Symbols: `(symbol-count)`, `(symbol-bound? (quote name))`, `(symbol-value (quote name))`, `(symbol-set! (quote name) value)`, `(symbol-address (quote name))`
 
 ### Variable Scoping
 - Lexical scoping with nested environments
@@ -320,6 +363,39 @@ Function calls use stack-based calling convention:
 3. Function pops return address, then arguments (into local variables)
 4. Function evaluates body, result on stack
 5. RET swaps result with return address and jumps back
+
+### Persistent REPL
+
+The REPL (`./build/lisp_vm`) maintains state across expressions:
+- Variables persist between evaluations
+- Functions can be defined and called in subsequent expressions
+- Symbol table tracks all definitions
+
+**REPL Commands:**
+| Command | Description |
+|---------|-------------|
+| `:help` | Show available commands |
+| `:symbols` | List all defined symbols |
+| `:vars` | List variables with current values |
+| `:funcs` | List functions with signatures |
+| `:eval <name>` | Print value of variable |
+| `:set <name> <value>` | Set variable to new value |
+| `:reset` | Clear all state |
+| `:verbose` | Toggle bytecode display |
+| `quit` / `exit` | Exit the REPL |
+
+**Example session:**
+```
+> (define-var x 42)
+=> 42
+> (define-func (square n) (* n n))
+=> 0
+> (square x)
+=> 1764
+> :vars
+Variables (1):
+  x @ 234217728 = 42
+```
 
 ## Common Development Patterns
 

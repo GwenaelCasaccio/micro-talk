@@ -69,6 +69,7 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_memory_granular \
 	$(BUILD_DIR)/test_comments \
 	$(BUILD_DIR)/test_funcall \
+	$(BUILD_DIR)/test_symbol_table \
 	$(BUILD_DIR)/test_vm_stack \
 	$(BUILD_DIR)/test_vm_interrupt \
 	$(BUILD_DIR)/test_vm_alu \
@@ -76,6 +77,7 @@ UNIT_TEST_BINS := \
 	$(BUILD_DIR)/test_vm_control \
 	$(BUILD_DIR)/test_vm_profiling \
 	$(BUILD_DIR)/test_vm_instruction_limit \
+	$(BUILD_DIR)/test_vm_checkpoint \
 	$(BUILD_DIR)/test_vm_benchmark \
 	$(BUILD_DIR)/test_parser_basic \
 	$(BUILD_DIR)/test_parser_comments \
@@ -264,7 +266,7 @@ $(BUILD_DIR)/st_test_%: $(TEST_DIR)/smalltalk/test_%.cpp $(COMPILER_DEPS) | $(BU
 # Test Execution Targets
 # ============================================================================
 
-.PHONY: run test simple vars lambda loops micro advanced smalltalk comments disasm
+.PHONY: run test simple vars lambda loops micro advanced smalltalk comments disasm symbol-table
 
 run: $(TARGET)
 	@./$(TARGET)
@@ -312,6 +314,9 @@ smalltalk-build: $(SMALLTALK_MODULES)
 hash: $(BUILD_DIR)/test_hash_table
 	@./$(BUILD_DIR)/test_hash_table
 
+symbol-table: $(BUILD_DIR)/test_symbol_table
+	@./$(BUILD_DIR)/test_symbol_table
+
 memory: $(BUILD_DIR)/test_memory_granular
 	@./$(BUILD_DIR)/test_memory_granular
 
@@ -325,7 +330,7 @@ disasm: $(DISASSEMBLER_TEST)
 # Unit Test Suites
 # ============================================================================
 
-.PHONY: vm-stack vm-alu vm-memory vm-control vm-all
+.PHONY: vm-stack vm-alu vm-memory vm-control vm-checkpoint vm-all
 .PHONY: parser-basic parser-comments parser-errors parser-all
 .PHONY: compiler-basic compiler-control compiler-variables compiler-functions compiler-interrupts compiler-all
 .PHONY: transpiler transpiler-demo integration-all test-all
@@ -354,7 +359,10 @@ vm-profiling: $(BUILD_DIR)/test_vm_profiling
 vm-instruction-limit: $(BUILD_DIR)/test_vm_instruction_limit
 	@./$(BUILD_DIR)/test_vm_instruction_limit
 
-vm-all: vm-stack vm-alu vm-memory vm-control vm-profiling vm-instruction-limit
+vm-checkpoint: $(BUILD_DIR)/test_vm_checkpoint
+	@./$(BUILD_DIR)/test_vm_checkpoint
+
+vm-all: vm-stack vm-alu vm-memory vm-control vm-profiling vm-instruction-limit vm-checkpoint
 	@echo ""
 	@echo "$(COLOR_GREEN)✓ All VM tests passed!$(COLOR_RESET)"
 
