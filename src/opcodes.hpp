@@ -53,6 +53,7 @@ enum class Opcode : uint8_t {
     FUNCALL,    // Call function at address on stack (address, arg_count on stack)
     EVAL,       // Pop string addr, compile+execute, push result
     COMPILE,    // Pop string addr, compile, push code address
+    C_CALL,     // Call C function: [func_id, arg_count, args...] -> [result]
 };
 
 // ============================================================================
@@ -152,6 +153,8 @@ inline const char* opcode_name(Opcode op) {
             return "EVAL";
         case Opcode::COMPILE:
             return "COMPILE";
+        case Opcode::C_CALL:
+            return "C_CALL";
         default:
             return "UNKNOWN";
     }

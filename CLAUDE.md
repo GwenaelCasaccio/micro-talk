@@ -362,6 +362,9 @@ make eval    # Run eval/compile tests (8 tests)
 ### Metaprogramming
 `EVAL`, `COMPILE`
 
+### System Calls
+`C_CALL` - Generic C/system function call by function ID
+
 ## Lisp Language Features
 
 ### Comments
@@ -385,10 +388,42 @@ Line comments start with `;` and continue to end of line:
 - Loops: `(while cond body...)`, `(for (var start end) body...)`
 - Variables: `(define-var name value)`, `(set name value)`, `(let ((var val)...) body...)`
 - Functions: `(define-func (name params...) body)`, `(funcall addr args...)`
-- Memory: `(peek addr)`, `(poke addr value)`
+- Memory: `(peek addr)`, `(poke addr value)`, `(peek-byte addr)`, `(poke-byte addr value)`, `(peek32 addr)`, `(poke32 addr value)`
+- System: `(c-call func-id args...)` - Call C/system function (see below)
 - Debug: `(print expr)`, `(print-string expr)`
 - Symbols: `(symbol-count)`, `(symbol-bound? (quote name))`, `(symbol-value (quote name))`, `(symbol-set! (quote name) value)`, `(symbol-address (quote name))`
 - Metaprogramming: `(eval "code")`, `(compile "code")`
+
+### C/System Function Calls
+
+The `(c-call func-id args...)` primitive allows calling C/system functions:
+
+| ID | Function | Arguments | Returns |
+|----|----------|-----------|---------|
+| 0 | read | fd, buffer_addr, count | bytes_read (-1 on error) |
+| 1 | write | fd, buffer_addr, count | bytes_written (-1 on error) |
+| 2 | open | path_addr, flags | fd (-1 on error) |
+| 3 | close | fd | 0 on success, -1 on error |
+| 4 | lseek | fd, offset, whence | new position (-1 on error) |
+| 5 | fsize | fd | file size in bytes (-1 on error) |
+
+**Example - Reading from a file:**
+```lisp
+; Open file (O_RDONLY = 0)
+(define-var fd (c-call 2 "/tmp/test.txt" 0))
+
+; Allocate buffer in heap (byte address)
+(define-var buffer (* 16400 8))
+
+; Read up to 100 bytes
+(define-var bytes-read (c-call 0 fd buffer 100))
+
+; Close file
+(c-call 3 fd)
+
+; Access bytes with peek-byte
+(peek-byte buffer)
+```
 
 ### Variable Scoping
 - Lexical scoping with nested environments

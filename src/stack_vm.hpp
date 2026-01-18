@@ -4,10 +4,12 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <fcntl.h>
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <utility>
 #include <vector>
@@ -214,10 +216,11 @@ class StackVM {
                 &&op_store_byte, &&op_load32,    &&op_store32, &&op_bp_load, &&op_bp_store,
                 &&op_print,      &&op_print_str, &&op_and,     &&op_or,      &&op_xor,
                 &&op_shl,        &&op_shr,       &&op_ashr,    &&op_cli,     &&op_sti,
-                &&op_signal_reg, &&op_abort,     &&op_funcall, &&op_eval,    &&op_compile};
+                &&op_signal_reg, &&op_abort,     &&op_funcall, &&op_eval,    &&op_compile,
+                &&op_c_call};
 
             const uint8_t opcode_idx = static_cast<uint8_t>(op);
-            if (opcode_idx >= 45) {
+            if (opcode_idx >= 46) {
                 throw VMException::UnknownOpcode(opcode_idx, ip - 1, sp, bp, hp);
             }
 
@@ -701,6 +704,137 @@ class StackVM {
             // Push the code address - caller can use funcall to invoke it
             push(code_addr);
 
+            continue;
+        }
+
+        op_c_call: {
+            // C_CALL: Call C/system function by ID
+            // Stack: [arg1, arg2, ..., argN, arg_count, func_id] -> [result]
+            //
+            // Function IDs:
+            //   0 = read(fd, buffer_addr, count) -> bytes_read
+            //   1 = write(fd, buffer_addr, count) -> bytes_written
+            //   2 = open(path_addr, flags) -> fd
+            //   3 = close(fd) -> result
+            //   4 = lseek(fd, offset, whence) -> position
+            //   5 = fsize(fd) -> file_size
+            //
+            uint64_t func_id = pop();
+            uint64_t arg_count = pop();
+
+            // Pop arguments into array (reverse order on stack)
+            std::vector<uint64_t> args(arg_count);
+            for (size_t i = 0; i < arg_count; i++) {
+                args[arg_count - 1 - i] = pop();
+            }
+
+            uint64_t result = 0;
+
+            switch (func_id) {
+                case 0: { // read(fd, buffer_addr, count)
+                    if (arg_count != 3) {
+                        throw std::runtime_error("C_CALL read: expected 3 arguments");
+                    }
+                    int fd = static_cast<int>(args[0]);
+                    uint64_t buffer_addr = args[1];
+                    size_t count = args[2];
+
+                    auto* temp_buffer = new uint8_t[count];
+                    ssize_t bytes_read = read(fd, temp_buffer, count);
+
+                    if (bytes_read > 0) {
+                        for (ssize_t i = 0; i < bytes_read; i++) {
+                            uint64_t byte_addr = buffer_addr + i;
+                            uint64_t word_idx = byte_addr / 8;
+                            uint64_t byte_offset = byte_addr % 8;
+
+                            VMChecks::check_memory_bounds(word_idx, ip, sp, bp, hp);
+                            VMChecks::check_code_segment_protection(word_idx, ip, sp, bp, hp);
+
+                            uint64_t mask = ~(0xFFULL << (byte_offset * 8));
+                            memory[word_idx] =
+                                (memory[word_idx] & mask) |
+                                (static_cast<uint64_t>(temp_buffer[i]) << (byte_offset * 8));
+                        }
+                    }
+                    delete[] temp_buffer;
+                    result = static_cast<uint64_t>(bytes_read);
+                    break;
+                }
+
+                case 1: { // write(fd, buffer_addr, count)
+                    if (arg_count != 3) {
+                        throw std::runtime_error("C_CALL write: expected 3 arguments");
+                    }
+                    int fd = static_cast<int>(args[0]);
+                    uint64_t buffer_addr = args[1];
+                    size_t count = args[2];
+
+                    auto* temp_buffer = new uint8_t[count];
+                    for (size_t i = 0; i < count; i++) {
+                        uint64_t byte_addr = buffer_addr + i;
+                        uint64_t word_idx = byte_addr / 8;
+                        uint64_t byte_offset = byte_addr % 8;
+
+                        VMChecks::check_memory_bounds(word_idx, ip, sp, bp, hp);
+                        temp_buffer[i] = (memory[word_idx] >> (byte_offset * 8)) & 0xFF;
+                    }
+
+                    ssize_t bytes_written = write(fd, temp_buffer, count);
+                    delete[] temp_buffer;
+                    result = static_cast<uint64_t>(bytes_written);
+                    break;
+                }
+
+                case 2: { // open(path_addr, flags) -> fd
+                    if (arg_count != 2) {
+                        throw std::runtime_error("C_CALL open: expected 2 arguments");
+                    }
+                    std::string path = read_packed_string(args[0]);
+                    int flags = static_cast<int>(args[1]);
+                    result = static_cast<uint64_t>(open(path.c_str(), flags));
+                    break;
+                }
+
+                case 3: { // close(fd)
+                    if (arg_count != 1) {
+                        throw std::runtime_error("C_CALL close: expected 1 argument");
+                    }
+                    result = static_cast<uint64_t>(close(static_cast<int>(args[0])));
+                    break;
+                }
+
+                case 4: { // lseek(fd, offset, whence)
+                    if (arg_count != 3) {
+                        throw std::runtime_error("C_CALL lseek: expected 3 arguments");
+                    }
+                    int fd = static_cast<int>(args[0]);
+                    off_t offset = static_cast<off_t>(args[1]);
+                    int whence = static_cast<int>(args[2]);
+                    result = static_cast<uint64_t>(lseek(fd, offset, whence));
+                    break;
+                }
+
+                case 5: { // fsize(fd) -> file size
+                    if (arg_count != 1) {
+                        throw std::runtime_error("C_CALL fsize: expected 1 argument");
+                    }
+                    int fd = static_cast<int>(args[0]);
+                    struct stat st;
+                    if (fstat(fd, &st) == 0) {
+                        result = static_cast<uint64_t>(st.st_size);
+                    } else {
+                        result = static_cast<uint64_t>(-1);
+                    }
+                    break;
+                }
+
+                default:
+                    throw std::runtime_error("C_CALL: unknown function ID " +
+                                             std::to_string(func_id));
+            }
+
+            push(result);
             continue;
         }
         }

@@ -249,6 +249,10 @@ class LispCompiler {
                 } else if (op == "poke32") {
                     compile_poke32(items);
                 }
+                // C function call primitive
+                else if (op == "c-call") {
+                    compile_c_call(items);
+                }
                 // Basic arithmetic operators
                 else if (op == "+") {
                     compile_binary_op(items, Opcode::ADD, "+", true);
@@ -1015,6 +1019,36 @@ class LispCompiler {
         emit_opcode(Opcode::DUP);
         compile_expr(items[1]); // address
         emit_opcode(Opcode::STORE32);
+    }
+
+    // (c-call func-id arg1 arg2 ...) - Call C/system function by ID
+    // Function IDs:
+    //   0 = read(fd, buffer_addr, count) -> bytes_read
+    //   1 = write(fd, buffer_addr, count) -> bytes_written
+    //   2 = open(path_addr, flags) -> fd
+    //   3 = close(fd) -> result
+    //   4 = lseek(fd, offset, whence) -> position
+    //   5 = fsize(fd) -> file_size
+    void compile_c_call(const std::vector<ASTNodePtr>& items) {
+        if (items.size() < 2) {
+            throw std::runtime_error("c-call requires at least 1 argument: func-id");
+        }
+
+        // Compile all arguments first (they go on the stack)
+        size_t arg_count = items.size() - 2; // Exclude 'c-call' and func-id
+        for (size_t i = 2; i < items.size(); i++) {
+            compile_expr(items[i]);
+        }
+
+        // Push arg count
+        emit_opcode(Opcode::PUSH);
+        emit(arg_count);
+
+        // Push func-id
+        compile_expr(items[1]);
+
+        // Emit C_CALL opcode
+        emit_opcode(Opcode::C_CALL);
     }
 
     // Add string literal to table (or return existing address if duplicate)
