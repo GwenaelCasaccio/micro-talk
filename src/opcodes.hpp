@@ -51,6 +51,8 @@ enum class Opcode : uint8_t {
     SIGNAL_REG, // Register signal handler
     ABORT,      // Abort with error message (address on stack)
     FUNCALL,    // Call function at address on stack (address, arg_count on stack)
+    EVAL,       // Pop string addr, compile+execute, push result
+    COMPILE,    // Pop string addr, compile, push code address
 };
 
 // ============================================================================
@@ -146,6 +148,10 @@ inline const char* opcode_name(Opcode op) {
             return "ABORT";
         case Opcode::FUNCALL:
             return "FUNCALL";
+        case Opcode::EVAL:
+            return "EVAL";
+        case Opcode::COMPILE:
+            return "COMPILE";
         default:
             return "UNKNOWN";
     }

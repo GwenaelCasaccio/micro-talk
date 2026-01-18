@@ -73,6 +73,7 @@ make micro          # Run microcode tests (./build/test_microcode)
 make advanced       # Run advanced tests (./build/test_advanced)
 make smalltalk      # Run Smalltalk object model tests (./build/test_smalltalk)
 make comments       # Run comment parsing tests (./build/test_comments)
+make eval           # Run eval/compile tests (./build/test_eval)
 ```
 
 **Performance Benchmarking:**
@@ -85,9 +86,10 @@ make benchmark-o3   # Benchmark at -O3 (release build, 2.8-3.6x faster)
 Each test target builds and runs the corresponding test binary.
 
 **Test Summary:**
-- Total: 180+ tests across all suites
+- Total: 190+ tests across all suites
 - Unit tests: 180 tests (VM: 47, Parser: 58, Compiler: 44, Transpiler: 35)
-- Integration tests: 9 test suites covering end-to-end functionality
+- Integration tests: 10 test suites covering end-to-end functionality
+- Eval/compile tests: 8 tests for runtime code generation
 - Symbol table tests: 12 tests
 
 ## Architecture
@@ -112,7 +114,7 @@ The VM uses **computed goto** (GCC/Clang labels-as-values extension) for instruc
   - Release (-O3): ~43ms (2.84x speedup)
 
 **Implementation Details:**
-- Jump table with 43 opcode labels (`&&op_halt`, `&&op_push`, etc.)
+- Jump table with 45 opcode labels (`&&op_halt`, `&&op_push`, etc.)
 - Dispatch: `goto *dispatch_table[opcode_idx]`
 - Each handler ends with `continue` to re-enter main loop
 - Requires GCC or Clang compiler (non-portable)
@@ -273,6 +275,40 @@ vm.restore(snapshot);             // Restore state
 - Speculative execution with rollback
 - Checkpointing long-running computations
 
+### Runtime Code Generation (Eval/Compile)
+
+The VM supports dynamic code generation through `eval` and `compile` primitives:
+
+**`(eval "code")`** - Parse, compile, and execute code string at runtime:
+```lisp
+(eval "(+ 1 2)")              ; => 3
+(eval "(* (+ 2 3) 4)")        ; => 20
+(eval "(define-var x 100)")   ; x persists after eval
+```
+
+**`(compile "code")`** - Compile code string to callable function, returns address:
+```lisp
+(define-var f (compile "(* 6 7)"))
+(funcall f)                    ; => 42
+
+; Multiple compiled functions
+(define-var add5 (compile "(+ 5 10)"))
+(define-var mul3 (compile "(* 3 4)"))
+(+ (funcall add5) (funcall mul3))  ; => 27
+```
+
+**Implementation:**
+- `EVAL` opcode (54): Compiles string, executes inline, returns result
+- `COMPILE` opcode (55): Compiles string, returns code address for later `funcall`
+- Uses `EvalContext` to share symbol table and address allocators
+- Compiled code ends with `RET 0` for proper return to caller
+- Symbols defined in eval'd code persist in the global symbol table
+
+**Testing:**
+```bash
+make eval    # Run eval/compile tests (8 tests)
+```
+
 ## File Organization
 
 ### Core VM Components
@@ -281,6 +317,7 @@ vm.restore(snapshot);             // Restore state
 - `src/lisp_compiler.hpp` - Lisp→bytecode compiler with scoping, functions, loops
 - `src/microcode.hpp` - Microcode definition and compilation system
 - `src/symbol_table.hpp` - Symbol table for tracking variables and functions
+- `src/eval_context.hpp` - Context for runtime eval/compile operations
 
 ### Main Entry Points
 - `src/main.cpp` - Interactive persistent REPL for Lisp expressions
@@ -322,6 +359,9 @@ vm.restore(snapshot);             // Restore state
 ### Debug
 `PRINT`, `PRINT_STR`, `HALT`
 
+### Metaprogramming
+`EVAL`, `COMPILE`
+
 ## Lisp Language Features
 
 ### Comments
@@ -344,10 +384,11 @@ Line comments start with `;` and continue to end of line:
 - Control: `(if cond then else)`, `(do expr1 expr2 ...)` (sequential, returns last)
 - Loops: `(while cond body...)`, `(for (var start end) body...)`
 - Variables: `(define-var name value)`, `(set name value)`, `(let ((var val)...) body...)`
-- Functions: `(define-func (name params...) body)`
+- Functions: `(define-func (name params...) body)`, `(funcall addr args...)`
 - Memory: `(peek addr)`, `(poke addr value)`
 - Debug: `(print expr)`, `(print-string expr)`
 - Symbols: `(symbol-count)`, `(symbol-bound? (quote name))`, `(symbol-value (quote name))`, `(symbol-set! (quote name) value)`, `(symbol-address (quote name))`
+- Metaprogramming: `(eval "code")`, `(compile "code")`
 
 ### Variable Scoping
 - Lexical scoping with nested environments

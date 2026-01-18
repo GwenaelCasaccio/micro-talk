@@ -399,6 +399,20 @@ class LispCompiler {
                 } else if (op == "symbol-set!") {
                     // (symbol-set! 'name value) -> set variable value
                     compile_symbol_set(items);
+                }
+                // Runtime code generation
+                else if (op == "eval") {
+                    // (eval string-expr) - Compile and execute string at runtime
+                    if (items.size() != 2)
+                        throw std::runtime_error("eval requires exactly 1 argument");
+                    compile_expr(items[1]); // Push string address
+                    emit_opcode(Opcode::EVAL);
+                } else if (op == "compile") {
+                    // (compile string-expr) - Compile string to callable function, return address
+                    if (items.size() != 2)
+                        throw std::runtime_error("compile requires exactly 1 argument");
+                    compile_expr(items[1]); // Push string address
+                    emit_opcode(Opcode::COMPILE);
                 } else {
                     throw std::runtime_error("Unknown operator: " + op);
                 }
@@ -1083,6 +1097,37 @@ class LispCompiler {
         emit_opcode(Opcode::HALT);
 
         // Compile functions
+        compile_all_functions();
+
+        // Compile interrupt handlers
+        compile_all_interrupts();
+
+        // Patch function calls
+        patch_function_calls();
+
+        // Return program with bytecode and string data
+        CompiledProgram program;
+        program.bytecode = std::move(bytecode);
+        program.strings.reserve(string_table.size());
+        for (const auto& str_lit : string_table) {
+            program.strings.push_back({str_lit.content, str_lit.address});
+        }
+        return program;
+    }
+
+    // Compile an expression as a callable function (ends with RET instead of HALT)
+    // Used by runtime COMPILE opcode to create dynamically callable code
+    CompiledProgram compile_as_function(const ASTNodePtr& ast) {
+        bytecode.clear();
+        // Don't clear labels - preserve imported function addresses
+        label_refs.clear();
+
+        compile_expr(ast);
+        // End with RET 0 (no arguments) so this can be called via FUNCALL
+        emit_opcode(Opcode::RET);
+        emit(0);
+
+        // Compile any nested function definitions
         compile_all_functions();
 
         // Compile interrupt handlers

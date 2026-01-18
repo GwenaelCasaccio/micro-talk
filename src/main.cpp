@@ -1,3 +1,4 @@
+#include "eval_context.hpp"
 #include "lisp_compiler.hpp"
 #include "lisp_parser.hpp"
 #include "stack_vm.hpp"
@@ -16,6 +17,7 @@ struct REPLState {
     uint64_t next_var_address;
     uint64_t next_string_address;
     uint64_t next_code_address; // Track where to load next bytecode
+    EvalContext eval_ctx;       // Context for runtime eval/compile
 
     static constexpr uint64_t GLOBALS_BASE = 134217728;
     static constexpr uint64_t STRING_TABLE_START = GLOBALS_BASE;
@@ -23,7 +25,27 @@ struct REPLState {
 
     REPLState()
         : next_var_address(VAR_START), next_string_address(STRING_TABLE_START),
-          next_code_address(0) {}
+          next_code_address(0) {
+        // Initialize eval context
+        eval_ctx.symbols = &symbols;
+        eval_ctx.next_var_address = &next_var_address;
+        eval_ctx.next_string_address = &next_string_address;
+        eval_ctx.next_code_address = &next_code_address;
+
+        // Set up callback for EVAL opcode (compile with RET for execution)
+        eval_ctx.compile_for_eval = [this](StackVM& /*vm*/, const std::string& code) -> uint64_t {
+            return compile_code_for_call(code);
+        };
+
+        // Set up callback for COMPILE opcode (compile with RET for later funcall)
+        eval_ctx.compile_for_funcall = [this](StackVM& /*vm*/,
+                                              const std::string& code) -> uint64_t {
+            return compile_code_for_call(code);
+        };
+
+        // Set the eval context on the VM
+        vm.set_eval_context(&eval_ctx);
+    }
 
     void reset() {
         vm.reset();
@@ -31,6 +53,35 @@ struct REPLState {
         next_var_address = VAR_START;
         next_string_address = STRING_TABLE_START;
         next_code_address = 0;
+        // Re-establish eval context on VM after reset
+        vm.set_eval_context(&eval_ctx);
+    }
+
+    // Helper: compile code that can be called (ends with RET 0)
+    uint64_t compile_code_for_call(const std::string& code) {
+        LispParser parser(code);
+        auto ast = parser.parse();
+
+        LispCompiler compiler;
+        compiler.import_symbols(symbols);
+        compiler.set_next_var_address(next_var_address);
+        compiler.set_next_string_address(next_string_address);
+        compiler.set_code_base_address(next_code_address);
+
+        // Compile as function (ends with RET 0)
+        auto program = compiler.compile_as_function(ast);
+
+        uint64_t code_addr = next_code_address;
+        vm.load_program_at(program, code_addr);
+        compiler.write_strings_to_memory(vm);
+
+        // Update state with new symbols
+        symbols.merge(compiler.get_symbol_table());
+        next_var_address = compiler.get_next_var_address();
+        next_string_address = compiler.get_next_string_address();
+        next_code_address += program.bytecode.size();
+
+        return code_addr;
     }
 
     bool compile_and_execute(const std::string& source, bool verbose = false);
@@ -70,11 +121,16 @@ bool REPLState::compile_and_execute(const std::string& source, bool verbose) {
         vm.load_program_at(program, next_code_address);
         compiler.write_strings_to_memory(vm);
 
+        // Update next_code_address BEFORE execute so that any nested
+        // compile_for_eval calls don't overwrite the current program
+        uint64_t start_addr = next_code_address;
+        next_code_address += program.bytecode.size();
+
         // Set IP to start of this code block
-        vm.set_ip(next_code_address);
+        vm.set_ip(start_addr);
 
         if (verbose) {
-            std::cout << "Starting execution at IP=" << next_code_address << '\n';
+            std::cout << "Starting execution at IP=" << start_addr << '\n';
             std::cout << std::flush;
         }
 
@@ -85,7 +141,6 @@ bool REPLState::compile_and_execute(const std::string& source, bool verbose) {
         symbols.merge(compiler.get_symbol_table());
         next_var_address = compiler.get_next_var_address();
         next_string_address = compiler.get_next_string_address();
-        next_code_address += program.bytecode.size();
 
         // Print result
         std::cout << "=> " << static_cast<int64_t>(vm.get_top()) << '\n';

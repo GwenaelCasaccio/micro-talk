@@ -109,11 +109,12 @@ TOKENIZER_TRANSPILER := $(BUILD_DIR)/transpile_tokenizer
 ST_TOKENIZER := $(BUILD_DIR)/st_tokenizer_file
 MINIMAL_VM := $(BUILD_DIR)/minimal_vm_test
 DISASSEMBLER_TEST := $(BUILD_DIR)/test_disassembler
+EVAL_TEST := $(BUILD_DIR)/test_eval
 
 # All binaries (excluding optional/generated ones like ST_TOKENIZER)
 ALL_BINS := $(TARGET) $(UNIT_TEST_BINS) $(SMALLTALK_TEST_BINS) $(SMALLTALK) \
             $(TRANSPILER_DEMO) $(TOKENIZER_TRANSPILER) $(MINIMAL_VM) \
-            $(DISASSEMBLER_TEST)
+            $(DISASSEMBLER_TEST) $(EVAL_TEST)
 
 # Optional binaries (require generated source files)
 OPTIONAL_BINS := $(ST_TOKENIZER)
@@ -197,6 +198,11 @@ $(DISASSEMBLER_TEST): $(SRC_DIR)/test_disassembler.cpp $(COMPILER_DEPS) $(SRC_DI
 	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
 	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
+# Eval test (runtime code generation)
+$(EVAL_TEST): $(SRC_DIR)/test_eval.cpp $(COMPILER_DEPS) $(SRC_DIR)/eval_context.hpp | $(BUILD_DIR)
+	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
+	@$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
+
 # Minimal VM test
 $(BUILD_DIR)/minimal_vm_test: $(SRC_DIR)/minimal_vm_test.cpp $(VM_DEPS) | $(BUILD_DIR)
 	@echo "$(COLOR_BLUE)Compiling$(COLOR_RESET) $@"
@@ -266,7 +272,7 @@ $(BUILD_DIR)/st_test_%: $(TEST_DIR)/smalltalk/test_%.cpp $(COMPILER_DEPS) | $(BU
 # Test Execution Targets
 # ============================================================================
 
-.PHONY: run test simple vars lambda loops micro advanced smalltalk comments disasm symbol-table
+.PHONY: run test simple vars lambda loops micro advanced smalltalk comments disasm symbol-table eval
 
 run: $(TARGET)
 	@./$(TARGET)
@@ -325,6 +331,9 @@ comments: $(BUILD_DIR)/test_comments
 
 disasm: $(DISASSEMBLER_TEST)
 	@./$(DISASSEMBLER_TEST)
+
+eval: $(EVAL_TEST)
+	@./$(EVAL_TEST)
 
 # ============================================================================
 # Unit Test Suites
@@ -413,7 +422,7 @@ transpiler-demo: $(TRANSPILER_DEMO)
 	@./$(TRANSPILER_DEMO)
 
 # Integration tests
-integration-all: test vars lambda loops micro advanced smalltalk comments
+integration-all: test vars lambda loops micro advanced smalltalk comments eval
 	@echo ""
 	@echo "$(COLOR_GREEN)✓ All integration tests passed!$(COLOR_RESET)"
 

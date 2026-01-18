@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "compiled_program.hpp"
+#include "eval_context.hpp"
 #include "interrupt.hpp"
 #include "memory_layout.hpp"
 #include "opcodes.hpp"
@@ -61,6 +62,9 @@ class StackVM {
     bool profiling_enabled{false};
     std::array<uint64_t, 256> opcode_counts{0}; // Count execution of each opcode
     uint64_t total_instructions{0};             // Total instructions executed
+
+    // Runtime code generation support (for EVAL and COMPILE opcodes)
+    EvalContext* eval_ctx{nullptr};
 
     // Helper method to read packed strings from memory
     std::string read_packed_string(uint64_t addr) const {
@@ -210,10 +214,10 @@ class StackVM {
                 &&op_store_byte, &&op_load32,    &&op_store32, &&op_bp_load, &&op_bp_store,
                 &&op_print,      &&op_print_str, &&op_and,     &&op_or,      &&op_xor,
                 &&op_shl,        &&op_shr,       &&op_ashr,    &&op_cli,     &&op_sti,
-                &&op_signal_reg, &&op_abort,     &&op_funcall};
+                &&op_signal_reg, &&op_abort,     &&op_funcall, &&op_eval,    &&op_compile};
 
             const uint8_t opcode_idx = static_cast<uint8_t>(op);
-            if (opcode_idx >= 43) {
+            if (opcode_idx >= 45) {
                 throw VMException::UnknownOpcode(opcode_idx, ip - 1, sp, bp, hp);
             }
 
@@ -652,6 +656,53 @@ class StackVM {
 
             continue;
         }
+
+        op_eval: {
+            // EVAL: Pop string addr, compile, execute inline, push result
+            // Stack: [string_addr] -> [result]
+            if (!eval_ctx || !eval_ctx->compile_for_eval) {
+                throw std::runtime_error("EVAL: no eval context configured");
+            }
+
+            uint64_t str_addr = pop();
+            std::string code = read_packed_string(str_addr);
+
+            // Compile the code (ends with HALT)
+            uint64_t code_addr = eval_ctx->compile_for_eval(*this, code);
+
+            // Save current IP as return address
+            push(ip);
+
+            // Jump to compiled code
+            // Note: The compiled code ends with HALT, which will stop execution.
+            // The caller should handle this by saving/restoring state or use
+            // a recursive execute call.
+
+            // We use a different approach: compile code ending with RET 0 for eval
+            // and then call it like a function with no arguments
+            ip = code_addr;
+
+            continue;
+        }
+
+        op_compile: {
+            // COMPILE: Pop string addr, compile, push code address
+            // Stack: [string_addr] -> [code_addr]
+            if (!eval_ctx || !eval_ctx->compile_for_funcall) {
+                throw std::runtime_error("COMPILE: no eval context configured");
+            }
+
+            uint64_t str_addr = pop();
+            std::string code = read_packed_string(str_addr);
+
+            // Compile the code (ends with RET for funcall)
+            uint64_t code_addr = eval_ctx->compile_for_funcall(*this, code);
+
+            // Push the code address - caller can use funcall to invoke it
+            push(code_addr);
+
+            continue;
+        }
         }
 
         // Check if we stopped due to instruction limit
@@ -705,6 +756,14 @@ class StackVM {
     }
     [[nodiscard]] bool get_trace_mode() const {
         return trace_mode;
+    }
+
+    // Eval context for runtime code generation
+    void set_eval_context(EvalContext* ctx) {
+        eval_ctx = ctx;
+    }
+    [[nodiscard]] EvalContext* get_eval_context() const {
+        return eval_ctx;
     }
 
     // Execution limit control
