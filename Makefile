@@ -142,6 +142,7 @@ help:
 	@echo "  make              - Build all binaries"
 	@echo "  make clean        - Remove all build artifacts"
 	@echo "  make run          - Build and run main VM"
+	@echo "  make run-smalltalk - Load Smalltalk modules and run bootstrap"
 	@echo ""
 	@echo "$(COLOR_BOLD)Testing:$(COLOR_RESET)"
 	@echo "  make test-all     - Run all tests (unit + integration)"
@@ -272,7 +273,7 @@ $(BUILD_DIR)/st_test_%: $(TEST_DIR)/smalltalk/test_%.cpp $(COMPILER_DEPS) | $(BU
 # Test Execution Targets
 # ============================================================================
 
-.PHONY: run test simple vars lambda loops micro advanced smalltalk comments disasm symbol-table eval
+.PHONY: run run-smalltalk test simple vars lambda loops micro advanced smalltalk comments disasm symbol-table eval
 
 run: $(TARGET)
 	@./$(TARGET)
@@ -302,7 +303,7 @@ advanced: $(BUILD_DIR)/test_advanced
 smalltalk: $(BUILD_DIR)/test_smalltalk
 	@./$(BUILD_DIR)/test_smalltalk
 
-# Build combined smalltalk.lisp from modular sources
+# Smalltalk module files (in load order)
 SMALLTALK_MODULES := \
 	$(LISP_DIR)/smalltalk/00-runtime.lisp \
 	$(LISP_DIR)/smalltalk/01-symbol-table.lisp \
@@ -310,8 +311,15 @@ SMALLTALK_MODULES := \
 	$(LISP_DIR)/smalltalk/03-methods.lisp \
 	$(LISP_DIR)/smalltalk/04-tokenizer.lisp \
 	$(LISP_DIR)/smalltalk/05-parser.lisp \
-	$(LISP_DIR)/smalltalk/06-compiler.lisp
+	$(LISP_DIR)/smalltalk/06-compiler.lisp \
+	$(LISP_DIR)/smalltalk/07-bootstrap.lisp
 
+# Run Smalltalk by loading all modules and running bootstrap
+run-smalltalk: $(TARGET) $(SMALLTALK_MODULES)
+	@echo "$(COLOR_BLUE)=== Loading Smalltalk Modules ===$(COLOR_RESET)"
+	@./$(TARGET) $(SMALLTALK_MODULES) $(LISP_DIR)/smalltalk/run-bootstrap.lisp
+
+# Build combined smalltalk.lisp from modular sources (legacy)
 smalltalk-build: $(SMALLTALK_MODULES)
 	@echo "$(COLOR_BLUE)=== Building combined smalltalk.lisp ===$(COLOR_RESET)"
 	@$(LISP_DIR)/smalltalk/build.sh

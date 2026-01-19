@@ -3,6 +3,7 @@
 #include "lisp_parser.hpp"
 #include "stack_vm.hpp"
 #include "symbol_table.hpp"
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -351,16 +352,63 @@ void run_demo(REPLState& state) {
 // Main Entry Point
 // ============================================================================
 
-int main() {
-    REPLState state;
+// Load and execute a file, returns true on success
+bool load_file(REPLState& state, const std::string& filename, bool verbose = false) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error: Cannot open file: " << filename << '\n';
+        return false;
+    }
 
-    // Run the demo first
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string content = buffer.str();
+
+    if (verbose) {
+        std::cout << "Loading: " << filename << " (" << content.size() << " bytes)" << '\n';
+    }
+
+    return state.compile_and_execute(content, verbose);
+}
+
+int main(int argc, char* argv[]) {
+    REPLState state;
+    bool verbose = false;
+
+    // Check for flags and files
+    std::vector<std::string> files;
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "-v" || arg == "--verbose") {
+            verbose = true;
+        } else if (arg == "-h" || arg == "--help") {
+            std::cout << "Usage: " << argv[0] << " [options] [file1.lisp file2.lisp ...]" << '\n';
+            std::cout << "Options:" << '\n';
+            std::cout << "  -v, --verbose  Show bytecode during execution" << '\n';
+            std::cout << "  -h, --help     Show this help message" << '\n';
+            std::cout << '\n';
+            std::cout << "If no files are provided, runs interactive REPL." << '\n';
+            return 0;
+        } else {
+            files.push_back(arg);
+        }
+    }
+
+    // If files provided, execute them in order
+    if (!files.empty()) {
+        for (const auto& filename : files) {
+            if (!load_file(state, filename, verbose)) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    // No files - run demo and interactive REPL
     run_demo(state);
 
-    // Interactive REPL
     std::cout << "=== Interactive REPL (type ':help' for commands, 'quit' to exit) ===" << '\n';
     std::string line;
-    bool verbose = false;
 
     while (true) {
         std::cout << "> ";

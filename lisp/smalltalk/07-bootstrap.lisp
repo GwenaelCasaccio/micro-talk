@@ -95,4 +95,6 @@
       (print-string "=== Testing Method Lookup ===")
       (print-string "")
 
+      0))
+
   0)
